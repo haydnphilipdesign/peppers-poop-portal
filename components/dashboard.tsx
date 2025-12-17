@@ -3,7 +3,6 @@
 import { useUser } from '@/lib/user-context'
 import { useLogs } from '@/hooks/use-logs'
 import { WalkHistory } from './walk-history'
-import { DailyScoreboard } from './daily-scoreboard'
 import { LogWalkButton } from './log-walk-button'
 import { StreakCounter } from './streak-counter'
 import { Leaderboard } from './leaderboard'
@@ -19,6 +18,8 @@ export function Dashboard() {
         streak,
         weeklyPoints,
         addWalk,
+        deleteWalk,
+        updateWalk,
         isLoading,
         error
     } = useLogs()
@@ -26,17 +27,17 @@ export function Dashboard() {
     if (!user) return null
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-yellow-50 dark:from-zinc-900 dark:via-stone-900 dark:to-neutral-900">
+        <div className="min-h-screen bg-background">
             {/* Header */}
-            <header className="sticky top-0 z-50 backdrop-blur-lg bg-white/80 dark:bg-stone-900/80 border-b border-amber-200 dark:border-stone-800 shadow-sm">
+            <header className="sticky top-0 z-50 backdrop-blur-lg bg-background/80 border-b border-border shadow-sm">
                 <div className="max-w-lg mx-auto px-4 py-3 flex items-center justify-between">
                     <div className="flex items-center gap-3">
                         <span className="text-3xl">🐕</span>
                         <div>
-                            <h1 className="text-lg font-bold text-stone-800 dark:text-stone-100">
+                            <h1 className="text-lg font-bold text-foreground">
                                 Pepper&apos;s Portal
                             </h1>
-                            <p className="text-xs text-stone-500 dark:text-stone-400">
+                            <p className="text-xs text-muted-foreground">
                                 Walking as {user}
                             </p>
                         </div>
@@ -45,7 +46,6 @@ export function Dashboard() {
                         variant="ghost"
                         size="sm"
                         onClick={() => setUser(null)}
-                        className="text-stone-600 dark:text-stone-400 hover:text-amber-600 dark:hover:text-amber-400"
                     >
                         Switch User
                     </Button>
@@ -56,7 +56,7 @@ export function Dashboard() {
             <main className="max-w-lg mx-auto px-4 py-6 space-y-6">
                 {/* Error Message */}
                 {error && (
-                    <div className="p-4 rounded-xl bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 text-sm">
+                    <div className="p-4 rounded-xl bg-destructive/10 text-destructive text-sm border border-destructive/20">
                         ⚠️ {error}
                     </div>
                 )}
@@ -65,30 +65,25 @@ export function Dashboard() {
                 {isLoading && (
                     <div className="text-center py-8">
                         <div className="animate-spin text-4xl mb-2">🐕</div>
-                        <p className="text-stone-500 dark:text-stone-400">Loading...</p>
+                        <p className="text-muted-foreground">Loading...</p>
                     </div>
                 )}
 
-                {/* Walk History */}
+                {/* Walk History with integrated stats */}
                 <section>
-                    <WalkHistory walks={todayWalks} />
-                </section>
-
-                {/* Daily Scoreboard */}
-                <section>
-                    <h2 className="text-sm font-semibold text-stone-600 dark:text-stone-400 uppercase tracking-wide mb-3">
-                        📊 Daily Scoreboard
-                    </h2>
-                    <DailyScoreboard
+                    <WalkHistory
+                        walks={todayWalks}
                         poopCount={todayPoopCount}
                         peeCount={todayPeeCount}
                         walksCount={todayWalksCount}
+                        onDeleteWalk={deleteWalk}
+                        onUpdateWalk={updateWalk}
                     />
                 </section>
 
                 {/* Quick Log Button */}
                 <section>
-                    <h2 className="text-sm font-semibold text-stone-600 dark:text-stone-400 uppercase tracking-wide mb-3">
+                    <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">
                         🚀 Quick Log
                     </h2>
                     <LogWalkButton
@@ -109,7 +104,7 @@ export function Dashboard() {
                 </section>
 
                 {/* Footer */}
-                <footer className="text-center text-xs text-stone-400 dark:text-stone-600 pt-8 pb-4">
+                <footer className="text-center text-xs text-muted-foreground pt-8 pb-4">
                     Pepper&apos;s Poop Portal • Made with 💩 and ❤️
                 </footer>
             </main>

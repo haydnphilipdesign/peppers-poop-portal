@@ -1,11 +1,20 @@
 'use client'
 
+import { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
 import type { Walk } from '@/hooks/use-logs'
 import type { UserName } from '@/lib/database.types'
 
 interface WalkHistoryProps {
     walks: Walk[]
+    poopCount: number
+    peeCount: number
+    walksCount: number
+    poopGoal?: number
+    walksGoal?: number
+    onDeleteWalk: (walk: Walk) => Promise<void>
+    onUpdateWalk: (walk: Walk, updates: { poop: boolean; pee: boolean; userName: UserName; time: Date }) => Promise<void>
 }
 
 const userEmojis: Record<UserName, string> = {
@@ -15,22 +24,99 @@ const userEmojis: Record<UserName, string> = {
 }
 
 const userColors: Record<UserName, string> = {
-    Chris: 'bg-blue-100 dark:bg-blue-900/30 border-blue-200 dark:border-blue-800',
-    Debbie: 'bg-pink-100 dark:bg-pink-900/30 border-pink-200 dark:border-pink-800',
-    Haydn: 'bg-emerald-100 dark:bg-emerald-900/30 border-emerald-200 dark:border-emerald-800',
+    Chris: 'bg-blue-500/10 border-blue-500/20',
+    Debbie: 'bg-pink-500/10 border-pink-500/20',
+    Haydn: 'bg-emerald-500/10 border-emerald-500/20',
 }
 
-export function WalkHistory({ walks }: WalkHistoryProps) {
+const users: UserName[] = ['Chris', 'Debbie', 'Haydn']
+
+export function WalkHistory({
+    walks,
+    poopCount,
+    peeCount,
+    walksCount,
+    poopGoal = 3,
+    walksGoal = 5,
+    onDeleteWalk,
+    onUpdateWalk
+}: WalkHistoryProps) {
+    const [editingWalk, setEditingWalk] = useState<Walk | null>(null)
+    const [editPoop, setEditPoop] = useState(false)
+    const [editPee, setEditPee] = useState(false)
+    const [editUser, setEditUser] = useState<UserName>('Chris')
+    const [editTime, setEditTime] = useState('')
+    const [deletingWalkId, setDeletingWalkId] = useState<string | null>(null)
+
+    const poopGoalReached = poopCount >= poopGoal
+    const walksGoalReached = walksCount >= walksGoal
+
+    const handleStartEdit = (walk: Walk) => {
+        setEditingWalk(walk)
+        setEditPoop(walk.hasPoop)
+        setEditPee(walk.hasPee)
+        setEditUser(walk.userName)
+        // Format time for input (HH:MM)
+        const hours = walk.time.getHours().toString().padStart(2, '0')
+        const minutes = walk.time.getMinutes().toString().padStart(2, '0')
+        setEditTime(`${hours}:${minutes}`)
+    }
+
+    const handleSaveEdit = async () => {
+        if (!editingWalk || (!editPoop && !editPee)) return
+
+        const [hours, minutes] = editTime.split(':').map(Number)
+        const newTime = new Date(editingWalk.time)
+        newTime.setHours(hours, minutes, 0, 0)
+
+        await onUpdateWalk(editingWalk, {
+            poop: editPoop,
+            pee: editPee,
+            userName: editUser,
+            time: newTime
+        })
+        setEditingWalk(null)
+    }
+
+    const handleDelete = async (walk: Walk) => {
+        setDeletingWalkId(walk.id)
+        await onDeleteWalk(walk)
+        setDeletingWalkId(null)
+    }
+
+    // Stats bar component
+    const StatsBar = () => (
+        <div className="flex items-center gap-4 text-sm">
+            <div className={`flex items-center gap-1.5 px-2 py-1 rounded-lg ${walksGoalReached ? 'bg-green-500/20 text-green-400' : 'bg-muted text-muted-foreground'}`}>
+                <span>🦮</span>
+                <span className="font-semibold">{walksCount}</span>
+                <span className="opacity-60">/{walksGoal}</span>
+            </div>
+            <div className={`flex items-center gap-1.5 px-2 py-1 rounded-lg ${poopGoalReached ? 'bg-green-500/20 text-green-400' : 'bg-muted text-muted-foreground'}`}>
+                <span>💩</span>
+                <span className="font-semibold">{poopCount}</span>
+                <span className="opacity-60">/{poopGoal}</span>
+            </div>
+            <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-muted text-muted-foreground">
+                <span>💦</span>
+                <span className="font-semibold">{peeCount}</span>
+            </div>
+        </div>
+    )
+
     if (walks.length === 0) {
         return (
-            <Card className="bg-gradient-to-br from-stone-50 to-stone-100 dark:from-stone-900/40 dark:to-stone-800/40 border-stone-200 dark:border-stone-700 shadow-lg">
+            <Card>
                 <CardHeader className="pb-2">
-                    <CardTitle className="text-lg font-semibold text-stone-700 dark:text-stone-200 flex items-center gap-2">
-                        🦮 Today&apos;s Walk Log
-                    </CardTitle>
+                    <div className="flex items-center justify-between flex-wrap gap-2">
+                        <CardTitle className="text-lg font-semibold flex items-center gap-2">
+                            🦮 Today&apos;s Walk Log
+                        </CardTitle>
+                        <StatsBar />
+                    </div>
                 </CardHeader>
                 <CardContent>
-                    <p className="text-stone-500 dark:text-stone-400 text-center py-4">
+                    <p className="text-muted-foreground text-center py-4">
                         No walks yet today. Time to take Pepper out! 🐕
                     </p>
                 </CardContent>
@@ -39,38 +125,144 @@ export function WalkHistory({ walks }: WalkHistoryProps) {
     }
 
     return (
-        <Card className="bg-gradient-to-br from-stone-50 to-stone-100 dark:from-stone-900/40 dark:to-stone-800/40 border-stone-200 dark:border-stone-700 shadow-lg">
+        <Card>
             <CardHeader className="pb-2">
-                <CardTitle className="text-lg font-semibold text-stone-700 dark:text-stone-200 flex items-center gap-2">
-                    🦮 Today&apos;s Walk Log
-                </CardTitle>
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                    <CardTitle className="text-lg font-semibold flex items-center gap-2">
+                        🦮 Today&apos;s Walk Log
+                    </CardTitle>
+                    <StatsBar />
+                </div>
             </CardHeader>
             <CardContent className="space-y-2">
                 {walks.map((walk) => (
-                    <div
-                        key={walk.id}
-                        className={`flex items-center justify-between p-3 rounded-xl border ${userColors[walk.userName]} transition-all hover:scale-[1.01]`}
-                    >
-                        <div className="flex items-center gap-3">
-                            {/* Time */}
-                            <span className="text-sm font-mono font-medium text-stone-600 dark:text-stone-300 min-w-[70px]">
-                                {walk.timeFormatted}
-                            </span>
+                    <div key={walk.id}>
+                        {editingWalk?.id === walk.id ? (
+                            // Edit mode
+                            <div className="p-3 rounded-xl border border-primary/30 bg-primary/5 space-y-3">
+                                <div className="flex items-center justify-between">
+                                    <span className="text-sm font-medium">Edit Walk</span>
+                                    <button
+                                        onClick={() => setEditingWalk(null)}
+                                        className="text-muted-foreground hover:text-foreground transition-colors"
+                                    >
+                                        ✕
+                                    </button>
+                                </div>
 
-                            {/* User */}
-                            <div className="flex items-center gap-1.5">
-                                <span className="text-xl">{userEmojis[walk.userName]}</span>
-                                <span className="text-sm font-medium text-stone-700 dark:text-stone-200">
-                                    {walk.userName}
-                                </span>
+                                {/* Time picker */}
+                                <div className="flex items-center gap-2">
+                                    <label className="text-sm text-muted-foreground">Time:</label>
+                                    <input
+                                        type="time"
+                                        value={editTime}
+                                        onChange={(e) => setEditTime(e.target.value)}
+                                        className="px-2 py-1 rounded-md border border-input bg-background text-foreground text-sm focus:ring-2 focus:ring-ring"
+                                    />
+                                </div>
+
+                                {/* User selector */}
+                                <div className="flex items-center gap-2">
+                                    <label className="text-sm text-muted-foreground">Walker:</label>
+                                    <div className="flex gap-1">
+                                        {users.map(user => (
+                                            <button
+                                                key={user}
+                                                onClick={() => setEditUser(user)}
+                                                className={`px-2 py-1 rounded-md text-sm transition-all ${editUser === user
+                                                        ? 'bg-primary text-primary-foreground'
+                                                        : 'bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+                                                    }`}
+                                            >
+                                                {userEmojis[user]} {user}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {/* Poop/Pee toggles */}
+                                <div className="flex items-center gap-3">
+                                    <label className="text-sm text-muted-foreground">What she did:</label>
+                                    <button
+                                        onClick={() => setEditPoop(!editPoop)}
+                                        className={`px-3 py-1.5 rounded-lg text-lg transition-all ${editPoop
+                                                ? 'bg-amber-500/30 shadow-md scale-105 ring-2 ring-amber-500/50'
+                                                : 'bg-muted opacity-50 hover:opacity-75'
+                                            }`}
+                                    >
+                                        💩
+                                    </button>
+                                    <button
+                                        onClick={() => setEditPee(!editPee)}
+                                        className={`px-3 py-1.5 rounded-lg text-lg transition-all ${editPee
+                                                ? 'bg-blue-500/30 shadow-md scale-105 ring-2 ring-blue-500/50'
+                                                : 'bg-muted opacity-50 hover:opacity-75'
+                                            }`}
+                                    >
+                                        💦
+                                    </button>
+                                </div>
+
+                                {/* Save button */}
+                                <div className="flex gap-2 pt-1">
+                                    <Button
+                                        onClick={handleSaveEdit}
+                                        disabled={!editPoop && !editPee}
+                                        className="flex-1"
+                                        size="sm"
+                                    >
+                                        Save Changes
+                                    </Button>
+                                </div>
                             </div>
-                        </div>
+                        ) : (
+                            // View mode
+                            <div
+                                className={`flex items-center justify-between p-3 rounded-xl border ${userColors[walk.userName]} transition-all hover:scale-[1.01] group`}
+                            >
+                                <div className="flex items-center gap-3">
+                                    {/* Time */}
+                                    <span className="text-sm font-mono font-medium text-muted-foreground min-w-[70px]">
+                                        {walk.timeFormatted}
+                                    </span>
 
-                        {/* What Pepper did */}
-                        <div className="flex items-center gap-1 text-2xl">
-                            {walk.hasPoop && <span title="Poop">💩</span>}
-                            {walk.hasPee && <span title="Pee">💦</span>}
-                        </div>
+                                    {/* User */}
+                                    <div className="flex items-center gap-1.5">
+                                        <span className="text-xl">{userEmojis[walk.userName]}</span>
+                                        <span className="text-sm font-medium text-foreground">
+                                            {walk.userName}
+                                        </span>
+                                    </div>
+                                </div>
+
+                                <div className="flex items-center gap-2">
+                                    {/* What Pepper did */}
+                                    <div className="flex items-center gap-1 text-2xl">
+                                        {walk.hasPoop && <span title="Poop">💩</span>}
+                                        {walk.hasPee && <span title="Pee">💦</span>}
+                                    </div>
+
+                                    {/* Edit/Delete buttons - visible on hover */}
+                                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity ml-2">
+                                        <button
+                                            onClick={() => handleStartEdit(walk)}
+                                            className="p-1.5 rounded-lg bg-muted/80 hover:bg-primary/20 text-muted-foreground hover:text-foreground transition-colors"
+                                            title="Edit walk"
+                                        >
+                                            ✏️
+                                        </button>
+                                        <button
+                                            onClick={() => handleDelete(walk)}
+                                            disabled={deletingWalkId === walk.id}
+                                            className="p-1.5 rounded-lg bg-muted/80 hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-colors disabled:opacity-50"
+                                            title="Delete walk"
+                                        >
+                                            {deletingWalkId === walk.id ? '⏳' : '🗑️'}
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 ))}
             </CardContent>

@@ -24,6 +24,8 @@ interface UseLogsReturn {
     error: string | null
     addLog: (type: LogType, userName: UserName, createdAt?: Date) => Promise<void>
     addWalk: (options: { poop: boolean; pee: boolean; userName: UserName; createdAt?: Date }) => Promise<void>
+    deleteWalk: (walk: Walk) => Promise<void>
+    updateWalk: (walk: Walk, updates: { poop: boolean; pee: boolean; userName: UserName; time: Date }) => Promise<void>
     refetch: () => Promise<void>
     todayPoopCount: number
     todayPeeCount: number
@@ -160,6 +162,78 @@ export function useLogs(): UseLogsReturn {
         }
     }
 
+    // Delete a walk (removes all associated logs)
+    const deleteWalk = async (walk: Walk) => {
+        try {
+            const logIds = walk.logs.map(log => log.id)
+
+            // Optimistic update - remove from state immediately
+            setTodayLogs(prev => prev.filter(log => !logIds.includes(log.id)))
+            setWeeklyLogs(prev => prev.filter(log => !logIds.includes(log.id)))
+            setAllLogs(prev => prev.filter(log => !logIds.includes(log.id)))
+
+            // Delete from database
+            const { error } = await supabase
+                .from('logs')
+                .delete()
+                .in('id', logIds)
+
+            if (error) throw error
+
+            // Refetch to ensure consistency
+            await fetchLogs()
+        } catch (err) {
+            // Rollback on error by refetching
+            await fetchLogs()
+            const errorMessage = err instanceof Error ? err.message : 'Failed to delete walk'
+            setError(errorMessage)
+        }
+    }
+
+    // Update a walk (modify walker, time, poop/pee status)
+    const updateWalk = async (
+        walk: Walk,
+        updates: { poop: boolean; pee: boolean; userName: UserName; time: Date }
+    ) => {
+        try {
+            const logIds = walk.logs.map(log => log.id)
+
+            // Delete existing logs
+            const { error: deleteError } = await supabase
+                .from('logs')
+                .delete()
+                .in('id', logIds)
+
+            if (deleteError) throw deleteError
+
+            // Create new logs with updated values
+            const logsToAdd: LogType[] = []
+            if (updates.poop) logsToAdd.push('poop')
+            if (updates.pee) logsToAdd.push('pee')
+
+            for (const type of logsToAdd) {
+                const { error: insertError } = await supabase
+                    .from('logs')
+                    .insert({
+                        created_at: updates.time.toISOString(),
+                        type,
+                        user_name: updates.userName,
+                        notes: null,
+                    } as never)
+
+                if (insertError) throw insertError
+            }
+
+            // Refetch to get fresh data
+            await fetchLogs()
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : 'Failed to update walk'
+            setError(errorMessage)
+            await fetchLogs() // Ensure we have consistent state
+        }
+    }
+
+
     // Calculate today's counts
     const todayPoopCount = todayLogs.filter(log => log.type === 'poop').length
     const todayPeeCount = todayLogs.filter(log => log.type === 'pee').length
@@ -252,6 +326,8 @@ export function useLogs(): UseLogsReturn {
         error,
         addLog,
         addWalk,
+        deleteWalk,
+        updateWalk,
         refetch: fetchLogs,
         todayPoopCount,
         todayPeeCount,

@@ -91,14 +91,13 @@ export function LogWalkButton({ userName, todayPoopCount, onLogWalk }: LogWalkBu
 
     const hours = Array.from({ length: 24 }, (_, i) => i)
     const minutes = [0, 15, 30, 45]
-    const now = new Date()
 
     return (
         <>
             {/* Main Log Walk Button */}
             <Button
                 onClick={() => setDrawerOpen(true)}
-                className="w-full h-24 text-2xl font-bold bg-gradient-to-br from-green-500 via-emerald-500 to-teal-500 hover:from-green-600 hover:via-emerald-600 hover:to-teal-600 text-white shadow-xl hover:shadow-2xl transition-all duration-200 active:scale-95 rounded-3xl border-4 border-green-400/50"
+                className="w-full h-24 text-2xl font-bold bg-gradient-to-br from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white shadow-xl hover:shadow-2xl transition-all duration-200 active:scale-95 rounded-2xl border border-emerald-400/30"
             >
                 <div className="flex items-center gap-3">
                     <span className="text-4xl">🦮</span>
@@ -108,7 +107,7 @@ export function LogWalkButton({ userName, todayPoopCount, onLogWalk }: LogWalkBu
 
             {/* Drawer */}
             <Drawer open={drawerOpen} onOpenChange={setDrawerOpen}>
-                <DrawerContent className="bg-stone-50 dark:bg-stone-900">
+                <DrawerContent className="bg-background">
                     <div className="mx-auto w-full max-w-sm">
                         <DrawerHeader>
                             <DrawerTitle className="text-2xl text-center">
@@ -122,10 +121,10 @@ export function LogWalkButton({ userName, todayPoopCount, onLogWalk }: LogWalkBu
                         <div className="p-4 space-y-4">
                             {/* Time Picker (if shown) */}
                             {showTimePicker && (
-                                <div className="space-y-4 pb-4 border-b border-stone-200 dark:border-stone-700">
+                                <div className="space-y-4 pb-4 border-b border-border">
                                     {/* Day Selection */}
                                     <div>
-                                        <label className="text-sm font-medium text-stone-700 dark:text-stone-300 mb-2 block">
+                                        <label className="text-sm font-medium text-muted-foreground mb-2 block">
                                             Day
                                         </label>
                                         <div className="grid grid-cols-2 gap-3">
@@ -148,14 +147,14 @@ export function LogWalkButton({ userName, todayPoopCount, onLogWalk }: LogWalkBu
 
                                     {/* Time Selection */}
                                     <div>
-                                        <label className="text-sm font-medium text-stone-700 dark:text-stone-300 mb-2 block">
+                                        <label className="text-sm font-medium text-muted-foreground mb-2 block">
                                             Time
                                         </label>
                                         <div className="grid grid-cols-2 gap-3">
                                             <select
                                                 value={hour}
                                                 onChange={(e) => setHour(parseInt(e.target.value))}
-                                                className="h-11 rounded-xl border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-800 px-4 text-lg font-medium focus:outline-none focus:ring-2 focus:ring-green-500"
+                                                className="h-11 rounded-xl border border-input bg-background px-4 text-lg font-medium focus:outline-none focus:ring-2 focus:ring-ring"
                                             >
                                                 {hours.map((h) => (
                                                     <option key={h} value={h}>
@@ -166,7 +165,7 @@ export function LogWalkButton({ userName, todayPoopCount, onLogWalk }: LogWalkBu
                                             <select
                                                 value={minute}
                                                 onChange={(e) => setMinute(parseInt(e.target.value))}
-                                                className="h-11 rounded-xl border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-800 px-4 text-lg font-medium focus:outline-none focus:ring-2 focus:ring-green-500"
+                                                className="h-11 rounded-xl border border-input bg-background px-4 text-lg font-medium focus:outline-none focus:ring-2 focus:ring-ring"
                                             >
                                                 {minutes.map((m) => (
                                                     <option key={m} value={m}>
@@ -178,8 +177,8 @@ export function LogWalkButton({ userName, todayPoopCount, onLogWalk }: LogWalkBu
                                     </div>
 
                                     {/* Preview */}
-                                    <div className="text-center p-3 rounded-xl bg-green-100 dark:bg-green-900/30 text-sm">
-                                        <span className="text-green-700 dark:text-green-300">
+                                    <div className="text-center p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-sm">
+                                        <span className="text-emerald-400">
                                             Logging walk at{' '}
                                             <strong>
                                                 {format(
@@ -203,7 +202,7 @@ export function LogWalkButton({ userName, todayPoopCount, onLogWalk }: LogWalkBu
                                 <Button
                                     onClick={() => showTimePicker ? handleTimePickerLog('poop') : handleQuickLog('poop')}
                                     disabled={isLogging}
-                                    className="h-24 flex-col gap-1 bg-gradient-to-br from-amber-400 to-orange-500 hover:from-amber-500 hover:to-orange-600 text-white rounded-2xl text-lg font-bold shadow-lg"
+                                    className="h-24 flex-col gap-1 bg-gradient-to-br from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-white rounded-2xl text-lg font-bold shadow-lg border border-amber-400/30"
                                 >
                                     <span className="text-3xl">💩</span>
                                     <span>Poop</span>
@@ -211,7 +210,7 @@ export function LogWalkButton({ userName, todayPoopCount, onLogWalk }: LogWalkBu
                                 <Button
                                     onClick={() => showTimePicker ? handleTimePickerLog('pee') : handleQuickLog('pee')}
                                     disabled={isLogging}
-                                    className="h-24 flex-col gap-1 bg-gradient-to-br from-blue-400 to-cyan-500 hover:from-blue-500 hover:to-cyan-600 text-white rounded-2xl text-lg font-bold shadow-lg"
+                                    className="h-24 flex-col gap-1 bg-gradient-to-br from-blue-500 to-cyan-600 hover:from-blue-400 hover:to-cyan-500 text-white rounded-2xl text-lg font-bold shadow-lg border border-blue-400/30"
                                 >
                                     <span className="text-3xl">💦</span>
                                     <span>Pee</span>
@@ -219,7 +218,7 @@ export function LogWalkButton({ userName, todayPoopCount, onLogWalk }: LogWalkBu
                                 <Button
                                     onClick={() => showTimePicker ? handleTimePickerLog('both') : handleQuickLog('both')}
                                     disabled={isLogging}
-                                    className="h-24 flex-col gap-1 bg-gradient-to-br from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white rounded-2xl text-lg font-bold shadow-lg"
+                                    className="h-24 flex-col gap-1 bg-gradient-to-br from-purple-500 to-pink-600 hover:from-purple-400 hover:to-pink-500 text-white rounded-2xl text-lg font-bold shadow-lg border border-purple-400/30"
                                 >
                                     <span className="text-3xl">💩💦</span>
                                     <span>Both</span>
@@ -231,7 +230,7 @@ export function LogWalkButton({ userName, todayPoopCount, onLogWalk }: LogWalkBu
                                 <div className="text-center pt-2">
                                     <button
                                         onClick={() => setShowTimePicker(true)}
-                                        className="text-sm text-stone-500 dark:text-stone-400 hover:text-green-600 dark:hover:text-green-400 underline underline-offset-4 transition-colors"
+                                        className="text-sm text-muted-foreground hover:text-emerald-400 underline underline-offset-4 transition-colors"
                                     >
                                         ⏰ Log for earlier?
                                     </button>
