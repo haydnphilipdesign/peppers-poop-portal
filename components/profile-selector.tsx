@@ -16,12 +16,12 @@ export function ProfileSelector() {
         <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-amber-50 via-orange-50 to-yellow-50 dark:from-zinc-900 dark:via-stone-900 dark:to-neutral-900 px-4">
             {/* Header */}
             <div className="text-center mb-12">
-                <div className="text-6xl mb-4">🐕💩</div>
+                <div className="text-6xl mb-4">🐕</div>
                 <h1 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-amber-600 to-orange-600 bg-clip-text text-transparent">
-                    Pepper&apos;s Poop Portal
+                    Pepper&apos;s Portal
                 </h1>
                 <p className="text-lg text-stone-600 dark:text-stone-400 mt-2">
-                    Who&apos;s taking Pepper out?
+                    Who&apos;s helping Pepper today?
                 </p>
             </div>
 
