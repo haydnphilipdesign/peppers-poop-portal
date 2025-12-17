@@ -111,7 +111,10 @@ export function useLogs(): UseLogsReturn {
                     notes: null,
                 } as never)
 
-            if (error) throw error
+            if (error) {
+                console.error('Supabase insert error:', error)
+                throw new Error(`${error.message} (Code: ${error.code}, Details: ${error.details})`)
+            }
 
             // Refetch to get the real data
             await fetchLogs()
@@ -122,7 +125,9 @@ export function useLogs(): UseLogsReturn {
             }
             setWeeklyLogs(prev => prev.filter(log => log.id !== optimisticLog.id))
             setAllLogs(prev => prev.filter(log => log.id !== optimisticLog.id))
-            setError(err instanceof Error ? err.message : 'Failed to add log')
+            const errorMessage = err instanceof Error ? err.message : 'Failed to add log'
+            console.error('Add log error:', errorMessage)
+            setError(errorMessage)
         }
     }
 
