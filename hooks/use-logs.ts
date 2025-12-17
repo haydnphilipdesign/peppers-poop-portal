@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { supabase } from '@/lib/supabase'
-import type { Log, LogType, UserName } from '@/lib/database.types'
+import type { Log, LogType, UserName, Activity } from '@/lib/database.types'
 import { startOfDay, endOfDay, startOfWeek, endOfWeek, subDays, isSameDay, format } from 'date-fns'
 
 // A walk is a group of logs within 30 minutes of each other
@@ -37,6 +37,7 @@ interface UseLogsReturn {
 export function useLogs(): UseLogsReturn {
     const [todayLogs, setTodayLogs] = useState<Log[]>([])
     const [weeklyLogs, setWeeklyLogs] = useState<Log[]>([])
+    const [weeklyActivities, setWeeklyActivities] = useState<Activity[]>([])
     const [allLogs, setAllLogs] = useState<Log[]>([])
     const [isLoading, setIsLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
@@ -80,8 +81,18 @@ export function useLogs(): UseLogsReturn {
 
             if (allError) throw allError
 
+            // Fetch this week's activities for points
+            const { data: weekActivitiesData, error: weekActivitiesError } = await supabase
+                .from('activities')
+                .select('*')
+                .gte('created_at', weekStart.toISOString())
+                .lte('created_at', weekEnd.toISOString())
+
+            if (weekActivitiesError) throw weekActivitiesError
+
             setTodayLogs(todayData || [])
             setWeeklyLogs(weekData || [])
+            setWeeklyActivities(weekActivitiesData || [])
             setAllLogs(allData || [])
             setError(null)
         } catch (err) {
@@ -270,16 +281,23 @@ export function useLogs(): UseLogsReturn {
         return streak
     }
 
-    // Calculate weekly points per user
+    // Calculate weekly points per user (logs + activities)
     const weeklyPoints: Record<UserName, number> = {
         Chris: 0,
         Debbie: 0,
         Haydn: 0,
     }
 
+    // Add points from walk logs
     weeklyLogs.forEach(log => {
         const points = log.type === 'poop' ? 10 : 5
         weeklyPoints[log.user_name] += points
+    })
+
+    // Add points from activities (assigned_to gets the points)
+    weeklyActivities.forEach(activity => {
+        const points = 5 // toys and dinner are 5 points each
+        weeklyPoints[activity.assigned_to] += points
     })
 
     // Calculate today's walks (group logs within 30 minutes as same walk)

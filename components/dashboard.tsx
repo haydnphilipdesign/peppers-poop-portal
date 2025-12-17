@@ -6,6 +6,9 @@ import { WalkHistory } from './walk-history'
 import { LogWalkButton } from './log-walk-button'
 import { StreakCounter } from './streak-counter'
 import { Leaderboard } from './leaderboard'
+import { DailyRoutines } from './daily-routines'
+import { RemindersBanner } from './reminders-banner'
+import { ReminderManager } from './reminder-manager'
 import { Button } from '@/components/ui/button'
 
 export function Dashboard() {
@@ -69,6 +72,9 @@ export function Dashboard() {
                     </div>
                 )}
 
+                {/* Important Reminders Banner */}
+                <RemindersBanner />
+
                 {/* Walk History with integrated stats */}
                 <section>
                     <WalkHistory
@@ -93,6 +99,12 @@ export function Dashboard() {
                     />
                 </section>
 
+                {/* Daily Routines */}
+                <DailyRoutines />
+
+                {/* Care Schedule */}
+                <ReminderManager />
+
                 {/* Streak Counter */}
                 <section>
                     <StreakCounter streak={streak} />
@@ -103,9 +115,8 @@ export function Dashboard() {
                     <Leaderboard weeklyPoints={weeklyPoints} />
                 </section>
 
-                {/* Footer */}
                 <footer className="text-center text-xs text-muted-foreground pt-8 pb-4">
-                    Pepper&apos;s Poop Portal • Made with 💩 and ❤️
+                    Pepper&apos;s Portal • Made with 🐕 and ❤️
                 </footer>
             </main>
         </div>

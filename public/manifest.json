@@ -1,7 +1,7 @@
 {
-    "name": "Pepper's Poop Portal",
+    "name": "Pepper's Portal",
     "short_name": "Pepper",
-    "description": "Track Pepper's bathroom breaks with gamification and love!",
+    "description": "Track Pepper's walks, routines, and care with gamification!",
     "start_url": "/",
     "display": "standalone",
     "background_color": "#fffbeb",

@@ -15,8 +15,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Pepper's Poop Portal",
-  description: "Track Pepper's bathroom breaks with gamification and love! 🐕💩",
+  title: "Pepper's Portal",
+  description: "Track Pepper's walks, routines, and care with gamification and love! 🐕",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
