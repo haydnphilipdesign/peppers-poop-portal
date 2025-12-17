@@ -56,11 +56,8 @@ export function LogWalkButton({ userName, todayPoopCount, onLogWalk }: LogWalkBu
 
             await onLogWalk({ poop, pee, userName })
 
-            // Check for 3rd poop celebration
-            const newPoopCount = poop ? todayPoopCount + 1 : todayPoopCount
-            if (poop && newPoopCount === 3) {
-                setTimeout(() => triggerConfetti(), 100)
-            }
+            // Celebrate every walk! 🎉
+            setTimeout(() => triggerConfetti(), 100)
 
             setDrawerOpen(false)
         } finally {
@@ -82,11 +79,8 @@ export function LogWalkButton({ userName, todayPoopCount, onLogWalk }: LogWalkBu
 
             await onLogWalk({ poop, pee, userName, createdAt: date })
 
-            // Check for 3rd poop celebration
-            const newPoopCount = poop ? todayPoopCount + 1 : todayPoopCount
-            if (poop && newPoopCount === 3 && selectedDay === 'today') {
-                setTimeout(() => triggerConfetti(), 100)
-            }
+            // Celebrate every walk! 🎉
+            setTimeout(() => triggerConfetti(), 100)
 
             setDrawerOpen(false)
             setShowTimePicker(false)
