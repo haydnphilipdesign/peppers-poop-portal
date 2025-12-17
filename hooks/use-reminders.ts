@@ -148,7 +148,7 @@ export function useReminders(): UseRemindersReturn {
         })
     }, [reminders, today])
 
-    // Simparica is due on the 21st of each month
+    // Simparica is due on the 20th of each month
     const isSimparicaDue = useMemo(() => {
         const currentDay = now.getDate()
         const currentMonth = now.getMonth()
@@ -164,8 +164,8 @@ export function useReminders(): UseRemindersReturn {
 
         if (thisMonthSimparica) return false
 
-        // It's due if it's the 21st or later
-        return currentDay >= 21
+        // It's due if it's the 20th or later
+        return currentDay >= 20
     }, [reminders, now])
 
     // Grooming is due if last grooming was 6+ weeks ago
