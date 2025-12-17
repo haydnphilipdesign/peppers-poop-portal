@@ -1,16 +1,29 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { supabase } from '@/lib/supabase'
 import type { Log, LogType, UserName } from '@/lib/database.types'
-import { startOfDay, endOfDay, startOfWeek, endOfWeek, subDays, isSameDay } from 'date-fns'
+import { startOfDay, endOfDay, startOfWeek, endOfWeek, subDays, isSameDay, format } from 'date-fns'
+
+// A walk is a group of logs within 30 minutes of each other
+export interface Walk {
+    id: string
+    time: Date
+    timeFormatted: string
+    userName: UserName
+    hasPoop: boolean
+    hasPee: boolean
+    logs: Log[]
+}
 
 interface UseLogsReturn {
     todayLogs: Log[]
     weeklyLogs: Log[]
+    todayWalks: Walk[]
     isLoading: boolean
     error: string | null
     addLog: (type: LogType, userName: UserName, createdAt?: Date) => Promise<void>
+    addWalk: (options: { poop: boolean; pee: boolean; userName: UserName; createdAt?: Date }) => Promise<void>
     refetch: () => Promise<void>
     todayPoopCount: number
     todayPeeCount: number
@@ -131,6 +144,22 @@ export function useLogs(): UseLogsReturn {
         }
     }
 
+    // Add a walk with poop and/or pee at the same time
+    const addWalk = async (options: { poop: boolean; pee: boolean; userName: UserName; createdAt?: Date }) => {
+        const { poop, pee, userName, createdAt } = options
+        const timestamp = createdAt || new Date()
+
+        // Add both logs with the same timestamp if needed
+        const logsToAdd: LogType[] = []
+        if (poop) logsToAdd.push('poop')
+        if (pee) logsToAdd.push('pee')
+
+        // Add logs sequentially with same timestamp
+        for (const type of logsToAdd) {
+            await addLog(type, userName, timestamp)
+        }
+    }
+
     // Calculate today's counts
     const todayPoopCount = todayLogs.filter(log => log.type === 'poop').length
     const todayPeeCount = todayLogs.filter(log => log.type === 'pee').length
@@ -180,44 +209,70 @@ export function useLogs(): UseLogsReturn {
     })
 
     // Calculate today's walks (group logs within 30 minutes as same walk)
-    const calculateWalks = (): number => {
-        if (todayLogs.length === 0) return 0
+    const todayWalks = useMemo((): Walk[] => {
+        if (todayLogs.length === 0) return []
 
         // Sort by time ascending
         const sortedLogs = [...todayLogs].sort(
             (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
         )
 
-        let walks = 1
-        let lastLogTime = new Date(sortedLogs[0].created_at).getTime()
+        const walks: Walk[] = []
+        let currentWalk: Log[] = [sortedLogs[0]]
 
         for (let i = 1; i < sortedLogs.length; i++) {
+            const prevLogTime = new Date(sortedLogs[i - 1].created_at).getTime()
             const currentLogTime = new Date(sortedLogs[i].created_at).getTime()
-            const diffMinutes = (currentLogTime - lastLogTime) / (1000 * 60)
+            const diffMinutes = (currentLogTime - prevLogTime) / (1000 * 60)
 
-            // If more than 30 minutes apart, it's a new walk
-            if (diffMinutes > 30) {
-                walks++
+            if (diffMinutes <= 30) {
+                // Same walk
+                currentWalk.push(sortedLogs[i])
+            } else {
+                // New walk - save current and start new
+                walks.push(createWalkFromLogs(currentWalk))
+                currentWalk = [sortedLogs[i]]
             }
-            lastLogTime = currentLogTime
         }
 
-        return walks
-    }
+        // Don't forget the last walk
+        walks.push(createWalkFromLogs(currentWalk))
 
-    const todayWalksCount = calculateWalks()
+        // Return in reverse chronological order (newest first)
+        return walks.reverse()
+    }, [todayLogs])
+
+    const todayWalksCount = todayWalks.length
 
     return {
         todayLogs,
         weeklyLogs,
+        todayWalks,
         isLoading,
         error,
         addLog,
+        addWalk,
         refetch: fetchLogs,
         todayPoopCount,
         todayPeeCount,
         todayWalksCount,
         streak: calculateStreak(),
         weeklyPoints,
+    }
+}
+
+// Helper to create a Walk object from a group of logs
+function createWalkFromLogs(logs: Log[]): Walk {
+    const firstLog = logs[0]
+    const walkTime = new Date(firstLog.created_at)
+
+    return {
+        id: `walk-${firstLog.id}`,
+        time: walkTime,
+        timeFormatted: format(walkTime, 'h:mm a'),
+        userName: firstLog.user_name,
+        hasPoop: logs.some(log => log.type === 'poop'),
+        hasPee: logs.some(log => log.type === 'pee'),
+        logs,
     }
 }

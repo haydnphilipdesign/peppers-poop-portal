@@ -2,8 +2,9 @@
 
 import { useUser } from '@/lib/user-context'
 import { useLogs } from '@/hooks/use-logs'
+import { WalkHistory } from './walk-history'
 import { DailyScoreboard } from './daily-scoreboard'
-import { LogButtons } from './log-buttons'
+import { LogWalkButton } from './log-walk-button'
 import { StreakCounter } from './streak-counter'
 import { Leaderboard } from './leaderboard'
 import { Button } from '@/components/ui/button'
@@ -14,9 +15,10 @@ export function Dashboard() {
         todayPoopCount,
         todayPeeCount,
         todayWalksCount,
+        todayWalks,
         streak,
         weeklyPoints,
-        addLog,
+        addWalk,
         isLoading,
         error
     } = useLogs()
@@ -67,6 +69,11 @@ export function Dashboard() {
                     </div>
                 )}
 
+                {/* Walk History */}
+                <section>
+                    <WalkHistory walks={todayWalks} />
+                </section>
+
                 {/* Daily Scoreboard */}
                 <section>
                     <h2 className="text-sm font-semibold text-stone-600 dark:text-stone-400 uppercase tracking-wide mb-3">
@@ -79,15 +86,15 @@ export function Dashboard() {
                     />
                 </section>
 
-                {/* Quick Log Buttons */}
+                {/* Quick Log Button */}
                 <section>
                     <h2 className="text-sm font-semibold text-stone-600 dark:text-stone-400 uppercase tracking-wide mb-3">
                         🚀 Quick Log
                     </h2>
-                    <LogButtons
+                    <LogWalkButton
                         userName={user}
                         todayPoopCount={todayPoopCount}
-                        onLog={addLog}
+                        onLogWalk={addWalk}
                     />
                 </section>
 
