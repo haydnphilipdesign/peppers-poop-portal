@@ -213,7 +213,7 @@ export function useAnalytics(): UseAnalyticsReturn {
 
             if (fetchError) throw fetchError
 
-            const logs = data || []
+            const logs: Log[] = (data || []) as Log[]
 
             // Calculate stats for each day
             const last30DaysInterval = eachDayOfInterval({
