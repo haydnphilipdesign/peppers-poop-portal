@@ -290,7 +290,7 @@ export function useLogs(): UseLogsReturn {
 
     // Add points from walk logs
     weeklyLogs.forEach(log => {
-        const points = log.type === 'poop' ? 10 : 5
+        const points = 5 // All activities earn 5 points for fairness
         weeklyPoints[log.user_name] += points
     })
 
