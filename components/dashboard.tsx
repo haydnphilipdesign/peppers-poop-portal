@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import { useUser } from '@/lib/user-context'
 import { useLogs } from '@/hooks/use-logs'
 import { WalkHistory } from './walk-history'
@@ -9,10 +10,16 @@ import { Leaderboard } from './leaderboard'
 import { DailyRoutines } from './daily-routines'
 import { RemindersBanner } from './reminders-banner'
 import { ReminderManager } from './reminder-manager'
+import { HistoryView } from './history-view'
+import { Analytics } from './analytics'
 import { Button } from '@/components/ui/button'
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
+
+type TabValue = 'today' | 'history' | 'analytics'
 
 export function Dashboard() {
     const { user, setUser } = useUser()
+    const [activeTab, setActiveTab] = useState<TabValue>('today')
     const {
         todayPoopCount,
         todayPeeCount,
@@ -57,63 +64,87 @@ export function Dashboard() {
 
             {/* Main Content */}
             <main className="max-w-lg mx-auto px-4 py-6 space-y-6">
-                {/* Error Message */}
-                {error && (
-                    <div className="p-4 rounded-xl bg-destructive/10 text-destructive text-sm border border-destructive/20">
-                        ⚠️ {error}
-                    </div>
-                )}
+                {/* Tab Navigation */}
+                <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabValue)}>
+                    <TabsList>
+                        <TabsTrigger value="today">🏠 Today</TabsTrigger>
+                        <TabsTrigger value="history">📅 History</TabsTrigger>
+                        <TabsTrigger value="analytics">📊 Analytics</TabsTrigger>
+                    </TabsList>
 
-                {/* Loading State */}
-                {isLoading && (
-                    <div className="text-center py-8">
-                        <div className="animate-spin text-4xl mb-2">🐕</div>
-                        <p className="text-muted-foreground">Loading...</p>
-                    </div>
-                )}
+                    {/* Today Tab */}
+                    <TabsContent value="today">
+                        <div className="space-y-6">
+                            {/* Error Message */}
+                            {error && (
+                                <div className="p-4 rounded-xl bg-destructive/10 text-destructive text-sm border border-destructive/20">
+                                    ⚠️ {error}
+                                </div>
+                            )}
 
-                {/* Important Reminders Banner */}
-                <RemindersBanner />
+                            {/* Loading State */}
+                            {isLoading && (
+                                <div className="text-center py-8">
+                                    <div className="animate-spin text-4xl mb-2">🐕</div>
+                                    <p className="text-muted-foreground">Loading...</p>
+                                </div>
+                            )}
 
-                {/* Walk History with integrated stats */}
-                <section>
-                    <WalkHistory
-                        walks={todayWalks}
-                        poopCount={todayPoopCount}
-                        peeCount={todayPeeCount}
-                        walksCount={todayWalksCount}
-                        onDeleteWalk={deleteWalk}
-                        onUpdateWalk={updateWalk}
-                    />
-                </section>
+                            {/* Important Reminders Banner */}
+                            <RemindersBanner />
 
-                {/* Quick Log Button */}
-                <section>
-                    <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">
-                        🚀 Quick Log
-                    </h2>
-                    <LogWalkButton
-                        userName={user}
-                        todayPoopCount={todayPoopCount}
-                        onLogWalk={addWalk}
-                    />
-                </section>
+                            {/* Walk History with integrated stats */}
+                            <section>
+                                <WalkHistory
+                                    walks={todayWalks}
+                                    poopCount={todayPoopCount}
+                                    peeCount={todayPeeCount}
+                                    walksCount={todayWalksCount}
+                                    onDeleteWalk={deleteWalk}
+                                    onUpdateWalk={updateWalk}
+                                />
+                            </section>
 
-                {/* Daily Routines */}
-                <DailyRoutines />
+                            {/* Quick Log Button */}
+                            <section>
+                                <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">
+                                    🚀 Quick Log
+                                </h2>
+                                <LogWalkButton
+                                    userName={user}
+                                    todayPoopCount={todayPoopCount}
+                                    onLogWalk={addWalk}
+                                />
+                            </section>
 
-                {/* Care Schedule */}
-                <ReminderManager />
+                            {/* Daily Routines */}
+                            <DailyRoutines />
 
-                {/* Streak Counter */}
-                <section>
-                    <StreakCounter streak={streak} />
-                </section>
+                            {/* Care Schedule */}
+                            <ReminderManager />
 
-                {/* Leaderboard */}
-                <section>
-                    <Leaderboard weeklyPoints={weeklyPoints} />
-                </section>
+                            {/* Streak Counter */}
+                            <section>
+                                <StreakCounter streak={streak} />
+                            </section>
+
+                            {/* Leaderboard */}
+                            <section>
+                                <Leaderboard weeklyPoints={weeklyPoints} />
+                            </section>
+                        </div>
+                    </TabsContent>
+
+                    {/* History Tab */}
+                    <TabsContent value="history">
+                        <HistoryView />
+                    </TabsContent>
+
+                    {/* Analytics Tab */}
+                    <TabsContent value="analytics">
+                        <Analytics />
+                    </TabsContent>
+                </Tabs>
 
                 <footer className="text-center text-xs text-muted-foreground pt-8 pb-4">
                     Pepper&apos;s Portal • Made with 🐕 and ❤️
