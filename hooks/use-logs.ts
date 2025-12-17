@@ -312,8 +312,8 @@ export function useLogs(): UseLogsReturn {
         // Don't forget the last walk
         walks.push(createWalkFromLogs(currentWalk))
 
-        // Return in reverse chronological order (newest first)
-        return walks.reverse()
+        // Return in chronological order (oldest first, newest at bottom)
+        return walks
     }, [todayLogs])
 
     const todayWalksCount = todayWalks.length
