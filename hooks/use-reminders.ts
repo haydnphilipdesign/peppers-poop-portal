@@ -54,6 +54,20 @@ export function useReminders(): UseRemindersReturn {
     }, [fetchReminders])
 
     const addReminder = async (type: ReminderType, dueDate: Date, notes?: string) => {
+        const formattedDueDate = format(dueDate, 'yyyy-MM-dd')
+
+        // Check if a reminder of this type already exists for this date
+        const existing = reminders.find(r =>
+            r.type === type &&
+            r.due_date === formattedDueDate &&
+            !r.completed_at
+        )
+
+        if (existing) {
+            console.log('Reminder already exists, skipping creation')
+            return
+        }
+
         const timestamp = new Date()
 
         // Optimistic update
@@ -61,7 +75,7 @@ export function useReminders(): UseRemindersReturn {
             id: `temp-${Date.now()}`,
             created_at: timestamp.toISOString(),
             type,
-            due_date: format(dueDate, 'yyyy-MM-dd'),
+            due_date: formattedDueDate,
             completed_at: null,
             completed_by: null,
             notes: notes || null,
@@ -75,7 +89,7 @@ export function useReminders(): UseRemindersReturn {
                 .insert({
                     created_at: timestamp.toISOString(),
                     type,
-                    due_date: format(dueDate, 'yyyy-MM-dd'),
+                    due_date: formattedDueDate,
                     notes: notes || null,
                 } as never)
 

@@ -21,6 +21,7 @@ export function ReminderManager() {
     const [expanded, setExpanded] = useState(false)
     const [logging, setLogging] = useState<ReminderType | null>(null)
     const [showAssignee, setShowAssignee] = useState<ReminderType | null>(null)
+    const [selectedDate, setSelectedDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'))
 
     const lastGrooming = getLastCompletedDate('grooming')
     const lastVet = getLastCompletedDate('vet')
@@ -30,11 +31,16 @@ export function ReminderManager() {
 
         setLogging(type)
         try {
-            const today = new Date()
-            await addReminder(type, today)
+            const dateToLog = new Date(selectedDate)
+            // Adjust for timezone offset to ensure the date is correct
+            const userTimezoneOffset = dateToLog.getTimezoneOffset() * 60000
+            const adjustedDate = new Date(dateToLog.getTime() + userTimezoneOffset)
+
+            await addReminder(type, adjustedDate)
         } finally {
             setLogging(null)
             setShowAssignee(null)
+            setSelectedDate(format(new Date(), 'yyyy-MM-dd')) // Reset directly to formatted string
         }
     }
 
@@ -76,23 +82,32 @@ export function ReminderManager() {
                             </div>
 
                             {showAssignee === 'grooming' ? (
-                                <div className="flex gap-1">
-                                    {USERS.map(u => (
-                                        <Button
-                                            key={u}
-                                            size="sm"
-                                            variant="outline"
-                                            onClick={() => handleLogReminder('grooming', u)}
-                                            disabled={logging === 'grooming'}
-                                            className="text-xs px-2 py-1 h-7"
-                                        >
-                                            {logging === 'grooming' ? (
-                                                <Loader2 className="w-3 h-3 animate-spin" />
-                                            ) : (
-                                                u
-                                            )}
-                                        </Button>
-                                    ))}
+                                <div className="flex flex-col gap-2 items-end">
+                                    <input
+                                        type="date"
+                                        value={selectedDate}
+                                        onChange={(e) => setSelectedDate(e.target.value)}
+                                        className="h-7 px-2 text-xs border rounded bg-background"
+                                        max={format(new Date(), 'yyyy-MM-dd')}
+                                    />
+                                    <div className="flex gap-1">
+                                        {USERS.map(u => (
+                                            <Button
+                                                key={u}
+                                                size="sm"
+                                                variant="outline"
+                                                onClick={() => handleLogReminder('grooming', u)}
+                                                disabled={logging === 'grooming'}
+                                                className="text-xs px-2 py-1 h-7"
+                                            >
+                                                {logging === 'grooming' ? (
+                                                    <Loader2 className="w-3 h-3 animate-spin" />
+                                                ) : (
+                                                    u
+                                                )}
+                                            </Button>
+                                        ))}
+                                    </div>
                                 </div>
                             ) : (
                                 <Button
@@ -127,23 +142,32 @@ export function ReminderManager() {
                             </div>
 
                             {showAssignee === 'vet' ? (
-                                <div className="flex gap-1">
-                                    {USERS.map(u => (
-                                        <Button
-                                            key={u}
-                                            size="sm"
-                                            variant="outline"
-                                            onClick={() => handleLogReminder('vet', u)}
-                                            disabled={logging === 'vet'}
-                                            className="text-xs px-2 py-1 h-7"
-                                        >
-                                            {logging === 'vet' ? (
-                                                <Loader2 className="w-3 h-3 animate-spin" />
-                                            ) : (
-                                                u
-                                            )}
-                                        </Button>
-                                    ))}
+                                <div className="flex flex-col gap-2 items-end">
+                                    <input
+                                        type="date"
+                                        value={selectedDate}
+                                        onChange={(e) => setSelectedDate(e.target.value)}
+                                        className="h-7 px-2 text-xs border rounded bg-background"
+                                        max={format(new Date(), 'yyyy-MM-dd')}
+                                    />
+                                    <div className="flex gap-1">
+                                        {USERS.map(u => (
+                                            <Button
+                                                key={u}
+                                                size="sm"
+                                                variant="outline"
+                                                onClick={() => handleLogReminder('vet', u)}
+                                                disabled={logging === 'vet'}
+                                                className="text-xs px-2 py-1 h-7"
+                                            >
+                                                {logging === 'vet' ? (
+                                                    <Loader2 className="w-3 h-3 animate-spin" />
+                                                ) : (
+                                                    u
+                                                )}
+                                            </Button>
+                                        ))}
+                                    </div>
                                 </div>
                             ) : (
                                 <Button
