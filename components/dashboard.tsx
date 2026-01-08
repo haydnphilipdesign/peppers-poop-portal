@@ -12,6 +12,7 @@ import { RemindersBanner } from './reminders-banner'
 import { ReminderManager } from './reminder-manager'
 import { HistoryView } from './history-view'
 import { Analytics } from './analytics'
+import { LastWalkCard } from './last-walk-card'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 
@@ -25,6 +26,7 @@ export function Dashboard() {
         todayPeeCount,
         todayWalksCount,
         todayWalks,
+        latestWalk,
         streak,
         weeklyPoints,
         addWalk,
@@ -64,6 +66,11 @@ export function Dashboard() {
 
             {/* Main Content */}
             <main className="max-w-lg mx-auto px-4 py-6 space-y-6">
+                {/* Latest Walk Card (Always visible) */}
+                {!isLoading && latestWalk && (
+                    <LastWalkCard walk={latestWalk} />
+                )}
+
                 {/* Tab Navigation */}
                 <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabValue)}>
                     <TabsList>

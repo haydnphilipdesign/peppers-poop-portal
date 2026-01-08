@@ -20,6 +20,7 @@ interface UseLogsReturn {
     todayLogs: Log[]
     weeklyLogs: Log[]
     todayWalks: Walk[]
+    latestWalk: Walk | null
     isLoading: boolean
     error: string | null
     addLog: (type: LogType, userName: UserName, createdAt?: Date) => Promise<void>
@@ -334,12 +335,50 @@ export function useLogs(): UseLogsReturn {
         return walks
     }, [todayLogs])
 
+    // Calculate the absolute latest walk from all logs
+    const latestWalk = useMemo((): Walk | null => {
+        if (allLogs.length === 0) return null
+
+        // allLogs is already sorted descending (newest first)
+        const latestLog = allLogs[0]
+        const walkLogs: Log[] = [latestLog]
+
+        // Look for other logs belonging to this walk (within 30 mins)
+        // Since sorted desc, we look at next elements
+        for (let i = 1; i < allLogs.length; i++) {
+            const currentLog = allLogs[i]
+            const prevLog = allLogs[i - 1] // This is actually OLDER in time than current in iteration... wait.
+            // allLogs is DESCENDING. 
+            // allLogs[0] is 10:00. allLogs[1] is 09:59.
+            // So time difference: allLogs[i-1].time - allLogs[i].time
+
+            const newerLogTime = new Date(prevLog.created_at).getTime()
+            const olderLogTime = new Date(currentLog.created_at).getTime()
+            const diffMinutes = (newerLogTime - olderLogTime) / (1000 * 60)
+
+            if (diffMinutes <= 30) {
+                walkLogs.push(currentLog)
+            } else {
+                break // Gap is too large, previous walk starts here
+            }
+        }
+
+        // createWalkFromLogs usually expects a list. 
+        // Our 'walkLogs' are currently Newest -> Oldest.
+        // It might be better to pass them logic agnostic or ensure createWalk is robust.
+        // createWalkFromLogs uses logs[0] as the "main" time.
+        // If we pass [10:00, 09:59], first log is 10:00. That seems correct for "latest walk time".
+
+        return createWalkFromLogs(walkLogs)
+    }, [allLogs])
+
     const todayWalksCount = todayWalks.length
 
     return {
         todayLogs,
         weeklyLogs,
         todayWalks,
+        latestWalk,
         isLoading,
         error,
         addLog,
@@ -357,16 +396,23 @@ export function useLogs(): UseLogsReturn {
 
 // Helper to create a Walk object from a group of logs
 function createWalkFromLogs(logs: Log[]): Walk {
-    const firstLog = logs[0]
-    const walkTime = new Date(firstLog.created_at)
+    // Determine the main timestamp for the walk.
+    // Usually the latest log in the group is best for "Last Walked At"
+    // OR the earliest log if we want "Walk Started At".
+    // Let's use the LATEST log time for "Last Walk", as that's when we finished/logged.
+
+    // sorting just to be safe
+    const sortedLogs = [...logs].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+    const latestLog = sortedLogs[0]
+    const walkTime = new Date(latestLog.created_at)
 
     return {
-        id: `walk-${firstLog.id}`,
+        id: `walk-${latestLog.id}`,
         time: walkTime,
         timeFormatted: format(walkTime, 'h:mm a'),
-        userName: firstLog.user_name,
+        userName: latestLog.user_name,
         hasPoop: logs.some(log => log.type === 'poop'),
         hasPee: logs.some(log => log.type === 'pee'),
-        logs,
+        logs: sortedLogs,
     }
 }
