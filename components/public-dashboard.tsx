@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { useReadOnly } from '@/lib/read-only-context'
 import { useLogs } from '@/hooks/use-logs'
 import { WalkHistory } from './walk-history'
-import { StreakCounter } from './streak-counter'
+
 import { Leaderboard } from './leaderboard'
 import { DailyRoutines } from './daily-routines'
 import { RemindersBanner } from './reminders-banner'
@@ -25,7 +25,7 @@ export function PublicDashboard() {
         todayWalksCount,
         todayWalks,
         latestWalk,
-        streak,
+
         weeklyPoints,
         isLoading,
         error
@@ -115,10 +115,7 @@ export function PublicDashboard() {
                             {/* Care Schedule */}
                             <ReminderManager />
 
-                            {/* Streak Counter */}
-                            <section>
-                                <StreakCounter streak={streak} />
-                            </section>
+
 
                             {/* Leaderboard */}
                             <section>
@@ -140,6 +137,10 @@ export function PublicDashboard() {
 
                 <footer className="text-center text-xs text-muted-foreground pt-8 pb-4">
                     Pepper&apos;s Portal • Made with 🐕 and ❤️
+                    <br />
+                    <a href="https://www.multimedium.dev" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+                        multimedium.dev
+                    </a>
                 </footer>
             </main>
         </div>

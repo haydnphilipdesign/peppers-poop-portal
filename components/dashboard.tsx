@@ -5,7 +5,7 @@ import { useUser } from '@/lib/user-context'
 import { useLogs } from '@/hooks/use-logs'
 import { WalkHistory } from './walk-history'
 import { LogWalkButton } from './log-walk-button'
-import { StreakCounter } from './streak-counter'
+
 import { Leaderboard } from './leaderboard'
 import { DailyRoutines } from './daily-routines'
 import { RemindersBanner } from './reminders-banner'
@@ -27,7 +27,7 @@ export function Dashboard() {
         todayWalksCount,
         todayWalks,
         latestWalk,
-        streak,
+
         weeklyPoints,
         addWalk,
         deleteWalk,
@@ -130,10 +130,7 @@ export function Dashboard() {
                             {/* Care Schedule */}
                             <ReminderManager />
 
-                            {/* Streak Counter */}
-                            <section>
-                                <StreakCounter streak={streak} />
-                            </section>
+
 
                             {/* Leaderboard */}
                             <section>
@@ -155,6 +152,10 @@ export function Dashboard() {
 
                 <footer className="text-center text-xs text-muted-foreground pt-8 pb-4">
                     Pepper&apos;s Portal • Made with 🐕 and ❤️
+                    <br />
+                    <a href="https://www.multimedium.dev" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+                        multimedium.dev
+                    </a>
                 </footer>
             </main>
         </div>
