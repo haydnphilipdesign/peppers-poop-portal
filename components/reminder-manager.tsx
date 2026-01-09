@@ -192,7 +192,7 @@ export function ReminderManager() {
                             <div>
                                 <p className="text-sm font-medium text-foreground">Simparica Trio</p>
                                 <p className="text-xs">
-                                    Due on the 21st of every month — you&apos;ll see a reminder when it&apos;s time
+                                    Due on the 20th of every month — you&apos;ll see a reminder when it&apos;s time
                                 </p>
                             </div>
                         </div>
