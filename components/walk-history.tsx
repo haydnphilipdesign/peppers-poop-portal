@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { useReadOnly } from '@/lib/read-only-context'
 import type { Walk } from '@/hooks/use-logs'
 import type { UserName } from '@/lib/database.types'
 
@@ -41,6 +42,7 @@ export function WalkHistory({
     onDeleteWalk,
     onUpdateWalk
 }: WalkHistoryProps) {
+    const isReadOnly = useReadOnly()
     const [editingWalk, setEditingWalk] = useState<Walk | null>(null)
     const [editPoop, setEditPoop] = useState(false)
     const [editPee, setEditPee] = useState(false)
@@ -170,8 +172,8 @@ export function WalkHistory({
                                                 key={user}
                                                 onClick={() => setEditUser(user)}
                                                 className={`px-2 py-1 rounded-md text-sm transition-all ${editUser === user
-                                                        ? 'bg-primary text-primary-foreground'
-                                                        : 'bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+                                                    ? 'bg-primary text-primary-foreground'
+                                                    : 'bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground'
                                                     }`}
                                             >
                                                 {userEmojis[user]} {user}
@@ -186,8 +188,8 @@ export function WalkHistory({
                                     <button
                                         onClick={() => setEditPoop(!editPoop)}
                                         className={`px-3 py-1.5 rounded-lg text-lg transition-all ${editPoop
-                                                ? 'bg-amber-500/30 shadow-md scale-105 ring-2 ring-amber-500/50'
-                                                : 'bg-muted opacity-50 hover:opacity-75'
+                                            ? 'bg-amber-500/30 shadow-md scale-105 ring-2 ring-amber-500/50'
+                                            : 'bg-muted opacity-50 hover:opacity-75'
                                             }`}
                                     >
                                         💩
@@ -195,8 +197,8 @@ export function WalkHistory({
                                     <button
                                         onClick={() => setEditPee(!editPee)}
                                         className={`px-3 py-1.5 rounded-lg text-lg transition-all ${editPee
-                                                ? 'bg-blue-500/30 shadow-md scale-105 ring-2 ring-blue-500/50'
-                                                : 'bg-muted opacity-50 hover:opacity-75'
+                                            ? 'bg-blue-500/30 shadow-md scale-105 ring-2 ring-blue-500/50'
+                                            : 'bg-muted opacity-50 hover:opacity-75'
                                             }`}
                                     >
                                         💦
@@ -242,24 +244,26 @@ export function WalkHistory({
                                         {walk.hasPee && <span title="Pee">💦</span>}
                                     </div>
 
-                                    {/* Edit/Delete buttons - visible on hover */}
-                                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity ml-2">
-                                        <button
-                                            onClick={() => handleStartEdit(walk)}
-                                            className="p-1.5 rounded-lg bg-muted/80 hover:bg-primary/20 text-muted-foreground hover:text-foreground transition-colors"
-                                            title="Edit walk"
-                                        >
-                                            ✏️
-                                        </button>
-                                        <button
-                                            onClick={() => handleDelete(walk)}
-                                            disabled={deletingWalkId === walk.id}
-                                            className="p-1.5 rounded-lg bg-muted/80 hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-colors disabled:opacity-50"
-                                            title="Delete walk"
-                                        >
-                                            {deletingWalkId === walk.id ? '⏳' : '🗑️'}
-                                        </button>
-                                    </div>
+                                    {/* Edit/Delete buttons - visible on hover, hidden in read-only mode */}
+                                    {!isReadOnly && (
+                                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity ml-2">
+                                            <button
+                                                onClick={() => handleStartEdit(walk)}
+                                                className="p-1.5 rounded-lg bg-muted/80 hover:bg-primary/20 text-muted-foreground hover:text-foreground transition-colors"
+                                                title="Edit walk"
+                                            >
+                                                ✏️
+                                            </button>
+                                            <button
+                                                onClick={() => handleDelete(walk)}
+                                                disabled={deletingWalkId === walk.id}
+                                                className="p-1.5 rounded-lg bg-muted/80 hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-colors disabled:opacity-50"
+                                                title="Delete walk"
+                                            >
+                                                {deletingWalkId === walk.id ? '⏳' : '🗑️'}
+                                            </button>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         )}

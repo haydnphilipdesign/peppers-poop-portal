@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useUser } from '@/lib/user-context'
+import { useReadOnly } from '@/lib/read-only-context'
 import { useReminders } from '@/hooks/use-reminders'
 import type { ReminderType, UserName } from '@/lib/database.types'
 import { Button } from '@/components/ui/button'
@@ -12,6 +13,7 @@ const USERS: UserName[] = ['Chris', 'Debbie', 'Haydn']
 
 export function ReminderManager() {
     const { user } = useUser()
+    const isReadOnly = useReadOnly()
     const {
         getLastCompletedDate,
         addReminder,
@@ -81,7 +83,7 @@ export function ReminderManager() {
                                 </div>
                             </div>
 
-                            {showAssignee === 'grooming' ? (
+                            {isReadOnly ? null : showAssignee === 'grooming' ? (
                                 <div className="flex flex-col gap-2 items-end">
                                     <input
                                         type="date"
@@ -141,7 +143,7 @@ export function ReminderManager() {
                                 </div>
                             </div>
 
-                            {showAssignee === 'vet' ? (
+                            {isReadOnly ? null : showAssignee === 'vet' ? (
                                 <div className="flex flex-col gap-2 items-end">
                                     <input
                                         type="date"

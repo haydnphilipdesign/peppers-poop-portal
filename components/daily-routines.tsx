@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useUser } from '@/lib/user-context'
+import { useReadOnly } from '@/lib/read-only-context'
 import { useActivities } from '@/hooks/use-activities'
 import type { ActivityType, UserName } from '@/lib/database.types'
 import { Button } from '@/components/ui/button'
@@ -11,6 +12,7 @@ const USERS: UserName[] = ['Chris', 'Debbie', 'Haydn']
 
 export function DailyRoutines() {
     const { user } = useUser()
+    const isReadOnly = useReadOnly()
     const {
         isToysFilled,
         isDinnerDone,
@@ -65,6 +67,8 @@ export function DailyRoutines() {
                                 <Check className="w-5 h-5" />
                                 <span className="text-sm font-medium">{toysFilledBy}</span>
                             </div>
+                        ) : isReadOnly ? (
+                            <span className="text-sm text-muted-foreground">Not done yet</span>
                         ) : showToysAssignee ? (
                             <div className="flex gap-1">
                                 {USERS.map(u => (
@@ -99,8 +103,8 @@ export function DailyRoutines() {
 
                 {/* Dinner */}
                 <div className={`rounded-xl border bg-card p-4 ${isDinnerTime && !isDinnerDone
-                        ? 'border-amber-500/50 bg-amber-500/5'
-                        : 'border-border'
+                    ? 'border-amber-500/50 bg-amber-500/5'
+                    : 'border-border'
                     }`}>
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
@@ -122,6 +126,8 @@ export function DailyRoutines() {
                                 <Check className="w-5 h-5" />
                                 <span className="text-sm font-medium">{dinnerDoneBy}</span>
                             </div>
+                        ) : isReadOnly ? (
+                            <span className="text-sm text-muted-foreground">Not done yet</span>
                         ) : showDinnerAssignee ? (
                             <div className="flex gap-1">
                                 {USERS.map(u => (
