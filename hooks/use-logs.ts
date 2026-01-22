@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { supabase } from '@/lib/supabase'
-import type { Log, LogType, UserName, Activity } from '@/lib/database.types'
+import type { Log, LogType, UserName, Activity, Reminder } from '@/lib/database.types'
 import { startOfDay, endOfDay, startOfWeek, endOfWeek, subDays, isSameDay, format } from 'date-fns'
 
 // A walk is a group of logs within 30 minutes of each other
@@ -39,6 +39,7 @@ export function useLogs(): UseLogsReturn {
     const [todayLogs, setTodayLogs] = useState<Log[]>([])
     const [weeklyLogs, setWeeklyLogs] = useState<Log[]>([])
     const [weeklyActivities, setWeeklyActivities] = useState<Activity[]>([])
+    const [weeklyReminders, setWeeklyReminders] = useState<Reminder[]>([])
     const [allLogs, setAllLogs] = useState<Log[]>([])
     const [isLoading, setIsLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
@@ -91,9 +92,20 @@ export function useLogs(): UseLogsReturn {
 
             if (weekActivitiesError) throw weekActivitiesError
 
+            // Fetch this week's completed reminders for points
+            const { data: weekRemindersData, error: weekRemindersError } = await supabase
+                .from('reminders')
+                .select('*')
+                .not('completed_at', 'is', null)
+                .gte('completed_at', weekStart.toISOString())
+                .lte('completed_at', weekEnd.toISOString())
+
+            if (weekRemindersError) throw weekRemindersError
+
             setTodayLogs(todayData || [])
             setWeeklyLogs(weekData || [])
             setWeeklyActivities(weekActivitiesData || [])
+            setWeeklyReminders(weekRemindersData || [])
             setAllLogs(allData || [])
             setError(null)
         } catch (err) {
@@ -105,6 +117,17 @@ export function useLogs(): UseLogsReturn {
 
     useEffect(() => {
         fetchLogs()
+    }, [fetchLogs])
+
+    useEffect(() => {
+        const handler = () => {
+            fetchLogs()
+        }
+
+        window.addEventListener('ppp:data-changed', handler)
+        return () => {
+            window.removeEventListener('ppp:data-changed', handler)
+        }
     }, [fetchLogs])
 
     const addLog = async (type: LogType, userName: UserName, createdAt?: Date) => {
@@ -282,7 +305,7 @@ export function useLogs(): UseLogsReturn {
         return streak
     }
 
-    // Calculate weekly points per user (logs + activities)
+    // Calculate weekly points per user (logs + activities + reminders)
     const weeklyPoints: Record<UserName, number> = {
         Chris: 0,
         Debbie: 0,
@@ -299,6 +322,13 @@ export function useLogs(): UseLogsReturn {
     weeklyActivities.forEach(activity => {
         const points = 5 // toys and dinner are 5 points each
         weeklyPoints[activity.assigned_to] += points
+    })
+
+    // Add points from completed reminders (completed_by gets the points)
+    weeklyReminders.forEach(reminder => {
+        if (!reminder.completed_by) return
+        const points = 5
+        weeklyPoints[reminder.completed_by] += points
     })
 
     // Calculate today's walks (group logs within 30 minutes as same walk)

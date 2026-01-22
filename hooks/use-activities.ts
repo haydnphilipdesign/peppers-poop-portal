@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
 import type { Activity, ActivityType, UserName } from '@/lib/database.types'
-import { startOfDay, endOfDay, isSameDay } from 'date-fns'
+import { startOfDay, endOfDay } from 'date-fns'
 
 interface UseActivitiesReturn {
     todayActivities: Activity[]
@@ -79,6 +79,7 @@ export function useActivities(): UseActivitiesReturn {
 
             // Refetch to get real data
             await fetchActivities()
+            window.dispatchEvent(new Event('ppp:data-changed'))
         } catch (err) {
             // Rollback
             setTodayActivities(prev => prev.filter(a => a.id !== optimisticActivity.id))

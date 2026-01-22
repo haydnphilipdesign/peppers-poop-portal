@@ -6,7 +6,7 @@ import { useReminders } from '@/hooks/use-reminders'
 import type { ReminderType, UserName } from '@/lib/database.types'
 import { Button } from '@/components/ui/button'
 import { AlertTriangle, Check, Loader2, X, Pill, Scissors, Stethoscope } from 'lucide-react'
-import { format, addWeeks } from 'date-fns'
+import { format } from 'date-fns'
 
 const USERS: UserName[] = ['Chris', 'Debbie', 'Haydn']
 
@@ -49,10 +49,8 @@ export function RemindersBanner() {
 
         setCompleting('simparica')
         try {
-            // Create a reminder for this month and mark it complete
             const today = new Date()
-            await addReminder('simparica', today)
-            // The reminder will be marked as completed when we refetch
+            await addReminder('simparica', today, undefined, completedBy)
         } finally {
             setCompleting(null)
             setShowAssignee(null)
@@ -65,7 +63,7 @@ export function RemindersBanner() {
         setCompleting('grooming')
         try {
             const today = new Date()
-            await addReminder('grooming', today)
+            await addReminder('grooming', today, undefined, completedBy)
         } finally {
             setCompleting(null)
             setShowAssignee(null)

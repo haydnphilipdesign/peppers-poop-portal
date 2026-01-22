@@ -6,7 +6,7 @@ import { useReadOnly } from '@/lib/read-only-context'
 import { useReminders } from '@/hooks/use-reminders'
 import type { ReminderType, UserName } from '@/lib/database.types'
 import { Button } from '@/components/ui/button'
-import { Calendar, Scissors, Stethoscope, Plus, Loader2, Check } from 'lucide-react'
+import { Calendar, Scissors, Stethoscope, Plus, Loader2 } from 'lucide-react'
 import { format, addWeeks } from 'date-fns'
 
 const USERS: UserName[] = ['Chris', 'Debbie', 'Haydn']
@@ -38,7 +38,10 @@ export function ReminderManager() {
             const userTimezoneOffset = dateToLog.getTimezoneOffset() * 60000
             const adjustedDate = new Date(dateToLog.getTime() + userTimezoneOffset)
 
-            await addReminder(type, adjustedDate)
+            const completedAt = new Date(adjustedDate)
+            completedAt.setHours(12, 0, 0, 0)
+
+            await addReminder(type, adjustedDate, undefined, assignedTo, completedAt)
         } finally {
             setLogging(null)
             setShowAssignee(null)
