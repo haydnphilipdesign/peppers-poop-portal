@@ -66,10 +66,10 @@ export function Analytics() {
                         <div className="text-xs text-muted-foreground">Avg Walks/Day</div>
                     </CardContent>
                 </Card>
-                <Card className="bg-gradient-to-br from-purple-500/10 to-pink-500/10 border-purple-500/20">
+                <Card className="bg-gradient-to-br from-amber-500/10 to-orange-500/10 border-amber-500/20">
                     <CardContent className="p-4 text-center">
                         <div className="text-3xl mb-1">💩</div>
-                        <div className="text-2xl font-bold text-purple-400">{analytics.averagePoopsPerDay.toFixed(1)}</div>
+                        <div className="text-2xl font-bold text-amber-500">{analytics.averagePoopsPerDay.toFixed(1)}</div>
                         <div className="text-xs text-muted-foreground">Avg Poops/Day</div>
                     </CardContent>
                 </Card>
@@ -191,17 +191,17 @@ export function Analytics() {
                             <div className="text-xs text-muted-foreground">Afternoon</div>
                             <div className="text-xs text-muted-foreground/60">12pm-5pm</div>
                         </div>
-                        <div className="text-center p-3 rounded-lg bg-gradient-to-b from-purple-500/10 to-indigo-500/10 border border-purple-500/20">
+                        <div className="text-center p-3 rounded-lg bg-gradient-to-b from-rose-500/10 to-orange-500/10 border border-rose-500/20">
                             <div className="text-2xl mb-1">🌆</div>
-                            <div className="text-lg font-bold text-purple-400">
+                            <div className="text-lg font-bold text-rose-500">
                                 {Math.round((analytics.timeOfDayDistribution.evening / totalTimeOfDay) * 100)}%
                             </div>
                             <div className="text-xs text-muted-foreground">Evening</div>
                             <div className="text-xs text-muted-foreground/60">5pm-9pm</div>
                         </div>
-                        <div className="text-center p-3 rounded-lg bg-gradient-to-b from-indigo-500/10 to-slate-500/10 border border-indigo-500/20">
+                        <div className="text-center p-3 rounded-lg bg-gradient-to-b from-slate-500/10 to-zinc-500/10 border border-slate-500/20">
                             <div className="text-2xl mb-1">🌙</div>
-                            <div className="text-lg font-bold text-indigo-400">
+                            <div className="text-lg font-bold text-slate-500">
                                 {Math.round((analytics.timeOfDayDistribution.night / totalTimeOfDay) * 100)}%
                             </div>
                             <div className="text-xs text-muted-foreground">Night</div>

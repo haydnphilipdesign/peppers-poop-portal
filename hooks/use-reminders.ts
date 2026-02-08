@@ -2,6 +2,12 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
+import { apiFetch } from '@/lib/api-client'
+import type {
+    ApiSuccessResponse,
+    ReminderCompleteRequest,
+    ReminderLogRequest,
+} from '@/lib/api-types'
 import type { Reminder, ReminderType, UserName } from '@/lib/database.types'
 import { startOfDay, addWeeks, isBefore, parseISO, format } from 'date-fns'
 
@@ -68,8 +74,6 @@ export function useReminders(): UseRemindersReturn {
                 await completeReminder(existing.id, completedBy, completedAt)
                 return
             }
-
-            console.log('Reminder already exists, skipping creation')
             return
         }
 
@@ -90,18 +94,16 @@ export function useReminders(): UseRemindersReturn {
         setReminders(prev => [optimisticReminder, ...prev])
 
         try {
-            const { error: insertError } = await supabase
-                .from('reminders')
-                .insert({
-                    created_at: timestamp.toISOString(),
+            await apiFetch<ApiSuccessResponse>('/api/reminders/log', {
+                method: 'POST',
+                body: JSON.stringify({
                     type,
-                    due_date: formattedDueDate,
-                    completed_at: completedTimestamp ? completedTimestamp.toISOString() : null,
-                    completed_by: completedBy || null,
-                    notes: notes || null,
-                } as never)
-
-            if (insertError) throw insertError
+                    dueDate: formattedDueDate,
+                    completedBy,
+                    completedAt: completedTimestamp ? completedTimestamp.toISOString() : undefined,
+                    notes: notes || undefined,
+                } satisfies ReminderLogRequest),
+            })
 
             await fetchReminders()
             window.dispatchEvent(new Event('ppp:data-changed'))
@@ -123,15 +125,14 @@ export function useReminders(): UseRemindersReturn {
         ))
 
         try {
-            const { error: updateError } = await supabase
-                .from('reminders')
-                .update({
-                    completed_at: timestamp.toISOString(),
-                    completed_by: completedBy,
-                })
-                .eq('id', id)
-
-            if (updateError) throw updateError
+            await apiFetch<ApiSuccessResponse>('/api/reminders/complete', {
+                method: 'POST',
+                body: JSON.stringify({
+                    id,
+                    completedBy,
+                    completedAt: timestamp.toISOString(),
+                } satisfies ReminderCompleteRequest),
+            })
 
             await fetchReminders()
             window.dispatchEvent(new Event('ppp:data-changed'))

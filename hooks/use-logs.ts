@@ -2,19 +2,17 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { supabase } from '@/lib/supabase'
+import { apiFetch } from '@/lib/api-client'
+import type { ApiSuccessResponse, WalkCreateRequest, WalkDeleteRequest, WalkUpdateRequest } from '@/lib/api-types'
 import type { Log, LogType, UserName, Activity, Reminder } from '@/lib/database.types'
-import { startOfDay, endOfDay, startOfWeek, endOfWeek, subDays, isSameDay, format } from 'date-fns'
-
-// A walk is a group of logs within 30 minutes of each other
-export interface Walk {
-    id: string
-    time: Date
-    timeFormatted: string
-    userName: UserName
-    hasPoop: boolean
-    hasPee: boolean
-    logs: Log[]
-}
+import {
+    calculatePoopStreak,
+    calculateWeeklyPoints,
+    getLatestWalkFromLogs,
+    groupLogsIntoWalks,
+    type Walk,
+} from '@/lib/domain/metrics'
+import { endOfDay, endOfWeek, startOfDay, startOfWeek, subDays } from 'date-fns'
 
 interface UseLogsReturn {
     todayLogs: Log[]
@@ -53,7 +51,6 @@ export function useLogs(): UseLogsReturn {
             const weekStart = startOfWeek(now, { weekStartsOn: 0 })
             const weekEnd = endOfWeek(now, { weekStartsOn: 0 })
 
-            // Fetch today's logs
             const { data: todayData, error: todayError } = await supabase
                 .from('logs')
                 .select('*')
@@ -63,7 +60,6 @@ export function useLogs(): UseLogsReturn {
 
             if (todayError) throw todayError
 
-            // Fetch this week's logs
             const { data: weekData, error: weekError } = await supabase
                 .from('logs')
                 .select('*')
@@ -73,7 +69,6 @@ export function useLogs(): UseLogsReturn {
 
             if (weekError) throw weekError
 
-            // Fetch all logs for streak calculation (last 30 days should be enough)
             const thirtyDaysAgo = subDays(now, 30)
             const { data: allData, error: allError } = await supabase
                 .from('logs')
@@ -83,7 +78,6 @@ export function useLogs(): UseLogsReturn {
 
             if (allError) throw allError
 
-            // Fetch this week's activities for points
             const { data: weekActivitiesData, error: weekActivitiesError } = await supabase
                 .from('activities')
                 .select('*')
@@ -92,7 +86,6 @@ export function useLogs(): UseLogsReturn {
 
             if (weekActivitiesError) throw weekActivitiesError
 
-            // Fetch this week's completed reminders for points
             const { data: weekRemindersData, error: weekRemindersError } = await supabase
                 .from('reminders')
                 .select('*')
@@ -116,12 +109,12 @@ export function useLogs(): UseLogsReturn {
     }, [])
 
     useEffect(() => {
-        fetchLogs()
+        void fetchLogs()
     }, [fetchLogs])
 
     useEffect(() => {
         const handler = () => {
-            fetchLogs()
+            void fetchLogs()
         }
 
         window.addEventListener('ppp:data-changed', handler)
@@ -130,279 +123,95 @@ export function useLogs(): UseLogsReturn {
         }
     }, [fetchLogs])
 
-    const addLog = async (type: LogType, userName: UserName, createdAt?: Date) => {
-        const timestamp = createdAt || new Date()
-
-        // Optimistic update
-        const optimisticLog: Log = {
-            id: `temp-${Date.now()}`,
-            created_at: timestamp.toISOString(),
-            type,
-            user_name: userName,
-            notes: null,
-        }
-
-        // Check if this log is for today
-        const isToday = isSameDay(timestamp, new Date())
-
-        if (isToday) {
-            setTodayLogs(prev => [optimisticLog, ...prev])
-        }
-        setWeeklyLogs(prev => [optimisticLog, ...prev])
-        setAllLogs(prev => [optimisticLog, ...prev])
-
-        try {
-            const { error } = await supabase
-                .from('logs')
-                .insert({
-                    created_at: timestamp.toISOString(),
-                    type,
-                    user_name: userName,
-                    notes: null,
-                } as never)
-
-            if (error) {
-                console.error('Supabase insert error:', error)
-                throw new Error(`${error.message} (Code: ${error.code}, Details: ${error.details})`)
-            }
-
-            // Refetch to get the real data
-            await fetchLogs()
-        } catch (err) {
-            // Rollback optimistic update
-            if (isToday) {
-                setTodayLogs(prev => prev.filter(log => log.id !== optimisticLog.id))
-            }
-            setWeeklyLogs(prev => prev.filter(log => log.id !== optimisticLog.id))
-            setAllLogs(prev => prev.filter(log => log.id !== optimisticLog.id))
-            const errorMessage = err instanceof Error ? err.message : 'Failed to add log'
-            console.error('Add log error:', errorMessage)
-            setError(errorMessage)
-        }
-    }
-
-    // Add a walk with poop and/or pee at the same time
     const addWalk = async (options: { poop: boolean; pee: boolean; userName: UserName; createdAt?: Date }) => {
-        const { poop, pee, userName, createdAt } = options
-        const timestamp = createdAt || new Date()
+        try {
+            await apiFetch<ApiSuccessResponse>('/api/walks', {
+                method: 'POST',
+                body: JSON.stringify({
+                    poop: options.poop,
+                    pee: options.pee,
+                    userName: options.userName,
+                    createdAt: options.createdAt?.toISOString(),
+                } satisfies WalkCreateRequest),
+            })
 
-        // Add both logs with the same timestamp if needed
-        const logsToAdd: LogType[] = []
-        if (poop) logsToAdd.push('poop')
-        if (pee) logsToAdd.push('pee')
-
-        // Add logs sequentially with same timestamp
-        for (const type of logsToAdd) {
-            await addLog(type, userName, timestamp)
+            await fetchLogs()
+            window.dispatchEvent(new Event('ppp:data-changed'))
+            setError(null)
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'Failed to add walk')
         }
     }
 
-    // Delete a walk (removes all associated logs)
+    const addLog = async (type: LogType, userName: UserName, createdAt?: Date) => {
+        await addWalk({
+            poop: type === 'poop',
+            pee: type === 'pee',
+            userName,
+            createdAt,
+        })
+    }
+
     const deleteWalk = async (walk: Walk) => {
         try {
-            const logIds = walk.logs.map(log => log.id)
+            await apiFetch<ApiSuccessResponse>('/api/walks', {
+                method: 'DELETE',
+                body: JSON.stringify({
+                    logIds: walk.logs.map(log => log.id),
+                } satisfies WalkDeleteRequest),
+            })
 
-            // Optimistic update - remove from state immediately
-            setTodayLogs(prev => prev.filter(log => !logIds.includes(log.id)))
-            setWeeklyLogs(prev => prev.filter(log => !logIds.includes(log.id)))
-            setAllLogs(prev => prev.filter(log => !logIds.includes(log.id)))
-
-            // Delete from database
-            const { error } = await supabase
-                .from('logs')
-                .delete()
-                .in('id', logIds)
-
-            if (error) throw error
-
-            // Refetch to ensure consistency
             await fetchLogs()
+            window.dispatchEvent(new Event('ppp:data-changed'))
+            setError(null)
         } catch (err) {
-            // Rollback on error by refetching
-            await fetchLogs()
-            const errorMessage = err instanceof Error ? err.message : 'Failed to delete walk'
-            setError(errorMessage)
+            setError(err instanceof Error ? err.message : 'Failed to delete walk')
         }
     }
 
-    // Update a walk (modify walker, time, poop/pee status)
     const updateWalk = async (
         walk: Walk,
         updates: { poop: boolean; pee: boolean; userName: UserName; time: Date }
     ) => {
         try {
-            const logIds = walk.logs.map(log => log.id)
+            await apiFetch<ApiSuccessResponse>('/api/walks', {
+                method: 'PATCH',
+                body: JSON.stringify({
+                    logIds: walk.logs.map(log => log.id),
+                    poop: updates.poop,
+                    pee: updates.pee,
+                    userName: updates.userName,
+                    createdAt: updates.time.toISOString(),
+                } satisfies WalkUpdateRequest),
+            })
 
-            // Delete existing logs
-            const { error: deleteError } = await supabase
-                .from('logs')
-                .delete()
-                .in('id', logIds)
-
-            if (deleteError) throw deleteError
-
-            // Create new logs with updated values
-            const logsToAdd: LogType[] = []
-            if (updates.poop) logsToAdd.push('poop')
-            if (updates.pee) logsToAdd.push('pee')
-
-            for (const type of logsToAdd) {
-                const { error: insertError } = await supabase
-                    .from('logs')
-                    .insert({
-                        created_at: updates.time.toISOString(),
-                        type,
-                        user_name: updates.userName,
-                        notes: null,
-                    } as never)
-
-                if (insertError) throw insertError
-            }
-
-            // Refetch to get fresh data
             await fetchLogs()
+            window.dispatchEvent(new Event('ppp:data-changed'))
+            setError(null)
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : 'Failed to update walk'
-            setError(errorMessage)
-            await fetchLogs() // Ensure we have consistent state
+            setError(err instanceof Error ? err.message : 'Failed to update walk')
         }
     }
 
+    const todayPoopCount = useMemo(
+        () => todayLogs.filter(log => log.type === 'poop').length,
+        [todayLogs]
+    )
+    const todayPeeCount = useMemo(
+        () => todayLogs.filter(log => log.type === 'pee').length,
+        [todayLogs]
+    )
 
-    // Calculate today's counts
-    const todayPoopCount = todayLogs.filter(log => log.type === 'poop').length
-    const todayPeeCount = todayLogs.filter(log => log.type === 'pee').length
-
-    // Calculate streak (consecutive days with 3+ poops)
-    const calculateStreak = (): number => {
-        if (allLogs.length === 0) return 0
-
-        let streak = 0
-        let currentDate = new Date()
-
-        // Check if today has 3+ poops, if not start from yesterday
-        const todayPoops = allLogs.filter(
-            log => log.type === 'poop' && isSameDay(new Date(log.created_at), currentDate)
-        ).length
-
-        if (todayPoops < 3) {
-            currentDate = subDays(currentDate, 1)
-        }
-
-        while (true) {
-            const dayPoops = allLogs.filter(
-                log => log.type === 'poop' && isSameDay(new Date(log.created_at), currentDate)
-            ).length
-
-            if (dayPoops >= 3) {
-                streak++
-                currentDate = subDays(currentDate, 1)
-            } else {
-                break
-            }
-        }
-
-        return streak
-    }
-
-    // Calculate weekly points per user (logs + activities + reminders)
-    const weeklyPoints: Record<UserName, number> = {
-        Chris: 0,
-        Debbie: 0,
-        Haydn: 0,
-    }
-
-    // Add points from walk logs
-    weeklyLogs.forEach(log => {
-        const points = 5 // All activities earn 5 points for fairness
-        weeklyPoints[log.user_name] += points
-    })
-
-    // Add points from activities (assigned_to gets the points)
-    weeklyActivities.forEach(activity => {
-        const points = 5 // toys and dinner are 5 points each
-        weeklyPoints[activity.assigned_to] += points
-    })
-
-    // Add points from completed reminders (completed_by gets the points)
-    weeklyReminders.forEach(reminder => {
-        if (!reminder.completed_by) return
-        const points = 5
-        weeklyPoints[reminder.completed_by] += points
-    })
-
-    // Calculate today's walks (group logs within 30 minutes as same walk)
-    const todayWalks = useMemo((): Walk[] => {
-        if (todayLogs.length === 0) return []
-
-        // Sort by time ascending
-        const sortedLogs = [...todayLogs].sort(
-            (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-        )
-
-        const walks: Walk[] = []
-        let currentWalk: Log[] = [sortedLogs[0]]
-
-        for (let i = 1; i < sortedLogs.length; i++) {
-            const prevLogTime = new Date(sortedLogs[i - 1].created_at).getTime()
-            const currentLogTime = new Date(sortedLogs[i].created_at).getTime()
-            const diffMinutes = (currentLogTime - prevLogTime) / (1000 * 60)
-
-            if (diffMinutes <= 30) {
-                // Same walk
-                currentWalk.push(sortedLogs[i])
-            } else {
-                // New walk - save current and start new
-                walks.push(createWalkFromLogs(currentWalk))
-                currentWalk = [sortedLogs[i]]
-            }
-        }
-
-        // Don't forget the last walk
-        walks.push(createWalkFromLogs(currentWalk))
-
-        // Return in chronological order (oldest first, newest at bottom)
-        return walks
-    }, [todayLogs])
-
-    // Calculate the absolute latest walk from all logs
-    const latestWalk = useMemo((): Walk | null => {
-        if (allLogs.length === 0) return null
-
-        // allLogs is already sorted descending (newest first)
-        const latestLog = allLogs[0]
-        const walkLogs: Log[] = [latestLog]
-
-        // Look for other logs belonging to this walk (within 30 mins)
-        // Since sorted desc, we look at next elements
-        for (let i = 1; i < allLogs.length; i++) {
-            const currentLog = allLogs[i]
-            const prevLog = allLogs[i - 1] // This is actually OLDER in time than current in iteration... wait.
-            // allLogs is DESCENDING. 
-            // allLogs[0] is 10:00. allLogs[1] is 09:59.
-            // So time difference: allLogs[i-1].time - allLogs[i].time
-
-            const newerLogTime = new Date(prevLog.created_at).getTime()
-            const olderLogTime = new Date(currentLog.created_at).getTime()
-            const diffMinutes = (newerLogTime - olderLogTime) / (1000 * 60)
-
-            if (diffMinutes <= 30) {
-                walkLogs.push(currentLog)
-            } else {
-                break // Gap is too large, previous walk starts here
-            }
-        }
-
-        // createWalkFromLogs usually expects a list. 
-        // Our 'walkLogs' are currently Newest -> Oldest.
-        // It might be better to pass them logic agnostic or ensure createWalk is robust.
-        // createWalkFromLogs uses logs[0] as the "main" time.
-        // If we pass [10:00, 09:59], first log is 10:00. That seems correct for "latest walk time".
-
-        return createWalkFromLogs(walkLogs)
-    }, [allLogs])
+    const todayWalks = useMemo(() => groupLogsIntoWalks(todayLogs), [todayLogs])
+    const latestWalk = useMemo(() => getLatestWalkFromLogs(allLogs), [allLogs])
 
     const todayWalksCount = todayWalks.length
+    const weeklyPoints = useMemo(
+        () => calculateWeeklyPoints(weeklyLogs, weeklyActivities, weeklyReminders),
+        [weeklyActivities, weeklyLogs, weeklyReminders]
+    )
+
+    const streak = useMemo(() => calculatePoopStreak(allLogs), [allLogs])
 
     return {
         todayLogs,
@@ -419,30 +228,9 @@ export function useLogs(): UseLogsReturn {
         todayPoopCount,
         todayPeeCount,
         todayWalksCount,
-        streak: calculateStreak(),
+        streak,
         weeklyPoints,
     }
 }
 
-// Helper to create a Walk object from a group of logs
-function createWalkFromLogs(logs: Log[]): Walk {
-    // Determine the main timestamp for the walk.
-    // Usually the latest log in the group is best for "Last Walked At"
-    // OR the earliest log if we want "Walk Started At".
-    // Let's use the LATEST log time for "Last Walk", as that's when we finished/logged.
-
-    // sorting just to be safe
-    const sortedLogs = [...logs].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-    const latestLog = sortedLogs[0]
-    const walkTime = new Date(latestLog.created_at)
-
-    return {
-        id: `walk-${latestLog.id}`,
-        time: walkTime,
-        timeFormatted: format(walkTime, 'h:mm a'),
-        userName: latestLog.user_name,
-        hasPoop: logs.some(log => log.type === 'poop'),
-        hasPee: logs.some(log => log.type === 'pee'),
-        logs: sortedLogs,
-    }
-}
+export type { Walk }

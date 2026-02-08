@@ -19,11 +19,10 @@ type WalkType = 'poop' | 'pee' | 'both' | null
 
 interface LogWalkButtonProps {
     userName: UserName
-    todayPoopCount: number
     onLogWalk: (options: { poop: boolean; pee: boolean; userName: UserName; createdAt?: Date }) => Promise<void>
 }
 
-export function LogWalkButton({ userName, todayPoopCount, onLogWalk }: LogWalkButtonProps) {
+export function LogWalkButton({ userName, onLogWalk }: LogWalkButtonProps) {
     const [drawerOpen, setDrawerOpen] = useState(false)
     const [isLogging, setIsLogging] = useState(false)
     const [showTimePicker, setShowTimePicker] = useState(false)
@@ -97,7 +96,7 @@ export function LogWalkButton({ userName, todayPoopCount, onLogWalk }: LogWalkBu
             {/* Main Log Walk Button */}
             <Button
                 onClick={() => setDrawerOpen(true)}
-                className="w-full h-24 text-2xl font-bold bg-gradient-to-br from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white shadow-xl hover:shadow-2xl transition-all duration-200 active:scale-95 rounded-2xl border border-emerald-400/30"
+                className="w-full h-24 text-2xl font-bold bg-gradient-to-br from-amber-700 to-orange-700 hover:from-amber-600 hover:to-orange-600 text-amber-50 shadow-xl hover:shadow-2xl transition-all duration-200 active:scale-95 rounded-2xl border border-amber-300/30"
             >
                 <div className="flex items-center gap-3">
                     <span className="text-4xl">🦮</span>
@@ -210,7 +209,7 @@ export function LogWalkButton({ userName, todayPoopCount, onLogWalk }: LogWalkBu
                                 <Button
                                     onClick={() => showTimePicker ? handleTimePickerLog('pee') : handleQuickLog('pee')}
                                     disabled={isLogging}
-                                    className="h-24 flex-col gap-1 bg-gradient-to-br from-blue-500 to-cyan-600 hover:from-blue-400 hover:to-cyan-500 text-white rounded-2xl text-lg font-bold shadow-lg border border-blue-400/30"
+                                    className="h-24 flex-col gap-1 bg-gradient-to-br from-sky-500 to-cyan-600 hover:from-sky-400 hover:to-cyan-500 text-white rounded-2xl text-lg font-bold shadow-lg border border-sky-400/30"
                                 >
                                     <span className="text-3xl">💦</span>
                                     <span>Pee</span>
@@ -218,7 +217,7 @@ export function LogWalkButton({ userName, todayPoopCount, onLogWalk }: LogWalkBu
                                 <Button
                                     onClick={() => showTimePicker ? handleTimePickerLog('both') : handleQuickLog('both')}
                                     disabled={isLogging}
-                                    className="h-24 flex-col gap-1 bg-gradient-to-br from-purple-500 to-pink-600 hover:from-purple-400 hover:to-pink-500 text-white rounded-2xl text-lg font-bold shadow-lg border border-purple-400/30"
+                                    className="h-24 flex-col gap-1 bg-gradient-to-br from-emerald-600 to-teal-700 hover:from-emerald-500 hover:to-teal-600 text-white rounded-2xl text-lg font-bold shadow-lg border border-emerald-400/30"
                                 >
                                     <span className="text-3xl">💩💦</span>
                                     <span>Both</span>

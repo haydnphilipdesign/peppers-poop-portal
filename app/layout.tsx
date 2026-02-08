@@ -1,12 +1,18 @@
 import type { Metadata, Viewport } from "next";
-import { Nunito_Sans, Geist_Mono } from "next/font/google";
+import { Cormorant_Garamond, Source_Sans_3, Geist_Mono } from "next/font/google";
 import { UserProvider } from "@/lib/user-context";
 import "./globals.css";
 
-const nunitoSans = Nunito_Sans({
-  variable: "--font-nunito-sans",
+const headingFont = Cormorant_Garamond({
+  variable: "--font-heading",
   subsets: ["latin"],
-  weight: ["300", "400", "500", "600", "700", "800"],
+  weight: ["400", "500", "600", "700"],
+});
+
+const bodyFont = Source_Sans_3({
+  variable: "--font-body",
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
 });
 
 const geistMono = Geist_Mono({
@@ -16,11 +22,11 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Pepper's Portal",
-  description: "Track Pepper's walks, routines, and care with gamification and love! 🐕",
+  description: "Family dashboard for Pepper's walks, routines, and care schedule.",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
-    statusBarStyle: "black-translucent",
+    statusBarStyle: "default",
     title: "Pepper's Portal",
   },
   formatDetection: {
@@ -29,11 +35,9 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#0a0a0a",
+  themeColor: "#f7ede1",
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
 };
 
 export default function RootLayout({
@@ -42,16 +46,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="dark">
+    <html lang="en">
       <head>
         <link rel="apple-touch-icon" href="/icon-192.png" />
       </head>
       <body
-        className={`${nunitoSans.variable} ${geistMono.variable} antialiased bg-background text-foreground`}
+        className={`${headingFont.variable} ${bodyFont.variable} ${geistMono.variable} bg-background text-foreground antialiased`}
       >
-        <UserProvider>
-          {children}
-        </UserProvider>
+        <UserProvider>{children}</UserProvider>
       </body>
     </html>
   );

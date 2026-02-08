@@ -4,8 +4,8 @@
     "description": "Track Pepper's walks, routines, and care with gamification!",
     "start_url": "/",
     "display": "standalone",
-    "background_color": "#fffbeb",
-    "theme_color": "#f59e0b",
+    "background_color": "#f7ede1",
+    "theme_color": "#8f4f1f",
     "orientation": "portrait",
     "icons": [
         {

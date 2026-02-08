@@ -32,6 +32,44 @@ const userColors: Record<UserName, string> = {
 
 const users: UserName[] = ['Chris', 'Debbie', 'Haydn']
 
+interface WalkStatsBarProps {
+    poopCount: number
+    peeCount: number
+    walksCount: number
+    poopGoal: number
+    walksGoal: number
+}
+
+function WalkStatsBar({
+    poopCount,
+    peeCount,
+    walksCount,
+    poopGoal,
+    walksGoal,
+}: WalkStatsBarProps) {
+    const poopGoalReached = poopCount >= poopGoal
+    const walksGoalReached = walksCount >= walksGoal
+
+    return (
+        <div className="flex items-center gap-4 text-sm">
+            <div className={`flex items-center gap-1.5 px-2 py-1 rounded-lg ${walksGoalReached ? 'bg-green-500/20 text-green-400' : 'bg-muted text-muted-foreground'}`}>
+                <span>🦮</span>
+                <span className="font-semibold">{walksCount}</span>
+                <span className="opacity-60">/{walksGoal}</span>
+            </div>
+            <div className={`flex items-center gap-1.5 px-2 py-1 rounded-lg ${poopGoalReached ? 'bg-green-500/20 text-green-400' : 'bg-muted text-muted-foreground'}`}>
+                <span>💩</span>
+                <span className="font-semibold">{poopCount}</span>
+                <span className="opacity-60">/{poopGoal}</span>
+            </div>
+            <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-muted text-muted-foreground">
+                <span>💦</span>
+                <span className="font-semibold">{peeCount}</span>
+            </div>
+        </div>
+    )
+}
+
 export function WalkHistory({
     walks,
     poopCount,
@@ -49,9 +87,6 @@ export function WalkHistory({
     const [editUser, setEditUser] = useState<UserName>('Chris')
     const [editTime, setEditTime] = useState('')
     const [deletingWalkId, setDeletingWalkId] = useState<string | null>(null)
-
-    const poopGoalReached = poopCount >= poopGoal
-    const walksGoalReached = walksCount >= walksGoal
 
     const handleStartEdit = (walk: Walk) => {
         setEditingWalk(walk)
@@ -86,26 +121,6 @@ export function WalkHistory({
         setDeletingWalkId(null)
     }
 
-    // Stats bar component
-    const StatsBar = () => (
-        <div className="flex items-center gap-4 text-sm">
-            <div className={`flex items-center gap-1.5 px-2 py-1 rounded-lg ${walksGoalReached ? 'bg-green-500/20 text-green-400' : 'bg-muted text-muted-foreground'}`}>
-                <span>🦮</span>
-                <span className="font-semibold">{walksCount}</span>
-                <span className="opacity-60">/{walksGoal}</span>
-            </div>
-            <div className={`flex items-center gap-1.5 px-2 py-1 rounded-lg ${poopGoalReached ? 'bg-green-500/20 text-green-400' : 'bg-muted text-muted-foreground'}`}>
-                <span>💩</span>
-                <span className="font-semibold">{poopCount}</span>
-                <span className="opacity-60">/{poopGoal}</span>
-            </div>
-            <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-muted text-muted-foreground">
-                <span>💦</span>
-                <span className="font-semibold">{peeCount}</span>
-            </div>
-        </div>
-    )
-
     if (walks.length === 0) {
         return (
             <Card>
@@ -114,7 +129,13 @@ export function WalkHistory({
                         <CardTitle className="text-lg font-semibold flex items-center gap-2">
                             🦮 Today&apos;s Walk Log
                         </CardTitle>
-                        <StatsBar />
+                        <WalkStatsBar
+                            poopCount={poopCount}
+                            peeCount={peeCount}
+                            walksCount={walksCount}
+                            poopGoal={poopGoal}
+                            walksGoal={walksGoal}
+                        />
                     </div>
                 </CardHeader>
                 <CardContent>
@@ -133,7 +154,13 @@ export function WalkHistory({
                     <CardTitle className="text-lg font-semibold flex items-center gap-2">
                         🦮 Today&apos;s Walk Log
                     </CardTitle>
-                    <StatsBar />
+                    <WalkStatsBar
+                        poopCount={poopCount}
+                        peeCount={peeCount}
+                        walksCount={walksCount}
+                        poopGoal={poopGoal}
+                        walksGoal={walksGoal}
+                    />
                 </div>
             </CardHeader>
             <CardContent className="space-y-2">
@@ -246,7 +273,7 @@ export function WalkHistory({
 
                                     {/* Edit/Delete buttons - visible on hover, hidden in read-only mode */}
                                     {!isReadOnly && (
-                                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity ml-2">
+                                        <div className="ml-2 flex items-center gap-1 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100">
                                             <button
                                                 onClick={() => handleStartEdit(walk)}
                                                 className="p-1.5 rounded-lg bg-muted/80 hover:bg-primary/20 text-muted-foreground hover:text-foreground transition-colors"

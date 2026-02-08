@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
+import { apiFetch } from '@/lib/api-client'
+import type { ActivityCreateRequest, ApiSuccessResponse } from '@/lib/api-types'
 import type { Activity, ActivityType, UserName } from '@/lib/database.types'
 import { startOfDay, endOfDay } from 'date-fns'
 
@@ -66,16 +68,15 @@ export function useActivities(): UseActivitiesReturn {
         setTodayActivities(prev => [optimisticActivity, ...prev])
 
         try {
-            const { error: insertError } = await supabase
-                .from('activities')
-                .insert({
-                    created_at: timestamp.toISOString(),
+            await apiFetch<ApiSuccessResponse>('/api/activities', {
+                method: 'POST',
+                body: JSON.stringify({
+                    createdAt: timestamp.toISOString(),
                     type,
-                    logged_by: loggedBy,
-                    assigned_to: assignedTo,
-                } as never)
-
-            if (insertError) throw insertError
+                    loggedBy,
+                    assignedTo,
+                } satisfies ActivityCreateRequest),
+            })
 
             // Refetch to get real data
             await fetchActivities()

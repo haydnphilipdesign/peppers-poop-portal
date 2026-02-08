@@ -1,10 +1,8 @@
 'use client'
 
 import { useState } from 'react'
-import { useReadOnly } from '@/lib/read-only-context'
 import { useLogs } from '@/hooks/use-logs'
 import { WalkHistory } from './walk-history'
-
 import { Leaderboard } from './leaderboard'
 import { DailyRoutines } from './daily-routines'
 import { RemindersBanner } from './reminders-banner'
@@ -17,7 +15,6 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 type TabValue = 'today' | 'history' | 'analytics'
 
 export function PublicDashboard() {
-    const isReadOnly = useReadOnly()
     const [activeTab, setActiveTab] = useState<TabValue>('today')
     const {
         todayPoopCount,
@@ -25,122 +22,84 @@ export function PublicDashboard() {
         todayWalksCount,
         todayWalks,
         latestWalk,
-
         weeklyPoints,
         isLoading,
-        error
+        error,
     } = useLogs()
 
-    // Dummy functions for read-only mode (won't be called but needed for prop types)
     const noopDelete = async () => { }
     const noopUpdate = async () => { }
 
     return (
-        <div className="min-h-screen bg-background">
-            {/* Header */}
-            <header className="sticky top-0 z-50 backdrop-blur-lg bg-background/80 border-b border-border shadow-sm">
-                <div className="max-w-lg mx-auto px-4 py-3 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                        <span className="text-3xl">🐕</span>
-                        <div>
-                            <h1 className="text-lg font-bold text-foreground">
-                                Pepper&apos;s Portal
-                            </h1>
-                            <p className="text-xs text-muted-foreground">
-                                View Only Mode
-                            </p>
-                        </div>
+        <div className="min-h-screen bg-[radial-gradient(circle_at_top_right,hsl(32_100%_95%),hsl(var(--background))_36%),radial-gradient(circle_at_20%_120%,hsl(18_85%_94%),transparent_42%)] text-foreground">
+            <header className="sticky top-0 z-50 border-b border-border/70 bg-background/90 backdrop-blur">
+                <div className="mx-auto flex w-full max-w-2xl items-center justify-between gap-3 px-4 py-3">
+                    <div>
+                        <p className="text-[0.65rem] uppercase tracking-[0.2em] text-muted-foreground">
+                            Pepper&apos;s Portal
+                        </p>
+                        <h1 className="font-serif text-xl font-semibold leading-tight">
+                            Live Read-Only Dashboard
+                        </h1>
                     </div>
-                    {/* View Only Badge */}
-                    <div className="px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-500 text-xs font-medium">
-                        👀 View Only
-                    </div>
+                    <span className="rounded-full border border-sky-500/30 bg-sky-500/10 px-3 py-1 text-xs font-medium text-sky-700">
+                        View Only
+                    </span>
                 </div>
             </header>
 
-            {/* Main Content */}
-            <main className="max-w-lg mx-auto px-4 py-6 space-y-6">
-                {/* Latest Walk Card (Always visible) */}
-                {!isLoading && latestWalk && (
-                    <LastWalkCard walk={latestWalk} />
-                )}
+            <main className="mx-auto w-full max-w-2xl space-y-5 px-4 py-6">
+                {!isLoading && latestWalk ? <LastWalkCard walk={latestWalk} /> : null}
 
-                {/* Tab Navigation */}
                 <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabValue)}>
-                    <TabsList>
-                        <TabsTrigger value="today">🏠 Today</TabsTrigger>
-                        <TabsTrigger value="history">📅 History</TabsTrigger>
-                        <TabsTrigger value="analytics">📊 Analytics</TabsTrigger>
+                    <TabsList className="h-11 rounded-xl border border-border/80 bg-card p-1">
+                        <TabsTrigger value="today">Today</TabsTrigger>
+                        <TabsTrigger value="history">History</TabsTrigger>
+                        <TabsTrigger value="analytics">Analytics</TabsTrigger>
                     </TabsList>
 
-                    {/* Today Tab */}
-                    <TabsContent value="today">
-                        <div className="space-y-6">
-                            {/* Error Message */}
-                            {error && (
-                                <div className="p-4 rounded-xl bg-destructive/10 text-destructive text-sm border border-destructive/20">
-                                    ⚠️ {error}
+                    <TabsContent value="today" className="mt-5">
+                        <div className="space-y-5">
+                            {error ? (
+                                <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-700">
+                                    {error}
                                 </div>
-                            )}
+                            ) : null}
 
-                            {/* Loading State */}
-                            {isLoading && (
-                                <div className="text-center py-8">
-                                    <div className="animate-spin text-4xl mb-2">🐕</div>
-                                    <p className="text-muted-foreground">Loading...</p>
+                            {isLoading ? (
+                                <div className="rounded-xl border border-border bg-card p-6 text-center">
+                                    <p className="text-sm text-muted-foreground">Loading care data...</p>
                                 </div>
-                            )}
+                            ) : null}
 
-                            {/* Important Reminders Banner */}
                             <RemindersBanner />
 
-                            {/* Walk History with integrated stats (read-only) */}
-                            <section>
-                                <WalkHistory
-                                    walks={todayWalks}
-                                    poopCount={todayPoopCount}
-                                    peeCount={todayPeeCount}
-                                    walksCount={todayWalksCount}
-                                    onDeleteWalk={noopDelete}
-                                    onUpdateWalk={noopUpdate}
-                                />
-                            </section>
+                            <WalkHistory
+                                walks={todayWalks}
+                                poopCount={todayPoopCount}
+                                peeCount={todayPeeCount}
+                                walksCount={todayWalksCount}
+                                onDeleteWalk={noopDelete}
+                                onUpdateWalk={noopUpdate}
+                            />
 
-                            {/* Quick Log Button - HIDDEN in read-only mode */}
-                            {/* No LogWalkButton here */}
-
-                            {/* Daily Routines */}
                             <DailyRoutines />
-
-                            {/* Care Schedule */}
                             <ReminderManager />
-
-
-
-                            {/* Leaderboard */}
-                            <section>
-                                <Leaderboard weeklyPoints={weeklyPoints} />
-                            </section>
+                            <Leaderboard weeklyPoints={weeklyPoints} />
                         </div>
                     </TabsContent>
 
-                    {/* History Tab */}
-                    <TabsContent value="history">
+                    <TabsContent value="history" className="mt-5">
                         <HistoryView />
                     </TabsContent>
 
-                    {/* Analytics Tab */}
-                    <TabsContent value="analytics">
+                    <TabsContent value="analytics" className="mt-5">
                         <Analytics />
                     </TabsContent>
                 </Tabs>
 
-                <footer className="text-center text-xs text-muted-foreground pt-8 pb-4">
-                    Pepper&apos;s Portal • Made with 🐕 and ❤️
-                    <br />
-                    <a href="https://www.multimedium.dev" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
-                        multimedium.dev
-                    </a>
+                <footer className="border-t border-border/60 pt-5 text-center text-xs text-muted-foreground">
+                    Shared publicly as read-only via portfolio
                 </footer>
             </main>
         </div>

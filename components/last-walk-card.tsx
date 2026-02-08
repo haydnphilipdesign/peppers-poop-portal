@@ -26,22 +26,18 @@ export function LastWalkCard({ walk }: LastWalkCardProps) {
     const isToday = new Date().toDateString() === walk.time.toDateString()
 
     return (
-        <Card className="bg-gradient-to-br from-background to-primary/5 border-primary/20 shadow-sm overflow-hidden">
-            <CardContent className="p-4">
+        <Card className="overflow-hidden border-amber-800/20 bg-gradient-to-br from-amber-50 to-rose-50 shadow-sm">
+            <CardContent className="p-5">
                 <div className="flex items-start justify-between gap-4">
-                    <div className="space-y-1">
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground font-medium uppercase tracking-wide">
+                    <div className="space-y-2">
+                        <div className="flex items-center gap-2 text-[0.68rem] font-medium uppercase tracking-[0.16em] text-amber-900/70">
                             <Clock className="w-4 h-4" />
-                            Latest Activity
+                            Latest Walk
                         </div>
 
-                        <div className="flex items-baseline gap-2">
-                            <span className="text-2xl font-bold tracking-tight">
-                                {timeAgo}
-                            </span>
-                        </div>
+                        <p className="text-3xl font-semibold leading-none">{timeAgo}</p>
 
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <div className="flex items-center gap-2 text-sm text-amber-950/70">
                             <span>{isToday ? 'Today' : date} at {exactTime}</span>
                             <span>•</span>
                             <span className="flex items-center gap-1">
@@ -50,19 +46,17 @@ export function LastWalkCard({ walk }: LastWalkCardProps) {
                         </div>
                     </div>
 
-                    <div className="flex flex-col gap-2 items-end">
-                        <div className="flex gap-1.5">
-                            {walk.hasPoop && (
-                                <div className="p-2 bg-amber-500/10 border border-amber-500/20 rounded-xl" title="Poop">
-                                    <span className="text-xl">💩</span>
-                                </div>
-                            )}
-                            {walk.hasPee && (
-                                <div className="p-2 bg-blue-500/10 border border-blue-500/20 rounded-xl" title="Pee">
-                                    <span className="text-xl">💦</span>
-                                </div>
-                            )}
-                        </div>
+                    <div className="flex gap-1.5">
+                        {walk.hasPoop && (
+                            <div className="rounded-xl border border-amber-600/25 bg-amber-500/10 p-2" title="Poop">
+                                <span className="text-xl">💩</span>
+                            </div>
+                        )}
+                        {walk.hasPee && (
+                            <div className="rounded-xl border border-sky-600/25 bg-sky-500/10 p-2" title="Pee">
+                                <span className="text-xl">💦</span>
+                            </div>
+                        )}
                     </div>
                 </div>
             </CardContent>

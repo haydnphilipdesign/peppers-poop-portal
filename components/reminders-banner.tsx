@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useUser } from '@/lib/user-context'
+import { useReadOnly } from '@/lib/read-only-context'
 import { useReminders } from '@/hooks/use-reminders'
 import type { ReminderType, UserName } from '@/lib/database.types'
 import { Button } from '@/components/ui/button'
@@ -30,6 +31,7 @@ const REMINDER_CONFIG: Record<ReminderType, { icon: React.ReactNode; label: stri
 
 export function RemindersBanner() {
     const { user } = useUser()
+    const isReadOnly = useReadOnly()
     const {
         isSimparicaDue,
         isGroomingDue,
@@ -150,7 +152,11 @@ export function RemindersBanner() {
                             </div>
 
                             <div className="flex items-center gap-1">
-                                {showAssignee === alert.type ? (
+                                {isReadOnly ? (
+                                    <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                        Read only
+                                    </span>
+                                ) : showAssignee === alert.type ? (
                                     <div className="flex gap-1">
                                         {USERS.map(u => (
                                             <Button

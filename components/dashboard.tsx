@@ -2,10 +2,11 @@
 
 import { useState } from 'react'
 import { useUser } from '@/lib/user-context'
+import { ReadOnlyProvider } from '@/lib/read-only-context'
 import { useLogs } from '@/hooks/use-logs'
+import { useWriteAccess } from '@/hooks/use-write-access'
 import { WalkHistory } from './walk-history'
 import { LogWalkButton } from './log-walk-button'
-
 import { Leaderboard } from './leaderboard'
 import { DailyRoutines } from './daily-routines'
 import { RemindersBanner } from './reminders-banner'
@@ -13,6 +14,7 @@ import { ReminderManager } from './reminder-manager'
 import { HistoryView } from './history-view'
 import { Analytics } from './analytics'
 import { LastWalkCard } from './last-walk-card'
+import { WriteAccessPanel } from './write-access-panel'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 
@@ -27,81 +29,86 @@ export function Dashboard() {
         todayWalksCount,
         todayWalks,
         latestWalk,
-
         weeklyPoints,
         addWalk,
         deleteWalk,
         updateWalk,
         isLoading,
-        error
+        error,
     } = useLogs()
+
+    const {
+        isUnlocked,
+        isLoading: isAuthLoading,
+        error: accessError,
+        unlock,
+        lock,
+    } = useWriteAccess()
 
     if (!user) return null
 
     return (
-        <div className="min-h-screen bg-background">
-            {/* Header */}
-            <header className="sticky top-0 z-50 backdrop-blur-lg bg-background/80 border-b border-border shadow-sm">
-                <div className="max-w-lg mx-auto px-4 py-3 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                        <span className="text-3xl">🐕</span>
+        <ReadOnlyProvider isReadOnly={!isUnlocked}>
+            <div className="min-h-screen bg-[radial-gradient(circle_at_top_right,hsl(32_100%_95%),hsl(var(--background))_36%),radial-gradient(circle_at_20%_120%,hsl(18_85%_94%),transparent_42%)] text-foreground">
+                <header className="sticky top-0 z-50 border-b border-border/70 bg-background/90 backdrop-blur">
+                    <div className="mx-auto flex w-full max-w-2xl items-center justify-between gap-3 px-4 py-3">
                         <div>
-                            <h1 className="text-lg font-bold text-foreground">
+                            <p className="text-[0.65rem] uppercase tracking-[0.2em] text-muted-foreground">
                                 Pepper&apos;s Portal
-                            </h1>
-                            <p className="text-xs text-muted-foreground">
-                                Walking as {user}
                             </p>
+                            <h1 className="font-serif text-xl font-semibold leading-tight">
+                                Daily Care Dashboard
+                            </h1>
+                            <p className="text-xs text-muted-foreground">Logged in as {user}</p>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                            {isUnlocked ? (
+                                <Button variant="outline" size="sm" onClick={() => void lock()}>
+                                    Lock Editing
+                                </Button>
+                            ) : null}
+                            <Button variant="ghost" size="sm" onClick={() => setUser(null)}>
+                                Switch User
+                            </Button>
                         </div>
                     </div>
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setUser(null)}
-                    >
-                        Switch User
-                    </Button>
-                </div>
-            </header>
+                </header>
 
-            {/* Main Content */}
-            <main className="max-w-lg mx-auto px-4 py-6 space-y-6">
-                {/* Latest Walk Card (Always visible) */}
-                {!isLoading && latestWalk && (
-                    <LastWalkCard walk={latestWalk} />
-                )}
+                <main className="mx-auto w-full max-w-2xl space-y-5 px-4 py-6">
+                    {!isUnlocked ? (
+                        <WriteAccessPanel
+                            onUnlock={unlock}
+                            isLoading={isAuthLoading}
+                            error={accessError}
+                        />
+                    ) : null}
 
-                {/* Tab Navigation */}
-                <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabValue)}>
-                    <TabsList>
-                        <TabsTrigger value="today">🏠 Today</TabsTrigger>
-                        <TabsTrigger value="history">📅 History</TabsTrigger>
-                        <TabsTrigger value="analytics">📊 Analytics</TabsTrigger>
-                    </TabsList>
+                    {!isLoading && latestWalk ? <LastWalkCard walk={latestWalk} /> : null}
 
-                    {/* Today Tab */}
-                    <TabsContent value="today">
-                        <div className="space-y-6">
-                            {/* Error Message */}
-                            {error && (
-                                <div className="p-4 rounded-xl bg-destructive/10 text-destructive text-sm border border-destructive/20">
-                                    ⚠️ {error}
-                                </div>
-                            )}
+                    <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabValue)}>
+                        <TabsList className="h-11 rounded-xl border border-border/80 bg-card p-1">
+                            <TabsTrigger value="today">Today</TabsTrigger>
+                            <TabsTrigger value="history">History</TabsTrigger>
+                            <TabsTrigger value="analytics">Analytics</TabsTrigger>
+                        </TabsList>
 
-                            {/* Loading State */}
-                            {isLoading && (
-                                <div className="text-center py-8">
-                                    <div className="animate-spin text-4xl mb-2">🐕</div>
-                                    <p className="text-muted-foreground">Loading...</p>
-                                </div>
-                            )}
+                        <TabsContent value="today" className="mt-5">
+                            <div className="space-y-5">
+                                {error ? (
+                                    <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-700">
+                                        {error}
+                                    </div>
+                                ) : null}
 
-                            {/* Important Reminders Banner */}
-                            <RemindersBanner />
+                                {isLoading ? (
+                                    <div className="rounded-xl border border-border bg-card p-6 text-center">
+                                        <p className="text-sm text-muted-foreground">Loading care data...</p>
+                                    </div>
+                                ) : null}
 
-                            {/* Walk History with integrated stats */}
-                            <section>
+                                <RemindersBanner />
+
                                 <WalkHistory
                                     walks={todayWalks}
                                     poopCount={todayPoopCount}
@@ -110,54 +117,40 @@ export function Dashboard() {
                                     onDeleteWalk={deleteWalk}
                                     onUpdateWalk={updateWalk}
                                 />
-                            </section>
 
-                            {/* Quick Log Button */}
-                            <section>
-                                <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">
-                                    🚀 Quick Log
-                                </h2>
-                                <LogWalkButton
-                                    userName={user}
-                                    todayPoopCount={todayPoopCount}
-                                    onLogWalk={addWalk}
-                                />
-                            </section>
+                                {isUnlocked ? (
+                                    <section className="space-y-2">
+                                        <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
+                                            Quick Log
+                                        </p>
+                                        <LogWalkButton userName={user} onLogWalk={addWalk} />
+                                    </section>
+                                ) : (
+                                    <p className="rounded-xl border border-amber-600/25 bg-amber-50/60 px-4 py-3 text-sm text-amber-900">
+                                        Unlock editing to log walks, routines, and reminders.
+                                    </p>
+                                )}
 
-                            {/* Daily Routines */}
-                            <DailyRoutines />
-
-                            {/* Care Schedule */}
-                            <ReminderManager />
-
-
-
-                            {/* Leaderboard */}
-                            <section>
+                                <DailyRoutines />
+                                <ReminderManager />
                                 <Leaderboard weeklyPoints={weeklyPoints} />
-                            </section>
-                        </div>
-                    </TabsContent>
+                            </div>
+                        </TabsContent>
 
-                    {/* History Tab */}
-                    <TabsContent value="history">
-                        <HistoryView />
-                    </TabsContent>
+                        <TabsContent value="history" className="mt-5">
+                            <HistoryView />
+                        </TabsContent>
 
-                    {/* Analytics Tab */}
-                    <TabsContent value="analytics">
-                        <Analytics />
-                    </TabsContent>
-                </Tabs>
+                        <TabsContent value="analytics" className="mt-5">
+                            <Analytics />
+                        </TabsContent>
+                    </Tabs>
 
-                <footer className="text-center text-xs text-muted-foreground pt-8 pb-4">
-                    Pepper&apos;s Portal • Made with 🐕 and ❤️
-                    <br />
-                    <a href="https://www.multimedium.dev" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
-                        multimedium.dev
-                    </a>
-                </footer>
-            </main>
-        </div>
+                    <footer className="border-t border-border/60 pt-5 text-center text-xs text-muted-foreground">
+                        Pepper&apos;s Portal • family care tracker
+                    </footer>
+                </main>
+            </div>
+        </ReadOnlyProvider>
     )
 }

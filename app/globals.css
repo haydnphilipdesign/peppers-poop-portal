@@ -1,64 +1,63 @@
 @import "tailwindcss";
 
-/* shadcn/ui mira style with gray baseColor */
-/* Dark mode first design */
-
 :root {
-  /* Light mode colors (when explicitly set) */
-  --radius: 0.625rem;
+  --radius: 0.8rem;
 
-  --background: 0 0% 100%;
-  --foreground: 240 10% 3.9%;
-  --card: 0 0% 100%;
-  --card-foreground: 240 10% 3.9%;
-  --popover: 0 0% 100%;
-  --popover-foreground: 240 10% 3.9%;
-  --primary: 240 5.9% 10%;
-  --primary-foreground: 0 0% 98%;
-  --secondary: 240 4.8% 95.9%;
-  --secondary-foreground: 240 5.9% 10%;
-  --muted: 240 4.8% 95.9%;
-  --muted-foreground: 240 3.8% 46.1%;
-  --accent: 240 4.8% 95.9%;
-  --accent-foreground: 240 5.9% 10%;
-  --destructive: 0 84.2% 60.2%;
+  --background: 36 38% 96%;
+  --foreground: 24 20% 14%;
+
+  --card: 38 42% 98%;
+  --card-foreground: 24 20% 14%;
+  --popover: 38 42% 98%;
+  --popover-foreground: 24 20% 14%;
+
+  --primary: 27 61% 32%;
+  --primary-foreground: 42 100% 96%;
+
+  --secondary: 28 30% 90%;
+  --secondary-foreground: 24 20% 18%;
+
+  --muted: 29 22% 90%;
+  --muted-foreground: 22 12% 42%;
+
+  --accent: 164 35% 87%;
+  --accent-foreground: 176 45% 18%;
+
+  --destructive: 0 66% 45%;
   --destructive-foreground: 0 0% 98%;
-  --border: 240 5.9% 90%;
-  --input: 240 5.9% 90%;
-  --ring: 240 5.9% 10%;
-  --chart-1: 12 76% 61%;
-  --chart-2: 173 58% 39%;
-  --chart-3: 197 37% 24%;
-  --chart-4: 43 74% 66%;
-  --chart-5: 27 87% 67%;
+
+  --border: 28 20% 82%;
+  --input: 28 20% 82%;
+  --ring: 27 61% 32%;
 }
 
-/* Dark mode - default */
 .dark {
-  --background: 240 10% 3.9%;
-  --foreground: 0 0% 98%;
-  --card: 240 10% 3.9%;
-  --card-foreground: 0 0% 98%;
-  --popover: 240 10% 3.9%;
-  --popover-foreground: 0 0% 98%;
-  --primary: 0 0% 98%;
-  --primary-foreground: 240 5.9% 10%;
-  --secondary: 240 3.7% 15.9%;
-  --secondary-foreground: 0 0% 98%;
-  --muted: 240 3.7% 15.9%;
-  --muted-foreground: 240 5% 64.9%;
-  --accent: 240 3.7% 15.9%;
-  --accent-foreground: 0 0% 98%;
-  --destructive: 0 62.8% 30.6%;
+  --background: 25 19% 9%;
+  --foreground: 35 34% 94%;
+
+  --card: 24 18% 12%;
+  --card-foreground: 35 34% 94%;
+  --popover: 24 18% 12%;
+  --popover-foreground: 35 34% 94%;
+
+  --primary: 35 78% 72%;
+  --primary-foreground: 24 24% 14%;
+
+  --secondary: 24 14% 21%;
+  --secondary-foreground: 34 30% 90%;
+
+  --muted: 24 12% 22%;
+  --muted-foreground: 28 20% 68%;
+
+  --accent: 166 28% 28%;
+  --accent-foreground: 165 47% 88%;
+
+  --destructive: 0 70% 55%;
   --destructive-foreground: 0 0% 98%;
-  --border: 240 3.7% 15.9%;
-  --input: 240 3.7% 15.9%;
-  --ring: 240 4.9% 83.9%;
-  --chart-1: 220 70% 50%;
-  --chart-2: 160 60% 45%;
-  --chart-3: 30 80% 55%;
-  --chart-4: 280 65% 60%;
-  --chart-5: 340 75% 55%;
+
+  --border: 24 12% 26%;
+  --input: 24 12% 26%;
+  --ring: 35 78% 72%;
 }
 
 @theme inline {
@@ -82,7 +81,8 @@
   --color-input: hsl(var(--input));
   --color-ring: hsl(var(--ring));
 
-  --font-sans: var(--font-nunito-sans), system-ui, sans-serif;
+  --font-sans: var(--font-body), "Segoe UI", sans-serif;
+  --font-serif: var(--font-heading), Georgia, serif;
   --font-mono: var(--font-geist-mono), monospace;
 
   --radius-sm: calc(var(--radius) - 4px);
@@ -91,57 +91,55 @@
   --radius-xl: calc(var(--radius) + 4px);
 }
 
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
 body {
+  min-height: 100vh;
   background-color: hsl(var(--background));
   color: hsl(var(--foreground));
-  font-family: var(--font-nunito-sans), system-ui, sans-serif;
+  font-family: var(--font-body), "Segoe UI", sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Smooth transitions for theme changes */
-* {
-  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+h1,
+h2,
+h3,
+h4 {
+  font-family: var(--font-heading), Georgia, serif;
+  letter-spacing: 0.01em;
 }
 
-/* Larger touch targets for mobile */
 button,
-a {
+a,
+input,
+select,
+textarea {
   min-height: 44px;
-  min-width: 44px;
 }
 
-/* Remove tap highlight on mobile */
 * {
   -webkit-tap-highlight-color: transparent;
 }
 
-/* Scrollbar styling for dark mode */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 10px;
+  height: 10px;
 }
 
 ::-webkit-scrollbar-track {
   background: hsl(var(--muted));
-  border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: hsl(var(--muted-foreground) / 0.3);
-  border-radius: 4px;
+  background: hsl(var(--muted-foreground) / 0.45);
+  border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: hsl(var(--muted-foreground) / 0.5);
-}
-
-/* Safe area padding for notched devices */
-@supports (padding-top: env(safe-area-inset-top)) {
-  body {
-    padding-top: env(safe-area-inset-top);
-    padding-bottom: env(safe-area-inset-bottom);
-    padding-left: env(safe-area-inset-left);
-    padding-right: env(safe-area-inset-right);
-  }
+  background: hsl(var(--muted-foreground) / 0.65);
 }

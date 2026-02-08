@@ -2,7 +2,8 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { useHistory, type Walk } from '@/hooks/use-history'
+import { useHistory } from '@/hooks/use-history'
+import type { Walk } from '@/lib/domain/metrics'
 import type { UserName } from '@/lib/database.types'
 
 const userEmojis: Record<UserName, string> = {
@@ -19,7 +20,6 @@ const userColors: Record<UserName, string> = {
 
 export function HistoryView() {
     const {
-        selectedDate,
         dayStats,
         isLoading,
         error,

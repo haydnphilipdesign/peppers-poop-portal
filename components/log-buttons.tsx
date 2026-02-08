@@ -65,11 +65,6 @@ export function LogButtons({ userName, todayPoopCount, onLog }: LogButtonsProps)
         setDrawerOpen(false)
     }
 
-    const openTimePickerFor = (type: LogType) => {
-        setPendingLogType(type)
-        setDrawerOpen(true)
-    }
-
     return (
         <div className="space-y-4">
             {/* Main Log Buttons */}
