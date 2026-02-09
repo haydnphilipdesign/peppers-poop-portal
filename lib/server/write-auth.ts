@@ -2,7 +2,7 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 
 const COOKIE_NAME = "ppp_write_session";
-const SESSION_MAX_AGE_SECONDS = 60 * 60 * 12;
+const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 90;
 
 interface SessionPayload {
   exp: number;
