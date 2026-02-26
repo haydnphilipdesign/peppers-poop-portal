@@ -7,7 +7,7 @@ import { useReminders } from '@/hooks/use-reminders'
 import type { ReminderType, UserName } from '@/lib/database.types'
 import { Button } from '@/components/ui/button'
 import { Calendar, Scissors, Stethoscope, Plus, Loader2 } from 'lucide-react'
-import { format, addWeeks } from 'date-fns'
+import { format, addWeeks, parse } from 'date-fns'
 
 const USERS: UserName[] = ['Chris', 'Debbie', 'Haydn']
 
@@ -33,19 +33,15 @@ export function ReminderManager() {
 
         setLogging(type)
         try {
-            const dateToLog = new Date(selectedDate)
-            // Adjust for timezone offset to ensure the date is correct
-            const userTimezoneOffset = dateToLog.getTimezoneOffset() * 60000
-            const adjustedDate = new Date(dateToLog.getTime() + userTimezoneOffset)
-
-            const completedAt = new Date(adjustedDate)
+            const dateToLog = parse(selectedDate, 'yyyy-MM-dd', new Date())
+            const completedAt = new Date(dateToLog)
             completedAt.setHours(12, 0, 0, 0)
 
-            await addReminder(type, adjustedDate, undefined, assignedTo, completedAt)
+            await addReminder(type, dateToLog, undefined, assignedTo, completedAt)
         } finally {
             setLogging(null)
             setShowAssignee(null)
-            setSelectedDate(format(new Date(), 'yyyy-MM-dd')) // Reset directly to formatted string
+            setSelectedDate(format(new Date(), 'yyyy-MM-dd'))
         }
     }
 

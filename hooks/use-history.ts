@@ -105,6 +105,17 @@ export function useHistory(): UseHistoryReturn {
         void fetchLogsForDate(selectedDate)
     }, [selectedDate, fetchLogsForDate])
 
+    useEffect(() => {
+        const handler = () => {
+            void fetchLogsForDate(selectedDate)
+        }
+
+        window.addEventListener('ppp:data-changed', handler)
+        return () => {
+            window.removeEventListener('ppp:data-changed', handler)
+        }
+    }, [fetchLogsForDate, selectedDate])
+
     const dayStats = useMemo((): DayStats | null => {
         const walks = groupLogsIntoWalks(logs)
         return {

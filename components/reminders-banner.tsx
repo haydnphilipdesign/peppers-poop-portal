@@ -7,7 +7,7 @@ import { useReminders } from '@/hooks/use-reminders'
 import type { ReminderType, UserName } from '@/lib/database.types'
 import { Button } from '@/components/ui/button'
 import { AlertTriangle, Check, Loader2, X, Pill, Scissors, Stethoscope } from 'lucide-react'
-import { format } from 'date-fns'
+import { format, parseISO } from 'date-fns'
 
 const USERS: UserName[] = ['Chris', 'Debbie', 'Haydn']
 
@@ -42,7 +42,7 @@ export function RemindersBanner() {
         isLoading
     } = useReminders()
 
-    const [showAssignee, setShowAssignee] = useState<ReminderType | null>(null)
+    const [showAssignee, setShowAssignee] = useState<string | null>(null)
     const [completing, setCompleting] = useState<string | null>(null)
     const [dismissed, setDismissed] = useState<Set<string>>(new Set())
 
@@ -112,7 +112,7 @@ export function RemindersBanner() {
             alerts.push({
                 id: reminder.id,
                 type: reminder.type,
-                message: `${REMINDER_CONFIG[reminder.type].label} was due on ${format(new Date(reminder.due_date), 'MMM d')}`,
+                message: `${REMINDER_CONFIG[reminder.type].label} was due on ${format(parseISO(reminder.due_date), 'MMM d')}`,
                 onComplete: async (completedBy) => {
                     setCompleting(reminder.id)
                     try {
@@ -156,7 +156,7 @@ export function RemindersBanner() {
                                     <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                                         Read only
                                     </span>
-                                ) : showAssignee === alert.type ? (
+                                ) : showAssignee === alert.id ? (
                                     <div className="flex gap-1">
                                         {USERS.map(u => (
                                             <Button
@@ -180,7 +180,7 @@ export function RemindersBanner() {
                                         <Button
                                             size="sm"
                                             variant="secondary"
-                                            onClick={() => setShowAssignee(alert.type)}
+                                            onClick={() => setShowAssignee(alert.id)}
                                             disabled={isLoading}
                                             className="bg-background"
                                         >

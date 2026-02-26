@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
 import { apiFetch } from '@/lib/api-client'
 import type {
@@ -10,6 +10,8 @@ import type {
 } from '@/lib/api-types'
 import type { Reminder, ReminderType, UserName } from '@/lib/database.types'
 import { startOfDay, addWeeks, isBefore, parseISO, format } from 'date-fns'
+
+const REMINDERS_CHANGED_EVENT = 'ppp:reminders-changed'
 
 interface UseRemindersReturn {
     reminders: Reminder[]
@@ -28,20 +30,17 @@ interface UseRemindersReturn {
 export function useReminders(): UseRemindersReturn {
     const [reminders, setReminders] = useState<Reminder[]>([])
     const [isLoading, setIsLoading] = useState(true)
+    const [hasFetchedOnce, setHasFetchedOnce] = useState(false)
     const [error, setError] = useState<string | null>(null)
+    const instanceIdRef = useRef(`use-reminders-${Date.now()}-${Math.random()}`)
 
     const fetchReminders = useCallback(async () => {
         try {
             setIsLoading(true)
 
-            // Fetch all reminders from the last 6 months
-            const sixMonthsAgo = new Date()
-            sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6)
-
             const { data, error: fetchError } = await supabase
                 .from('reminders')
                 .select('*')
-                .gte('created_at', sixMonthsAgo.toISOString())
                 .order('due_date', { ascending: false })
 
             if (fetchError) throw fetchError
@@ -51,13 +50,44 @@ export function useReminders(): UseRemindersReturn {
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Failed to fetch reminders')
         } finally {
+            setHasFetchedOnce(true)
             setIsLoading(false)
         }
     }, [])
 
     useEffect(() => {
-        fetchReminders()
+        void fetchReminders()
     }, [fetchReminders])
+
+    useEffect(() => {
+        const handler = (event: Event) => {
+            const customEvent = event as CustomEvent<{
+                instanceId?: string
+            }>
+
+            if (customEvent.detail?.instanceId === instanceIdRef.current) {
+                return
+            }
+
+            void fetchReminders()
+        }
+
+        window.addEventListener(REMINDERS_CHANGED_EVENT, handler)
+        return () => {
+            window.removeEventListener(REMINDERS_CHANGED_EVENT, handler)
+        }
+    }, [fetchReminders])
+
+    const dispatchReminderChanged = useCallback(() => {
+        window.dispatchEvent(new Event('ppp:data-changed'))
+        window.dispatchEvent(
+            new CustomEvent(REMINDERS_CHANGED_EVENT, {
+                detail: {
+                    instanceId: instanceIdRef.current,
+                },
+            })
+        )
+    }, [])
 
     const addReminder = async (type: ReminderType, dueDate: Date, notes?: string, completedBy?: UserName, completedAt?: Date) => {
         const formattedDueDate = format(dueDate, 'yyyy-MM-dd')
@@ -106,7 +136,7 @@ export function useReminders(): UseRemindersReturn {
             })
 
             await fetchReminders()
-            window.dispatchEvent(new Event('ppp:data-changed'))
+            dispatchReminderChanged()
         } catch (err) {
             setReminders(prev => prev.filter(r => r.id !== optimisticReminder.id))
             const errorMessage = err instanceof Error ? err.message : 'Failed to add reminder'
@@ -135,7 +165,7 @@ export function useReminders(): UseRemindersReturn {
             })
 
             await fetchReminders()
-            window.dispatchEvent(new Event('ppp:data-changed'))
+            dispatchReminderChanged()
         } catch (err) {
             await fetchReminders() // Rollback by refetching
             const errorMessage = err instanceof Error ? err.message : 'Failed to complete reminder'
@@ -173,6 +203,9 @@ export function useReminders(): UseRemindersReturn {
 
     // Simparica is due on the 20th of each month
     const isSimparicaDue = (() => {
+        // Avoid flash on first render before reminders are loaded.
+        if (!hasFetchedOnce) return false
+
         const currentDay = now.getDate()
         const currentMonth = now.getMonth()
         const currentYear = now.getFullYear()
