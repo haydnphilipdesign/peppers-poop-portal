@@ -11,6 +11,7 @@ interface AuthStatusResponse {
 interface UseWriteAccessReturn {
   isUnlocked: boolean;
   isLoading: boolean;
+  hasResolvedStatus: boolean;
   error: string | null;
   unlock: (pin: string) => Promise<boolean>;
   lock: () => Promise<void>;
@@ -20,6 +21,7 @@ interface UseWriteAccessReturn {
 export function useWriteAccess(): UseWriteAccessReturn {
   const [isUnlocked, setIsUnlocked] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [hasResolvedStatus, setHasResolvedStatus] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
@@ -35,6 +37,7 @@ export function useWriteAccess(): UseWriteAccessReturn {
       setError(message);
       setIsUnlocked(false);
     } finally {
+      setHasResolvedStatus(true);
       setIsLoading(false);
     }
   }, []);
@@ -82,6 +85,7 @@ export function useWriteAccess(): UseWriteAccessReturn {
   return {
     isUnlocked,
     isLoading,
+    hasResolvedStatus,
     error,
     unlock,
     lock,

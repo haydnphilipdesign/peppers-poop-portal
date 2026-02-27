@@ -69,7 +69,9 @@ export function ReminderManager() {
                                 <div>
                                     <p className="font-medium text-foreground">Grooming</p>
                                     <p className="text-xs text-muted-foreground">
-                                        {lastGrooming
+                                        {isLoading
+                                            ? 'Loading...'
+                                            : lastGrooming
                                             ? `Last: ${format(lastGrooming, 'MMM d, yyyy')}`
                                             : 'Not yet logged'
                                         }
@@ -134,7 +136,9 @@ export function ReminderManager() {
                                 <div>
                                     <p className="font-medium text-foreground">Vet Visit</p>
                                     <p className="text-xs text-muted-foreground">
-                                        {lastVet
+                                        {isLoading
+                                            ? 'Loading...'
+                                            : lastVet
                                             ? `Last: ${format(lastVet, 'MMM d, yyyy')}`
                                             : 'Not yet logged'
                                         }

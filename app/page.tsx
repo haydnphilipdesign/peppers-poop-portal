@@ -5,7 +5,11 @@ import { ProfileSelector } from '@/components/profile-selector'
 import { Dashboard } from '@/components/dashboard'
 
 export default function Home() {
-  const { user } = useUser()
+  const { user, isHydrated } = useUser()
+
+  if (!isHydrated) {
+    return null
+  }
 
   // Show profile selector if no user selected
   if (!user) {

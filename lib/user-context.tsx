@@ -9,6 +9,7 @@ const VALID_USERS: UserName[] = ['Chris', 'Debbie', 'Haydn']
 
 interface UserContextType {
     user: UserName | null
+    isHydrated: boolean
     setUser: (user: UserName | null) => void
 }
 
@@ -50,8 +51,25 @@ function getServerSnapshot(): UserName | null {
     return null
 }
 
+function subscribeNoop(): () => void {
+    return () => { }
+}
+
+function getHydrationSnapshot(): boolean {
+    return true
+}
+
+function getHydrationServerSnapshot(): boolean {
+    return false
+}
+
 export function UserProvider({ children }: { children: ReactNode }) {
     const user = useSyncExternalStore(subscribe, readStoredUser, getServerSnapshot)
+    const isHydrated = useSyncExternalStore(
+        subscribeNoop,
+        getHydrationSnapshot,
+        getHydrationServerSnapshot
+    )
 
     const setUser = (newUser: UserName | null) => {
         if (typeof window === 'undefined') {
@@ -68,7 +86,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
     }
 
     return (
-        <UserContext.Provider value={{ user, setUser }}>
+        <UserContext.Provider value={{ user, isHydrated, setUser }}>
             {children}
         </UserContext.Provider>
     )

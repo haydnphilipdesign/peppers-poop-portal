@@ -40,15 +40,17 @@ export function Dashboard() {
     const {
         isUnlocked,
         isLoading: isAuthLoading,
+        hasResolvedStatus,
         error: accessError,
         unlock,
         lock,
     } = useWriteAccess()
+    const canEdit = hasResolvedStatus && isUnlocked
 
     if (!user) return null
 
     return (
-        <ReadOnlyProvider isReadOnly={!isUnlocked}>
+        <ReadOnlyProvider isReadOnly={!canEdit}>
             <div className="min-h-screen bg-[radial-gradient(circle_at_top_right,hsl(32_100%_95%),hsl(var(--background))_36%),radial-gradient(circle_at_20%_120%,hsl(18_85%_94%),transparent_42%)] text-foreground">
                 <header className="sticky top-0 z-50 border-b border-border/70 bg-background/90 backdrop-blur">
                     <div className="mx-auto flex w-full max-w-2xl items-center justify-between gap-3 px-4 py-3">
@@ -63,7 +65,7 @@ export function Dashboard() {
                         </div>
 
                         <div className="flex items-center gap-2">
-                            {isUnlocked ? (
+                            {canEdit ? (
                                 <Button variant="outline" size="sm" onClick={() => void lock()}>
                                     Lock Editing
                                 </Button>
@@ -76,7 +78,13 @@ export function Dashboard() {
                 </header>
 
                 <main className="mx-auto w-full max-w-2xl space-y-5 px-4 py-6">
-                    {!isUnlocked ? (
+                    {!hasResolvedStatus ? (
+                        <div className="rounded-xl border border-border bg-card p-4 text-sm text-muted-foreground">
+                            Checking editing access...
+                        </div>
+                    ) : null}
+
+                    {hasResolvedStatus && !isUnlocked ? (
                         <WriteAccessPanel
                             onUnlock={unlock}
                             isLoading={isAuthLoading}
@@ -109,16 +117,22 @@ export function Dashboard() {
 
                                 <RemindersBanner />
 
-                                <WalkHistory
-                                    walks={todayWalks}
-                                    poopCount={todayPoopCount}
-                                    peeCount={todayPeeCount}
-                                    walksCount={todayWalksCount}
-                                    onDeleteWalk={deleteWalk}
-                                    onUpdateWalk={updateWalk}
-                                />
+                                {!isLoading ? (
+                                    <WalkHistory
+                                        walks={todayWalks}
+                                        poopCount={todayPoopCount}
+                                        peeCount={todayPeeCount}
+                                        walksCount={todayWalksCount}
+                                        onDeleteWalk={deleteWalk}
+                                        onUpdateWalk={updateWalk}
+                                    />
+                                ) : null}
 
-                                {isUnlocked ? (
+                                {!hasResolvedStatus ? (
+                                    <p className="rounded-xl border border-border px-4 py-3 text-sm text-muted-foreground">
+                                        Checking editing access...
+                                    </p>
+                                ) : canEdit ? (
                                     <section className="space-y-2">
                                         <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
                                             Quick Log
@@ -133,7 +147,7 @@ export function Dashboard() {
 
                                 <DailyRoutines />
                                 <ReminderManager />
-                                <Leaderboard weeklyPoints={weeklyPoints} />
+                                {!isLoading ? <Leaderboard weeklyPoints={weeklyPoints} /> : null}
                             </div>
                         </TabsContent>
 

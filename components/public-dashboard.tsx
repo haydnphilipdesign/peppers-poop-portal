@@ -74,18 +74,20 @@ export function PublicDashboard() {
 
                             <RemindersBanner />
 
-                            <WalkHistory
-                                walks={todayWalks}
-                                poopCount={todayPoopCount}
-                                peeCount={todayPeeCount}
-                                walksCount={todayWalksCount}
-                                onDeleteWalk={noopDelete}
-                                onUpdateWalk={noopUpdate}
-                            />
+                            {!isLoading ? (
+                                <WalkHistory
+                                    walks={todayWalks}
+                                    poopCount={todayPoopCount}
+                                    peeCount={todayPeeCount}
+                                    walksCount={todayWalksCount}
+                                    onDeleteWalk={noopDelete}
+                                    onUpdateWalk={noopUpdate}
+                                />
+                            ) : null}
 
                             <DailyRoutines />
                             <ReminderManager />
-                            <Leaderboard weeklyPoints={weeklyPoints} />
+                            {!isLoading ? <Leaderboard weeklyPoints={weeklyPoints} /> : null}
                         </div>
                     </TabsContent>
 
