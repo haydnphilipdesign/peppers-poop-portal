@@ -128,8 +128,8 @@ export function calculateWeeklyPoints(
 ): Record<UserName, number> {
   const points = createEmptyUserStats(() => 0);
 
-  logs.forEach((log) => {
-    points[log.user_name] += POINTS.walkLog;
+  groupLogsIntoWalks(logs).forEach((walk) => {
+    points[walk.userName] += POINTS.walkLog;
   });
 
   activities.forEach((activity) => {

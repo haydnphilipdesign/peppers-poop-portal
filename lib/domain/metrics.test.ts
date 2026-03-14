@@ -67,10 +67,11 @@ describe("calculatePoopStreak", () => {
 });
 
 describe("calculateWeeklyPoints", () => {
-  it("assigns points by source type consistently", () => {
+  it("awards walk points once per walk regardless of pee or poop mix", () => {
     const logs: Log[] = [
       createLog("1", "2026-02-01T08:00:00.000Z", "pee", "Chris"),
-      createLog("2", "2026-02-01T08:20:00.000Z", "poop", "Debbie"),
+      createLog("2", "2026-02-01T08:20:00.000Z", "poop", "Chris"),
+      createLog("3", "2026-02-01T09:00:00.000Z", "poop", "Debbie"),
     ];
 
     const activities: Activity[] = [

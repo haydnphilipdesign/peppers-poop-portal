@@ -53,7 +53,7 @@ export function Leaderboard({ weeklyPoints }: LeaderboardProps) {
                     </div>
                 ))}
                 <p className="text-xs text-center text-muted-foreground pt-2">
-                    💩 5 · 💦 5 · 🧸 5 · 🍽️ 5 · 💊 5 pts
+                    🦮 Walks 5 · 🧸 Activities 5 · 💊 Reminders 5 pts
                 </p>
             </CardContent>
         </Card>
