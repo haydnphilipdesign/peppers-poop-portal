@@ -1,15 +1,16 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
 import { apiFetch } from '@/lib/api-client'
 import type {
     ApiSuccessResponse,
     ReminderCompleteRequest,
     ReminderLogRequest,
+    ReminderScheduleRequest,
 } from '@/lib/api-types'
 import type { Reminder, ReminderType, UserName } from '@/lib/database.types'
-import { startOfDay, addWeeks, isBefore, parseISO, format } from 'date-fns'
+import { startOfDay, addDays, addWeeks, isBefore, parseISO, format } from 'date-fns'
 
 const REMINDERS_CHANGED_EVENT = 'ppp:reminders-changed'
 
@@ -21,7 +22,10 @@ interface UseRemindersReturn {
     error: string | null
     isSimparicaDue: boolean
     isGroomingDue: boolean
+    activeGroomingReminder: Reminder | null
+    groomingAppointmentReminder: Reminder | null
     addReminder: (type: ReminderType, dueDate: Date, notes?: string, completedBy?: UserName, completedAt?: Date) => Promise<void>
+    scheduleReminder: (type: ReminderType, appointmentAt: Date, scheduledBy: UserName, notes?: string) => Promise<void>
     completeReminder: (id: string, completedBy: UserName, completedAt?: Date) => Promise<void>
     getLastCompletedDate: (type: ReminderType) => Date | null
     refetch: () => Promise<void>
@@ -89,6 +93,22 @@ export function useReminders(): UseRemindersReturn {
         )
     }, [])
 
+    const getActiveScheduledReminder = useCallback((type: ReminderType) => {
+        const scheduled = reminders
+            .filter(reminder =>
+                reminder.type === type &&
+                !reminder.completed_at &&
+                reminder.appointment_at
+            )
+            .sort((a, b) => {
+                const aTimestamp = new Date(a.scheduled_at ?? a.created_at).getTime()
+                const bTimestamp = new Date(b.scheduled_at ?? b.created_at).getTime()
+                return bTimestamp - aTimestamp
+            })
+
+        return scheduled[0] ?? null
+    }, [reminders])
+
     const addReminder = async (type: ReminderType, dueDate: Date, notes?: string, completedBy?: UserName, completedAt?: Date) => {
         const formattedDueDate = format(dueDate, 'yyyy-MM-dd')
 
@@ -144,6 +164,55 @@ export function useReminders(): UseRemindersReturn {
         }
     }
 
+    const scheduleReminder = async (type: ReminderType, appointmentAt: Date, scheduledBy: UserName, notes?: string) => {
+        const existingReminder = getActiveScheduledReminder(type)
+        const formattedDueDate = format(appointmentAt, 'yyyy-MM-dd')
+        const scheduledAt = new Date()
+
+        const optimisticReminder: Reminder = {
+            id: existingReminder?.id ?? `temp-${Date.now()}`,
+            created_at: existingReminder?.created_at ?? scheduledAt.toISOString(),
+            type,
+            due_date: formattedDueDate,
+            appointment_at: appointmentAt.toISOString(),
+            scheduled_at: scheduledAt.toISOString(),
+            scheduled_by: scheduledBy,
+            completed_at: existingReminder?.completed_at ?? null,
+            completed_by: existingReminder?.completed_by ?? null,
+            notes: notes ?? existingReminder?.notes ?? null,
+        }
+
+        setReminders(prev => {
+            if (existingReminder) {
+                return prev.map(reminder => reminder.id === existingReminder.id ? optimisticReminder : reminder)
+            }
+
+            return [optimisticReminder, ...prev]
+        })
+
+        try {
+            await apiFetch<ApiSuccessResponse>('/api/reminders/schedule', {
+                method: 'POST',
+                body: JSON.stringify({
+                    id: existingReminder?.id,
+                    type,
+                    dueDate: formattedDueDate,
+                    appointmentAt: appointmentAt.toISOString(),
+                    scheduledBy,
+                    scheduledAt: scheduledAt.toISOString(),
+                    notes: notes ?? undefined,
+                } satisfies ReminderScheduleRequest),
+            })
+
+            await fetchReminders()
+            dispatchReminderChanged()
+        } catch (err) {
+            await fetchReminders()
+            const errorMessage = err instanceof Error ? err.message : 'Failed to schedule reminder'
+            setError(errorMessage)
+        }
+    }
+
     const completeReminder = async (id: string, completedBy: UserName, completedAt?: Date) => {
         const timestamp = completedAt || new Date()
 
@@ -184,10 +253,26 @@ export function useReminders(): UseRemindersReturn {
     // Computed values
     const now = new Date()
     const today = startOfDay(now)
+    const dayAfterTomorrow = addDays(today, 2)
+
+    const activeGroomingReminder = useMemo(
+        () => getActiveScheduledReminder('grooming'),
+        [getActiveScheduledReminder]
+    )
+
+    const groomingAppointmentReminder = useMemo(() => {
+        if (!activeGroomingReminder?.appointment_at) {
+            return null
+        }
+
+        const appointmentAt = parseISO(activeGroomingReminder.appointment_at)
+        return isBefore(appointmentAt, dayAfterTomorrow) ? activeGroomingReminder : null
+    }, [activeGroomingReminder, dayAfterTomorrow])
 
     // Get overdue (past due_date, not completed) and upcoming (within next 7 days) reminders
     const overdueReminders = reminders.filter(r => {
         if (r.completed_at) return false
+        if (r.type === 'grooming' && r.appointment_at && r.id === activeGroomingReminder?.id) return false
         const dueDate = parseISO(r.due_date)
         return isBefore(dueDate, today)
     })
@@ -196,6 +281,7 @@ export function useReminders(): UseRemindersReturn {
         const nextWeek = addWeeks(today, 1)
         return reminders.filter(r => {
             if (r.completed_at) return false
+            if (r.type === 'grooming' && r.appointment_at && r.id === activeGroomingReminder?.id) return false
             const dueDate = parseISO(r.due_date)
             return !isBefore(dueDate, today) && isBefore(dueDate, nextWeek)
         })
@@ -226,6 +312,8 @@ export function useReminders(): UseRemindersReturn {
 
     // Grooming is due if last grooming was 6+ weeks ago
     const isGroomingDue = (() => {
+        if (activeGroomingReminder) return false
+
         const lastGrooming = getLastCompletedDate('grooming')
         if (!lastGrooming) return false // Don't show if never logged
 
@@ -241,7 +329,10 @@ export function useReminders(): UseRemindersReturn {
         error,
         isSimparicaDue,
         isGroomingDue,
+        activeGroomingReminder,
+        groomingAppointmentReminder,
         addReminder,
+        scheduleReminder,
         completeReminder,
         getLastCompletedDate,
         refetch: fetchReminders,

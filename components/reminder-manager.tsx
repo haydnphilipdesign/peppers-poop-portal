@@ -6,10 +6,17 @@ import { useReadOnly } from '@/lib/read-only-context'
 import { useReminders } from '@/hooks/use-reminders'
 import type { ReminderType, UserName } from '@/lib/database.types'
 import { Button } from '@/components/ui/button'
-import { Calendar, Scissors, Stethoscope, Plus, Loader2 } from 'lucide-react'
-import { format, addWeeks, parse } from 'date-fns'
+import { Calendar, Scissors, Stethoscope, Plus, Loader2, Check } from 'lucide-react'
+import { format, addDays, addWeeks, isBefore, parse } from 'date-fns'
 
 const USERS: UserName[] = ['Chris', 'Debbie', 'Haydn']
+const DEFAULT_APPOINTMENT_HOUR = 10
+
+function createDefaultAppointmentInput() {
+    const defaultAppointment = addDays(new Date(), 1)
+    defaultAppointment.setHours(DEFAULT_APPOINTMENT_HOUR, 0, 0, 0)
+    return format(defaultAppointment, "yyyy-MM-dd'T'HH:mm")
+}
 
 export function ReminderManager() {
     const { user } = useUser()
@@ -17,16 +24,23 @@ export function ReminderManager() {
     const {
         getLastCompletedDate,
         addReminder,
+        scheduleReminder,
+        completeReminder,
+        activeGroomingReminder,
         isLoading
     } = useReminders()
 
     const [expanded, setExpanded] = useState(false)
     const [logging, setLogging] = useState<ReminderType | null>(null)
-    const [showAssignee, setShowAssignee] = useState<ReminderType | null>(null)
+    const [showAssignee, setShowAssignee] = useState<string | null>(null)
     const [selectedDate, setSelectedDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'))
+    const [appointmentInput, setAppointmentInput] = useState<string>(createDefaultAppointmentInput)
 
     const lastGrooming = getLastCompletedDate('grooming')
     const lastVet = getLastCompletedDate('vet')
+    const groomingAppointment = activeGroomingReminder?.appointment_at
+        ? new Date(activeGroomingReminder.appointment_at)
+        : null
 
     const handleLogReminder = async (type: ReminderType, assignedTo: UserName) => {
         if (!user) return
@@ -44,6 +58,56 @@ export function ReminderManager() {
             setSelectedDate(format(new Date(), 'yyyy-MM-dd'))
         }
     }
+
+    const handleScheduleGrooming = async (scheduledBy: UserName) => {
+        if (!user) return
+
+        setLogging('grooming')
+        try {
+            const appointmentAt = parse(appointmentInput, "yyyy-MM-dd'T'HH:mm", new Date())
+            await scheduleReminder('grooming', appointmentAt, scheduledBy)
+        } finally {
+            setLogging(null)
+            setShowAssignee(null)
+            setAppointmentInput(createDefaultAppointmentInput())
+        }
+    }
+
+    const handleCompleteScheduledGrooming = async (completedBy: UserName) => {
+        if (!user || !activeGroomingReminder) return
+
+        setLogging('grooming')
+        try {
+            await completeReminder(activeGroomingReminder.id, completedBy)
+        } finally {
+            setLogging(null)
+            setShowAssignee(null)
+        }
+    }
+
+    const openGroomingSchedule = () => {
+        setAppointmentInput(
+            groomingAppointment
+                ? format(groomingAppointment, "yyyy-MM-dd'T'HH:mm")
+                : createDefaultAppointmentInput()
+        )
+        setShowAssignee('grooming-schedule')
+    }
+
+    const groomingStatusCopy = (() => {
+        if (isLoading) return 'Loading...'
+        if (groomingAppointment) {
+            const appointmentLabel = format(groomingAppointment, "MMM d, yyyy 'at' h:mm a")
+            const isPastAppointment = isBefore(groomingAppointment, new Date())
+            return isPastAppointment
+                ? `Appointment was scheduled for ${appointmentLabel}`
+                : `Scheduled for ${appointmentLabel}`
+        }
+        if (lastGrooming) {
+            return `Last: ${format(lastGrooming, 'MMM d, yyyy')}`
+        }
+        return 'Not yet logged'
+    })()
 
     return (
         <section className="space-y-3">
@@ -68,15 +132,13 @@ export function ReminderManager() {
                                 </div>
                                 <div>
                                     <p className="font-medium text-foreground">Grooming</p>
-                                    <p className="text-xs text-muted-foreground">
-                                        {isLoading
-                                            ? 'Loading...'
-                                            : lastGrooming
-                                            ? `Last: ${format(lastGrooming, 'MMM d, yyyy')}`
-                                            : 'Not yet logged'
-                                        }
-                                    </p>
-                                    {lastGrooming && (
+                                    <p className="text-xs text-muted-foreground">{groomingStatusCopy}</p>
+                                    {activeGroomingReminder?.scheduled_by ? (
+                                        <p className="text-xs text-muted-foreground">
+                                            Scheduled by {activeGroomingReminder.scheduled_by}
+                                        </p>
+                                    ) : null}
+                                    {lastGrooming && !groomingAppointment && (
                                         <p className="text-xs text-muted-foreground">
                                             Next: ~{format(addWeeks(lastGrooming, 6), 'MMM d')}
                                         </p>
@@ -84,7 +146,53 @@ export function ReminderManager() {
                                 </div>
                             </div>
 
-                            {isReadOnly ? null : showAssignee === 'grooming' ? (
+                            {isReadOnly ? null : showAssignee === 'grooming-schedule' ? (
+                                <div className="flex flex-col gap-2 items-end">
+                                    <input
+                                        type="datetime-local"
+                                        value={appointmentInput}
+                                        onChange={(e) => setAppointmentInput(e.target.value)}
+                                        className="h-7 px-2 text-xs border rounded bg-background"
+                                    />
+                                    <div className="flex gap-1">
+                                        {USERS.map(u => (
+                                            <Button
+                                                key={u}
+                                                size="sm"
+                                                variant="outline"
+                                                onClick={() => handleScheduleGrooming(u)}
+                                                disabled={logging === 'grooming'}
+                                                className="text-xs px-2 py-1 h-7"
+                                            >
+                                                {logging === 'grooming' ? (
+                                                    <Loader2 className="w-3 h-3 animate-spin" />
+                                                ) : (
+                                                    u
+                                                )}
+                                            </Button>
+                                        ))}
+                                    </div>
+                                </div>
+                            ) : showAssignee === 'grooming-complete' ? (
+                                <div className="flex gap-1">
+                                    {USERS.map(u => (
+                                        <Button
+                                            key={u}
+                                            size="sm"
+                                            variant="outline"
+                                            onClick={() => handleCompleteScheduledGrooming(u)}
+                                            disabled={logging === 'grooming'}
+                                            className="text-xs px-2 py-1 h-7"
+                                        >
+                                            {logging === 'grooming' ? (
+                                                <Loader2 className="w-3 h-3 animate-spin" />
+                                            ) : (
+                                                u
+                                            )}
+                                        </Button>
+                                    ))}
+                                </div>
+                            ) : showAssignee === 'grooming-log' ? (
                                 <div className="flex flex-col gap-2 items-end">
                                     <input
                                         type="date"
@@ -113,15 +221,35 @@ export function ReminderManager() {
                                     </div>
                                 </div>
                             ) : (
-                                <Button
-                                    size="sm"
-                                    variant="secondary"
-                                    onClick={() => setShowAssignee('grooming')}
-                                    disabled={isLoading}
-                                >
-                                    <Plus className="w-4 h-4 mr-1" />
-                                    Log
-                                </Button>
+                                <div className="flex flex-col items-end gap-2">
+                                    <Button
+                                        size="sm"
+                                        variant="secondary"
+                                        onClick={openGroomingSchedule}
+                                        disabled={isLoading}
+                                    >
+                                        <Calendar className="w-4 h-4 mr-1" />
+                                        {groomingAppointment ? 'Reschedule' : 'Schedule'}
+                                    </Button>
+                                    <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        onClick={() => setShowAssignee(groomingAppointment ? 'grooming-complete' : 'grooming-log')}
+                                        disabled={isLoading}
+                                    >
+                                        {groomingAppointment ? (
+                                            <>
+                                                <Check className="w-4 h-4 mr-1" />
+                                                Complete
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Plus className="w-4 h-4 mr-1" />
+                                                Log Completed
+                                            </>
+                                        )}
+                                    </Button>
+                                </div>
                             )}
                         </div>
                     </div>

@@ -90,6 +90,9 @@ describe("calculateWeeklyPoints", () => {
         created_at: "2026-02-01T12:00:00.000Z",
         type: "grooming",
         due_date: "2026-02-01",
+        appointment_at: "2026-02-01T14:00:00.000Z",
+        scheduled_at: "2026-02-01T12:00:00.000Z",
+        scheduled_by: "Chris",
         completed_at: "2026-02-01T12:05:00.000Z",
         completed_by: "Chris",
         notes: null,
@@ -98,7 +101,9 @@ describe("calculateWeeklyPoints", () => {
 
     const points = calculateWeeklyPoints(logs, activities, reminders);
 
-    expect(points.Chris).toBe(POINTS.walkLog + POINTS.reminder);
+    expect(points.Chris).toBe(
+      POINTS.walkLog + POINTS.reminderScheduled + POINTS.reminderCompleted
+    );
     expect(points.Debbie).toBe(POINTS.walkLog);
     expect(points.Haydn).toBe(POINTS.activity);
   });

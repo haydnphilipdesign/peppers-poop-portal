@@ -6,10 +6,17 @@ import { useReadOnly } from '@/lib/read-only-context'
 import { useReminders } from '@/hooks/use-reminders'
 import type { ReminderType, UserName } from '@/lib/database.types'
 import { Button } from '@/components/ui/button'
-import { AlertTriangle, Check, Loader2, X, Pill, Scissors, Stethoscope } from 'lucide-react'
-import { format, parseISO } from 'date-fns'
+import { AlertTriangle, Calendar, Check, Loader2, X, Pill, Scissors, Stethoscope } from 'lucide-react'
+import { addDays, format, isToday, isTomorrow, parse, parseISO } from 'date-fns'
 
 const USERS: UserName[] = ['Chris', 'Debbie', 'Haydn']
+const DEFAULT_APPOINTMENT_HOUR = 10
+
+function createDefaultAppointmentInput() {
+    const defaultAppointment = addDays(new Date(), 1)
+    defaultAppointment.setHours(DEFAULT_APPOINTMENT_HOUR, 0, 0, 0)
+    return format(defaultAppointment, "yyyy-MM-dd'T'HH:mm")
+}
 
 const REMINDER_CONFIG: Record<ReminderType, { icon: React.ReactNode; label: string; color: string }> = {
     simparica: {
@@ -29,22 +36,42 @@ const REMINDER_CONFIG: Record<ReminderType, { icon: React.ReactNode; label: stri
     },
 }
 
+type BannerAlert =
+    | {
+        id: string
+        type: ReminderType
+        kind: 'complete'
+        message: string
+        actionLabel?: string
+        onComplete: (user: UserName) => Promise<void>
+    }
+    | {
+        id: string
+        type: 'grooming'
+        kind: 'schedule'
+        message: string
+        onSchedule: (user: UserName, appointmentAt: Date) => Promise<void>
+    }
+
 export function RemindersBanner() {
     const { user } = useUser()
     const isReadOnly = useReadOnly()
     const {
         isSimparicaDue,
         isGroomingDue,
+        groomingAppointmentReminder,
         overdueReminders,
         addReminder,
+        scheduleReminder,
         completeReminder,
         getLastCompletedDate,
         isLoading
     } = useReminders()
 
-    const [showAssignee, setShowAssignee] = useState<string | null>(null)
+    const [activeAction, setActiveAction] = useState<string | null>(null)
     const [completing, setCompleting] = useState<string | null>(null)
     const [dismissed, setDismissed] = useState<Set<string>>(new Set())
+    const [appointmentInput, setAppointmentInput] = useState<string>(createDefaultAppointmentInput)
 
     const handleCompleteSimparica = async (completedBy: UserName) => {
         if (!user) return
@@ -55,20 +82,20 @@ export function RemindersBanner() {
             await addReminder('simparica', today, undefined, completedBy)
         } finally {
             setCompleting(null)
-            setShowAssignee(null)
+            setActiveAction(null)
         }
     }
 
-    const handleCompleteGrooming = async (completedBy: UserName) => {
+    const handleScheduleGrooming = async (scheduledBy: UserName, appointmentAt: Date) => {
         if (!user) return
 
         setCompleting('grooming')
         try {
-            const today = new Date()
-            await addReminder('grooming', today, undefined, completedBy)
+            await scheduleReminder('grooming', appointmentAt, scheduledBy)
         } finally {
             setCompleting(null)
-            setShowAssignee(null)
+            setActiveAction(null)
+            setAppointmentInput(createDefaultAppointmentInput())
         }
     }
 
@@ -77,32 +104,59 @@ export function RemindersBanner() {
     }
 
     // Build alerts list
-    const alerts: Array<{
-        id: string
-        type: ReminderType
-        message: string
-        onComplete: (user: UserName) => Promise<void>
-    }> = []
+    const alerts: BannerAlert[] = []
 
     if (isSimparicaDue && !dismissed.has('simparica')) {
         alerts.push({
             id: 'simparica',
             type: 'simparica',
+            kind: 'complete',
             message: "Pepper's Simparica Trio is due!",
             onComplete: handleCompleteSimparica,
         })
     }
 
-    if (isGroomingDue && !dismissed.has('grooming')) {
+    if (isGroomingDue && !dismissed.has('grooming-due')) {
         const lastGrooming = getLastCompletedDate('grooming')
         const weeksAgo = lastGrooming
             ? Math.round((Date.now() - lastGrooming.getTime()) / (1000 * 60 * 60 * 24 * 7))
             : 0
         alerts.push({
-            id: 'grooming',
+            id: 'grooming-due',
             type: 'grooming',
+            kind: 'schedule',
             message: `Grooming is due (last: ${weeksAgo} weeks ago)`,
-            onComplete: handleCompleteGrooming,
+            onSchedule: handleScheduleGrooming,
+        })
+    }
+
+    if (groomingAppointmentReminder && !dismissed.has(groomingAppointmentReminder.id)) {
+        const appointmentAt = parseISO(groomingAppointmentReminder.appointment_at!)
+        let message = `Pepper has a grooming appointment on ${format(appointmentAt, "MMM d 'at' h:mm a")}.`
+
+        if (isToday(appointmentAt)) {
+            message = `Pepper has a grooming appointment today at ${format(appointmentAt, 'h:mm a')}.`
+        } else if (isTomorrow(appointmentAt)) {
+            message = `Pepper has a grooming appointment tomorrow at ${format(appointmentAt, 'h:mm a')}.`
+        } else if (appointmentAt.getTime() < Date.now()) {
+            message = `Pepper's grooming appointment was ${format(appointmentAt, "MMM d 'at' h:mm a")}. Mark it completed.`
+        }
+
+        alerts.push({
+            id: groomingAppointmentReminder.id,
+            type: 'grooming',
+            kind: 'complete',
+            message,
+            actionLabel: 'Complete',
+            onComplete: async (completedBy) => {
+                setCompleting(groomingAppointmentReminder.id)
+                try {
+                    await completeReminder(groomingAppointmentReminder.id, completedBy)
+                } finally {
+                    setCompleting(null)
+                    setActiveAction(null)
+                }
+            },
         })
     }
 
@@ -112,6 +166,7 @@ export function RemindersBanner() {
             alerts.push({
                 id: reminder.id,
                 type: reminder.type,
+                kind: 'complete',
                 message: `${REMINDER_CONFIG[reminder.type].label} was due on ${format(parseISO(reminder.due_date), 'MMM d')}`,
                 onComplete: async (completedBy) => {
                     setCompleting(reminder.id)
@@ -119,7 +174,7 @@ export function RemindersBanner() {
                         await completeReminder(reminder.id, completedBy)
                     } finally {
                         setCompleting(null)
-                        setShowAssignee(null)
+                        setActiveAction(null)
                     }
                 },
             })
@@ -156,36 +211,79 @@ export function RemindersBanner() {
                                     <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                                         Read only
                                     </span>
-                                ) : showAssignee === alert.id ? (
+                                ) : activeAction === alert.id ? (
                                     <div className="flex gap-1">
-                                        {USERS.map(u => (
-                                            <Button
-                                                key={u}
-                                                size="sm"
-                                                variant="outline"
-                                                onClick={() => alert.onComplete(u)}
-                                                disabled={completing === alert.id}
-                                                className="text-xs px-2 py-1 h-7 bg-background"
-                                            >
-                                                {completing === alert.id ? (
-                                                    <Loader2 className="w-3 h-3 animate-spin" />
-                                                ) : (
-                                                    u
-                                                )}
-                                            </Button>
-                                        ))}
+                                        {alert.kind === 'schedule' ? (
+                                            <div className="flex flex-col items-end gap-2">
+                                                <input
+                                                    type="datetime-local"
+                                                    value={appointmentInput}
+                                                    onChange={(e) => setAppointmentInput(e.target.value)}
+                                                    className="h-7 px-2 text-xs border rounded bg-background"
+                                                />
+                                                <div className="flex gap-1">
+                                                    {USERS.map(u => (
+                                                        <Button
+                                                            key={u}
+                                                            size="sm"
+                                                            variant="outline"
+                                                            onClick={() => alert.onSchedule(u, parse(appointmentInput, "yyyy-MM-dd'T'HH:mm", new Date()))}
+                                                            disabled={completing === 'grooming'}
+                                                            className="text-xs px-2 py-1 h-7 bg-background"
+                                                        >
+                                                            {completing === 'grooming' ? (
+                                                                <Loader2 className="w-3 h-3 animate-spin" />
+                                                            ) : (
+                                                                u
+                                                            )}
+                                                        </Button>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            USERS.map(u => (
+                                                <Button
+                                                    key={u}
+                                                    size="sm"
+                                                    variant="outline"
+                                                    onClick={() => alert.onComplete(u)}
+                                                    disabled={completing === alert.id}
+                                                    className="text-xs px-2 py-1 h-7 bg-background"
+                                                >
+                                                    {completing === alert.id ? (
+                                                        <Loader2 className="w-3 h-3 animate-spin" />
+                                                    ) : (
+                                                        u
+                                                    )}
+                                                </Button>
+                                            ))
+                                        )}
                                     </div>
                                 ) : (
                                     <>
                                         <Button
                                             size="sm"
                                             variant="secondary"
-                                            onClick={() => setShowAssignee(alert.id)}
+                                            onClick={() => {
+                                                if (alert.kind === 'schedule') {
+                                                    setAppointmentInput(createDefaultAppointmentInput())
+                                                }
+                                                setActiveAction(alert.id)
+                                            }}
                                             disabled={isLoading}
                                             className="bg-background"
                                         >
-                                            <Check className="w-4 h-4 mr-1" />
-                                            Done
+                                            {alert.kind === 'schedule' ? (
+                                                <>
+                                                    <Calendar className="w-4 h-4 mr-1" />
+                                                    Schedule
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <Check className="w-4 h-4 mr-1" />
+                                                    {alert.actionLabel ?? 'Done'}
+                                                </>
+                                            )}
                                         </Button>
                                         <Button
                                             size="sm"

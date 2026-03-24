@@ -40,6 +40,9 @@ export interface Reminder {
     created_at: string
     type: ReminderType
     due_date: string
+    appointment_at: string | null
+    scheduled_at: string | null
+    scheduled_by: UserName | null
     completed_at: string | null
     completed_by: UserName | null
     notes: string | null
@@ -50,6 +53,9 @@ export type ReminderInsert = {
     created_at?: string
     type: ReminderType
     due_date: string
+    appointment_at?: string | null
+    scheduled_at?: string | null
+    scheduled_by?: UserName | null
     completed_at?: string | null
     completed_by?: UserName | null
     notes?: string | null

@@ -51,8 +51,21 @@ export const activityCreateSchema = z.object({
 export const reminderLogSchema = z.object({
   type: reminderTypeSchema,
   dueDate: isoDateSchema,
+  appointmentAt: isoDateTimeSchema.optional(),
+  scheduledAt: isoDateTimeSchema.optional(),
+  scheduledBy: userNameSchema.optional(),
   completedBy: userNameSchema.optional(),
   completedAt: isoDateTimeSchema.optional(),
+  notes: z.string().max(500).optional(),
+});
+
+export const reminderScheduleSchema = z.object({
+  id: uuidSchema.optional(),
+  type: reminderTypeSchema,
+  dueDate: isoDateSchema,
+  appointmentAt: isoDateTimeSchema,
+  scheduledBy: userNameSchema,
+  scheduledAt: isoDateTimeSchema.optional(),
   notes: z.string().max(500).optional(),
 });
 

@@ -19,7 +19,8 @@ export interface Walk {
 export const POINTS = {
   walkLog: 5,
   activity: 5,
-  reminder: 5,
+  reminderScheduled: 5,
+  reminderCompleted: 5,
 } as const;
 
 const WALK_GROUPING_WINDOW_MINUTES = 30;
@@ -137,8 +138,12 @@ export function calculateWeeklyPoints(
   });
 
   reminders.forEach((reminder) => {
+    if (reminder.scheduled_by && reminder.scheduled_at) {
+      points[reminder.scheduled_by] += POINTS.reminderScheduled;
+    }
+
     if (reminder.completed_by) {
-      points[reminder.completed_by] += POINTS.reminder;
+      points[reminder.completed_by] += POINTS.reminderCompleted;
     }
   });
 

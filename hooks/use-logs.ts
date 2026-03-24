@@ -86,14 +86,28 @@ export function useLogs(): UseLogsReturn {
 
             if (weekActivitiesError) throw weekActivitiesError
 
-            const { data: weekRemindersData, error: weekRemindersError } = await supabase
+            const { data: allRemindersData, error: weekRemindersError } = await supabase
                 .from('reminders')
                 .select('*')
-                .not('completed_at', 'is', null)
-                .gte('completed_at', weekStart.toISOString())
-                .lte('completed_at', weekEnd.toISOString())
 
             if (weekRemindersError) throw weekRemindersError
+
+            const weekRemindersData = (allRemindersData || []).filter(reminder => {
+                const scheduledAt = reminder.scheduled_at ? new Date(reminder.scheduled_at).getTime() : null
+                const completedAt = reminder.completed_at ? new Date(reminder.completed_at).getTime() : null
+                const weekStartTime = weekStart.getTime()
+                const weekEndTime = weekEnd.getTime()
+
+                const hasScheduledPoints = scheduledAt !== null &&
+                    scheduledAt >= weekStartTime &&
+                    scheduledAt <= weekEndTime
+
+                const hasCompletedPoints = completedAt !== null &&
+                    completedAt >= weekStartTime &&
+                    completedAt <= weekEndTime
+
+                return hasScheduledPoints || hasCompletedPoints
+            })
 
             setTodayLogs(todayData || [])
             setWeeklyLogs(weekData || [])

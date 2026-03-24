@@ -37,8 +37,21 @@ export interface ActivityCreateRequest {
 export interface ReminderLogRequest {
   type: ReminderType;
   dueDate: string;
+  appointmentAt?: string;
+  scheduledAt?: string;
+  scheduledBy?: UserName;
   completedBy?: UserName;
   completedAt?: string;
+  notes?: string;
+}
+
+export interface ReminderScheduleRequest {
+  id?: string;
+  type: ReminderType;
+  dueDate: string;
+  appointmentAt: string;
+  scheduledBy: UserName;
+  scheduledAt?: string;
   notes?: string;
 }
 

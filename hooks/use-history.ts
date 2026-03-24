@@ -71,7 +71,7 @@ function calculateBestStreak(days: DayStats[]): number {
 }
 
 export function useHistory(): UseHistoryReturn {
-    const [selectedDate, setSelectedDate] = useState<Date>(new Date())
+    const [selectedDate, setSelectedDate] = useState<Date>(() => subDays(new Date(), 1))
     const [logs, setLogs] = useState<Log[]>([])
     const [isLoading, setIsLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)

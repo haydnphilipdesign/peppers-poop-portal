@@ -33,10 +33,17 @@ CREATE TABLE IF NOT EXISTS reminders (
   created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
   type TEXT NOT NULL CHECK (type IN ('simparica', 'grooming', 'vet')),
   due_date DATE NOT NULL,
+  appointment_at TIMESTAMPTZ,
+  scheduled_at TIMESTAMPTZ,
+  scheduled_by TEXT CHECK (scheduled_by IN ('Chris', 'Debbie', 'Haydn')),
   completed_at TIMESTAMPTZ,
   completed_by TEXT CHECK (completed_by IN ('Chris', 'Debbie', 'Haydn')),
   notes TEXT
 );
+
+ALTER TABLE reminders ADD COLUMN IF NOT EXISTS appointment_at TIMESTAMPTZ;
+ALTER TABLE reminders ADD COLUMN IF NOT EXISTS scheduled_at TIMESTAMPTZ;
+ALTER TABLE reminders ADD COLUMN IF NOT EXISTS scheduled_by TEXT;
 
 ALTER TABLE reminders ENABLE ROW LEVEL SECURITY;
 
@@ -56,4 +63,6 @@ GRANT SELECT ON TABLE reminders TO authenticated;
 
 CREATE INDEX IF NOT EXISTS reminders_due_date_idx ON reminders(due_date);
 CREATE INDEX IF NOT EXISTS reminders_type_idx ON reminders(type);
+CREATE INDEX IF NOT EXISTS reminders_appointment_at_idx ON reminders(appointment_at);
+CREATE INDEX IF NOT EXISTS reminders_scheduled_at_idx ON reminders(scheduled_at);
 CREATE INDEX IF NOT EXISTS reminders_completed_at_idx ON reminders(completed_at);
