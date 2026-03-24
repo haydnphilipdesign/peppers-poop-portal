@@ -2,7 +2,7 @@ import {
   POINTS,
   calculatePoopStreak,
   calculateTimeOfDayDistribution,
-  calculateWeeklyPoints,
+  calculateMonthlyPoints,
   groupLogsIntoWalks,
 } from "@/lib/domain/metrics";
 import type { Activity, Log, Reminder } from "@/lib/database.types";
@@ -66,7 +66,7 @@ describe("calculatePoopStreak", () => {
   });
 });
 
-describe("calculateWeeklyPoints", () => {
+describe("calculateMonthlyPoints", () => {
   it("awards walk points once per walk regardless of pee or poop mix", () => {
     const logs: Log[] = [
       createLog("1", "2026-02-01T08:00:00.000Z", "pee", "Chris"),
@@ -99,7 +99,7 @@ describe("calculateWeeklyPoints", () => {
       },
     ];
 
-    const points = calculateWeeklyPoints(logs, activities, reminders);
+    const points = calculateMonthlyPoints(logs, activities, reminders);
 
     expect(points.Chris).toBe(
       POINTS.walkLog + POINTS.reminderScheduled + POINTS.reminderCompleted

@@ -7,16 +7,16 @@ import type { ApiSuccessResponse, WalkCreateRequest, WalkDeleteRequest, WalkUpda
 import type { Log, LogType, UserName, Activity, Reminder } from '@/lib/database.types'
 import {
     calculatePoopStreak,
-    calculateWeeklyPoints,
+    calculateMonthlyPoints,
     getLatestWalkFromLogs,
     groupLogsIntoWalks,
     type Walk,
 } from '@/lib/domain/metrics'
-import { endOfDay, endOfWeek, startOfDay, startOfWeek, subDays } from 'date-fns'
+import { endOfDay, endOfMonth, startOfDay, startOfMonth, subDays } from 'date-fns'
 
 interface UseLogsReturn {
     todayLogs: Log[]
-    weeklyLogs: Log[]
+    monthlyLogs: Log[]
     todayWalks: Walk[]
     latestWalk: Walk | null
     isLoading: boolean
@@ -30,14 +30,14 @@ interface UseLogsReturn {
     todayPeeCount: number
     todayWalksCount: number
     streak: number
-    weeklyPoints: Record<UserName, number>
+    monthlyPoints: Record<UserName, number>
 }
 
 export function useLogs(): UseLogsReturn {
     const [todayLogs, setTodayLogs] = useState<Log[]>([])
-    const [weeklyLogs, setWeeklyLogs] = useState<Log[]>([])
-    const [weeklyActivities, setWeeklyActivities] = useState<Activity[]>([])
-    const [weeklyReminders, setWeeklyReminders] = useState<Reminder[]>([])
+    const [monthlyLogs, setMonthlyLogs] = useState<Log[]>([])
+    const [monthlyActivities, setMonthlyActivities] = useState<Activity[]>([])
+    const [monthlyReminders, setMonthlyReminders] = useState<Reminder[]>([])
     const [allLogs, setAllLogs] = useState<Log[]>([])
     const [isLoading, setIsLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
@@ -48,8 +48,8 @@ export function useLogs(): UseLogsReturn {
             const now = new Date()
             const todayStart = startOfDay(now)
             const todayEnd = endOfDay(now)
-            const weekStart = startOfWeek(now, { weekStartsOn: 0 })
-            const weekEnd = endOfWeek(now, { weekStartsOn: 0 })
+            const monthStart = startOfMonth(now)
+            const monthEnd = endOfMonth(now)
 
             const { data: todayData, error: todayError } = await supabase
                 .from('logs')
@@ -60,14 +60,14 @@ export function useLogs(): UseLogsReturn {
 
             if (todayError) throw todayError
 
-            const { data: weekData, error: weekError } = await supabase
+            const { data: monthData, error: monthError } = await supabase
                 .from('logs')
                 .select('*')
-                .gte('created_at', weekStart.toISOString())
-                .lte('created_at', weekEnd.toISOString())
+                .gte('created_at', monthStart.toISOString())
+                .lte('created_at', monthEnd.toISOString())
                 .order('created_at', { ascending: false })
 
-            if (weekError) throw weekError
+            if (monthError) throw monthError
 
             const thirtyDaysAgo = subDays(now, 30)
             const { data: allData, error: allError } = await supabase
@@ -78,41 +78,43 @@ export function useLogs(): UseLogsReturn {
 
             if (allError) throw allError
 
-            const { data: weekActivitiesData, error: weekActivitiesError } = await supabase
+            const { data: monthActivitiesData, error: monthActivitiesError } = await supabase
                 .from('activities')
                 .select('*')
-                .gte('created_at', weekStart.toISOString())
-                .lte('created_at', weekEnd.toISOString())
+                .gte('created_at', monthStart.toISOString())
+                .lte('created_at', monthEnd.toISOString())
 
-            if (weekActivitiesError) throw weekActivitiesError
+            if (monthActivitiesError) throw monthActivitiesError
 
-            const { data: allRemindersData, error: weekRemindersError } = await supabase
+            const { data: allRemindersData, error: monthRemindersError } = await supabase
                 .from('reminders')
                 .select('*')
 
-            if (weekRemindersError) throw weekRemindersError
+            if (monthRemindersError) throw monthRemindersError
 
-            const weekRemindersData = (allRemindersData || []).filter(reminder => {
+            const remindersData: Reminder[] = allRemindersData ?? []
+            const monthStartTime = monthStart.getTime()
+            const monthEndTime = monthEnd.getTime()
+
+            const monthRemindersData = remindersData.filter(reminder => {
                 const scheduledAt = reminder.scheduled_at ? new Date(reminder.scheduled_at).getTime() : null
                 const completedAt = reminder.completed_at ? new Date(reminder.completed_at).getTime() : null
-                const weekStartTime = weekStart.getTime()
-                const weekEndTime = weekEnd.getTime()
 
                 const hasScheduledPoints = scheduledAt !== null &&
-                    scheduledAt >= weekStartTime &&
-                    scheduledAt <= weekEndTime
+                    scheduledAt >= monthStartTime &&
+                    scheduledAt <= monthEndTime
 
                 const hasCompletedPoints = completedAt !== null &&
-                    completedAt >= weekStartTime &&
-                    completedAt <= weekEndTime
+                    completedAt >= monthStartTime &&
+                    completedAt <= monthEndTime
 
                 return hasScheduledPoints || hasCompletedPoints
             })
 
             setTodayLogs(todayData || [])
-            setWeeklyLogs(weekData || [])
-            setWeeklyActivities(weekActivitiesData || [])
-            setWeeklyReminders(weekRemindersData || [])
+            setMonthlyLogs(monthData || [])
+            setMonthlyActivities(monthActivitiesData || [])
+            setMonthlyReminders(monthRemindersData || [])
             setAllLogs(allData || [])
             setError(null)
         } catch (err) {
@@ -220,16 +222,16 @@ export function useLogs(): UseLogsReturn {
     const latestWalk = useMemo(() => getLatestWalkFromLogs(allLogs), [allLogs])
 
     const todayWalksCount = todayWalks.length
-    const weeklyPoints = useMemo(
-        () => calculateWeeklyPoints(weeklyLogs, weeklyActivities, weeklyReminders),
-        [weeklyActivities, weeklyLogs, weeklyReminders]
+    const monthlyPoints = useMemo(
+        () => calculateMonthlyPoints(monthlyLogs, monthlyActivities, monthlyReminders),
+        [monthlyActivities, monthlyLogs, monthlyReminders]
     )
 
     const streak = useMemo(() => calculatePoopStreak(allLogs), [allLogs])
 
     return {
         todayLogs,
-        weeklyLogs,
+        monthlyLogs,
         todayWalks,
         latestWalk,
         isLoading,
@@ -243,7 +245,7 @@ export function useLogs(): UseLogsReturn {
         todayPeeCount,
         todayWalksCount,
         streak,
-        weeklyPoints,
+        monthlyPoints,
     }
 }
 

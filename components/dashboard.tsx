@@ -29,7 +29,7 @@ export function Dashboard() {
         todayWalksCount,
         todayWalks,
         latestWalk,
-        weeklyPoints,
+        monthlyPoints,
         addWalk,
         deleteWalk,
         updateWalk,
@@ -147,7 +147,7 @@ export function Dashboard() {
 
                                 <DailyRoutines />
                                 <ReminderManager />
-                                {!isLoading ? <Leaderboard weeklyPoints={weeklyPoints} /> : null}
+                                {!isLoading ? <Leaderboard monthlyPoints={monthlyPoints} /> : null}
                             </div>
                         </TabsContent>
 

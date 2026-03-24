@@ -122,7 +122,7 @@ export function createEmptyUserStats<T>(factory: () => T): Record<UserName, T> {
   };
 }
 
-export function calculateWeeklyPoints(
+export function calculateMonthlyPoints(
   logs: Log[],
   activities: Activity[],
   reminders: Reminder[]

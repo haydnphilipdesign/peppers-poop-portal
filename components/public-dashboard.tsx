@@ -22,7 +22,7 @@ export function PublicDashboard() {
         todayWalksCount,
         todayWalks,
         latestWalk,
-        weeklyPoints,
+        monthlyPoints,
         isLoading,
         error,
     } = useLogs()
@@ -87,7 +87,7 @@ export function PublicDashboard() {
 
                             <DailyRoutines />
                             <ReminderManager />
-                            {!isLoading ? <Leaderboard weeklyPoints={weeklyPoints} /> : null}
+                            {!isLoading ? <Leaderboard monthlyPoints={monthlyPoints} /> : null}
                         </div>
                     </TabsContent>
 

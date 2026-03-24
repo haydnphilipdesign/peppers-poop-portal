@@ -2,9 +2,10 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import type { UserName } from '@/lib/database.types'
+import { format } from 'date-fns'
 
 interface LeaderboardProps {
-    weeklyPoints: Record<UserName, number>
+    monthlyPoints: Record<UserName, number>
 }
 
 const userEmojis: Record<UserName, string> = {
@@ -15,15 +16,16 @@ const userEmojis: Record<UserName, string> = {
 
 const medals = ['🥇', '🥈', '🥉']
 
-export function Leaderboard({ weeklyPoints }: LeaderboardProps) {
-    const sortedUsers = (Object.entries(weeklyPoints) as [UserName, number][])
+export function Leaderboard({ monthlyPoints }: LeaderboardProps) {
+    const sortedUsers = (Object.entries(monthlyPoints) as [UserName, number][])
         .sort((a, b) => b[1] - a[1])
+    const currentMonth = format(new Date(), 'LLLL')
 
     return (
         <Card className="bg-gradient-to-br from-amber-500/10 to-rose-500/10 border-amber-500/20">
             <CardHeader className="pb-2">
                 <CardTitle className="text-lg font-semibold flex items-center gap-2">
-                    🏆 Weekly Leaderboard
+                    🏆 {currentMonth} Leaderboard
                 </CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
