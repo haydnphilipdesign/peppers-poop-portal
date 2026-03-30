@@ -12,8 +12,9 @@ import {
     DrawerTitle,
 } from '@/components/ui/drawer'
 import type { UserName } from '@/lib/database.types'
-import { format, subDays, setHours, setMinutes } from 'date-fns'
+import { format, setHours, setMinutes, subDays } from 'date-fns'
 import confetti from 'canvas-confetti'
+import { Clock3, Footprints } from 'lucide-react'
 
 type WalkType = 'poop' | 'pee' | 'both' | null
 
@@ -55,9 +56,7 @@ export function LogWalkButton({ userName, onLogWalk }: LogWalkButtonProps) {
 
             await onLogWalk({ poop, pee, userName })
 
-            // Celebrate every walk! 🎉
             setTimeout(() => triggerConfetti(), 100)
-
             setDrawerOpen(false)
         } finally {
             setIsLogging(false)
@@ -78,9 +77,7 @@ export function LogWalkButton({ userName, onLogWalk }: LogWalkButtonProps) {
 
             await onLogWalk({ poop, pee, userName, createdAt: date })
 
-            // Celebrate every walk! 🎉
             setTimeout(() => triggerConfetti(), 100)
-
             setDrawerOpen(false)
             setShowTimePicker(false)
         } finally {
@@ -90,156 +87,147 @@ export function LogWalkButton({ userName, onLogWalk }: LogWalkButtonProps) {
 
     const hours = Array.from({ length: 24 }, (_, i) => i)
     const minutes = [0, 15, 30, 45]
+    const previewDate = setMinutes(
+        setHours(selectedDay === 'today' ? new Date() : subDays(new Date(), 1), hour),
+        minute
+    )
 
     return (
         <>
-            {/* Main Log Walk Button */}
             <Button
                 onClick={() => setDrawerOpen(true)}
-                className="w-full h-24 text-2xl font-bold bg-gradient-to-br from-amber-700 to-orange-700 hover:from-amber-600 hover:to-orange-600 text-amber-50 shadow-xl hover:shadow-2xl transition-all duration-200 active:scale-95 rounded-2xl border border-amber-300/30"
+                className="h-auto w-full rounded-[1.6rem] border border-amber-300/50 bg-[linear-gradient(135deg,hsl(31_85%_40%),hsl(18_80%_45%))] px-5 py-4 text-left text-amber-50 shadow-[0_24px_50px_-34px_rgba(121,60,17,0.58)] transition-transform duration-200 hover:-translate-y-0.5 hover:from-amber-700 hover:to-orange-700"
             >
-                <div className="flex items-center gap-3">
-                    <span className="text-4xl">🦮</span>
-                    <span className="drop-shadow">Log Walk</span>
+                <div className="flex items-center gap-4">
+                    <div className="rounded-2xl bg-white/12 p-3">
+                        <Footprints className="h-7 w-7" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                        <p className="text-lg font-semibold">Log a walk</p>
+                        <p className="mt-1 text-sm text-amber-100/85">
+                            Quick update for {userName}. Tap once, choose what happened, done.
+                        </p>
+                    </div>
                 </div>
             </Button>
 
-            {/* Drawer */}
             <Drawer open={drawerOpen} onOpenChange={setDrawerOpen}>
-                <DrawerContent className="bg-background">
-                    <div className="mx-auto w-full max-w-sm">
+                <DrawerContent className="bg-[linear-gradient(180deg,hsl(38_70%_98%),hsl(32_42%_96%))]">
+                    <div className="mx-auto w-full max-w-md">
                         <DrawerHeader>
-                            <DrawerTitle className="text-2xl text-center">
-                                🦮 Log Walk
-                            </DrawerTitle>
-                            <DrawerDescription className="text-center">
-                                {showTimePicker ? 'Select time, then what Pepper did' : 'What did Pepper do on this walk?'}
+                            <DrawerTitle className="text-center text-2xl">Log Pepper&apos;s walk</DrawerTitle>
+                            <DrawerDescription className="mx-auto max-w-sm text-center text-sm leading-6">
+                                {showTimePicker
+                                    ? 'Choose when the walk happened, then record what Pepper did.'
+                                    : 'Pick the result of the walk. This is designed to be quick on your phone.'}
                             </DrawerDescription>
                         </DrawerHeader>
 
-                        <div className="p-4 space-y-4">
-                            {/* Time Picker (if shown) */}
-                            {showTimePicker && (
-                                <div className="space-y-4 pb-4 border-b border-border">
-                                    {/* Day Selection */}
-                                    <div>
-                                        <label className="text-sm font-medium text-muted-foreground mb-2 block">
-                                            Day
-                                        </label>
-                                        <div className="grid grid-cols-2 gap-3">
-                                            <Button
-                                                variant={selectedDay === 'today' ? 'default' : 'outline'}
-                                                onClick={() => setSelectedDay('today')}
-                                                className="h-11"
-                                            >
-                                                Today
-                                            </Button>
-                                            <Button
-                                                variant={selectedDay === 'yesterday' ? 'default' : 'outline'}
-                                                onClick={() => setSelectedDay('yesterday')}
-                                                className="h-11"
-                                            >
-                                                Yesterday
-                                            </Button>
+                        <div className="space-y-4 px-4 pb-2">
+                            {showTimePicker ? (
+                                <div className="rounded-[1.4rem] border border-amber-200 bg-white/75 p-4 shadow-sm">
+                                    <div className="grid gap-4">
+                                        <div>
+                                            <label className="mb-2 block text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
+                                                Day
+                                            </label>
+                                            <div className="grid grid-cols-2 gap-2">
+                                                <Button
+                                                    variant={selectedDay === 'today' ? 'default' : 'outline'}
+                                                    onClick={() => setSelectedDay('today')}
+                                                    className="h-11 rounded-2xl"
+                                                >
+                                                    Today
+                                                </Button>
+                                                <Button
+                                                    variant={selectedDay === 'yesterday' ? 'default' : 'outline'}
+                                                    onClick={() => setSelectedDay('yesterday')}
+                                                    className="h-11 rounded-2xl"
+                                                >
+                                                    Yesterday
+                                                </Button>
+                                            </div>
                                         </div>
-                                    </div>
 
-                                    {/* Time Selection */}
-                                    <div>
-                                        <label className="text-sm font-medium text-muted-foreground mb-2 block">
-                                            Time
-                                        </label>
-                                        <div className="grid grid-cols-2 gap-3">
-                                            <select
-                                                value={hour}
-                                                onChange={(e) => setHour(parseInt(e.target.value))}
-                                                className="h-11 rounded-xl border border-input bg-background px-4 text-lg font-medium focus:outline-none focus:ring-2 focus:ring-ring"
-                                            >
-                                                {hours.map((h) => (
-                                                    <option key={h} value={h}>
-                                                        {format(setHours(new Date(), h), 'h a')}
-                                                    </option>
-                                                ))}
-                                            </select>
-                                            <select
-                                                value={minute}
-                                                onChange={(e) => setMinute(parseInt(e.target.value))}
-                                                className="h-11 rounded-xl border border-input bg-background px-4 text-lg font-medium focus:outline-none focus:ring-2 focus:ring-ring"
-                                            >
-                                                {minutes.map((m) => (
-                                                    <option key={m} value={m}>
-                                                        :{m.toString().padStart(2, '0')}
-                                                    </option>
-                                                ))}
-                                            </select>
+                                        <div>
+                                            <label className="mb-2 block text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
+                                                Time
+                                            </label>
+                                            <div className="grid grid-cols-2 gap-2">
+                                                <select
+                                                    value={hour}
+                                                    onChange={(e) => setHour(parseInt(e.target.value))}
+                                                    className="h-11 rounded-2xl border border-input bg-background px-4 text-base font-medium focus:outline-none focus:ring-2 focus:ring-ring"
+                                                >
+                                                    {hours.map((h) => (
+                                                        <option key={h} value={h}>
+                                                            {format(setHours(new Date(), h), 'h a')}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                                <select
+                                                    value={minute}
+                                                    onChange={(e) => setMinute(parseInt(e.target.value))}
+                                                    className="h-11 rounded-2xl border border-input bg-background px-4 text-base font-medium focus:outline-none focus:ring-2 focus:ring-ring"
+                                                >
+                                                    {minutes.map((m) => (
+                                                        <option key={m} value={m}>
+                                                            :{m.toString().padStart(2, '0')}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                            </div>
                                         </div>
-                                    </div>
 
-                                    {/* Preview */}
-                                    <div className="text-center p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-sm">
-                                        <span className="text-emerald-400">
-                                            Logging walk at{' '}
-                                            <strong>
-                                                {format(
-                                                    setMinutes(
-                                                        setHours(
-                                                            selectedDay === 'today' ? new Date() : subDays(new Date(), 1),
-                                                            hour
-                                                        ),
-                                                        minute
-                                                    ),
-                                                    "EEEE 'at' h:mm a"
-                                                )}
-                                            </strong>
-                                        </span>
+                                        <div className="flex items-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
+                                            <Clock3 className="h-4 w-4 shrink-0" />
+                                            Logging this walk for{' '}
+                                            <strong>{format(previewDate, "EEEE 'at' h:mm a")}</strong>
+                                        </div>
                                     </div>
                                 </div>
-                            )}
+                            ) : null}
 
-                            {/* What did Pepper do? */}
                             <div className="grid grid-cols-3 gap-3">
-                                <Button
-                                    onClick={() => showTimePicker ? handleTimePickerLog('poop') : handleQuickLog('poop')}
+                                <WalkTypeButton
+                                    emoji="💩"
+                                    label="Poop"
+                                    onClick={() => void (showTimePicker ? handleTimePickerLog('poop') : handleQuickLog('poop'))}
                                     disabled={isLogging}
-                                    className="h-24 flex-col gap-1 bg-gradient-to-br from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-white rounded-2xl text-lg font-bold shadow-lg border border-amber-400/30"
-                                >
-                                    <span className="text-3xl">💩</span>
-                                    <span>Poop</span>
-                                </Button>
-                                <Button
-                                    onClick={() => showTimePicker ? handleTimePickerLog('pee') : handleQuickLog('pee')}
+                                    className="from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500"
+                                />
+                                <WalkTypeButton
+                                    emoji="💦"
+                                    label="Pee"
+                                    onClick={() => void (showTimePicker ? handleTimePickerLog('pee') : handleQuickLog('pee'))}
                                     disabled={isLogging}
-                                    className="h-24 flex-col gap-1 bg-gradient-to-br from-sky-500 to-cyan-600 hover:from-sky-400 hover:to-cyan-500 text-white rounded-2xl text-lg font-bold shadow-lg border border-sky-400/30"
-                                >
-                                    <span className="text-3xl">💦</span>
-                                    <span>Pee</span>
-                                </Button>
-                                <Button
-                                    onClick={() => showTimePicker ? handleTimePickerLog('both') : handleQuickLog('both')}
+                                    className="from-sky-500 to-cyan-600 hover:from-sky-400 hover:to-cyan-500"
+                                />
+                                <WalkTypeButton
+                                    emoji="💩💦"
+                                    label="Both"
+                                    onClick={() => void (showTimePicker ? handleTimePickerLog('both') : handleQuickLog('both'))}
                                     disabled={isLogging}
-                                    className="h-24 flex-col gap-1 bg-gradient-to-br from-emerald-600 to-teal-700 hover:from-emerald-500 hover:to-teal-600 text-white rounded-2xl text-lg font-bold shadow-lg border border-emerald-400/30"
-                                >
-                                    <span className="text-3xl">💩💦</span>
-                                    <span>Both</span>
-                                </Button>
+                                    className="from-emerald-600 to-teal-700 hover:from-emerald-500 hover:to-teal-600"
+                                />
                             </div>
 
-                            {/* Log for earlier toggle */}
-                            {!showTimePicker && (
-                                <div className="text-center pt-2">
+                            {!showTimePicker ? (
+                                <div className="text-center">
                                     <button
                                         onClick={() => setShowTimePicker(true)}
-                                        className="text-sm text-muted-foreground hover:text-emerald-400 underline underline-offset-4 transition-colors"
+                                        className="inline-flex items-center gap-2 rounded-full px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-white/75 hover:text-foreground"
                                     >
-                                        ⏰ Log for earlier?
+                                        <Clock3 className="h-4 w-4" />
+                                        Log for an earlier time
                                     </button>
                                 </div>
-                            )}
+                            ) : null}
                         </div>
 
                         <DrawerFooter>
                             <DrawerClose asChild>
-                                <Button variant="outline" className="h-12">
+                                <Button variant="outline" className="h-12 rounded-2xl">
                                     Cancel
                                 </Button>
                             </DrawerClose>
@@ -248,5 +236,30 @@ export function LogWalkButton({ userName, onLogWalk }: LogWalkButtonProps) {
                 </DrawerContent>
             </Drawer>
         </>
+    )
+}
+
+function WalkTypeButton({
+    emoji,
+    label,
+    onClick,
+    disabled,
+    className,
+}: {
+    emoji: string
+    label: string
+    onClick: () => void
+    disabled: boolean
+    className: string
+}) {
+    return (
+        <Button
+            onClick={onClick}
+            disabled={disabled}
+            className={`h-28 flex-col gap-2 rounded-[1.5rem] bg-gradient-to-br text-white shadow-[0_16px_34px_-24px_rgba(43,29,19,0.48)] ${className}`}
+        >
+            <span className="text-3xl">{emoji}</span>
+            <span className="text-sm font-semibold">{label}</span>
+        </Button>
     )
 }

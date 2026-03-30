@@ -1,15 +1,16 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { useUser } from '@/lib/user-context'
 import { useReadOnly } from '@/lib/read-only-context'
+import { FAMILY_ORDER } from '@/lib/family'
+import { FamilyAvatar } from '@/components/family-avatar'
 import { useReminders } from '@/hooks/use-reminders'
 import type { ReminderType, UserName } from '@/lib/database.types'
 import { Button } from '@/components/ui/button'
-import { AlertTriangle, Calendar, Check, Loader2, X, Pill, Scissors, Stethoscope } from 'lucide-react'
+import { AlertTriangle, Calendar, Check, Loader2, Pill, Scissors, Stethoscope, X } from 'lucide-react'
 import { addDays, format, isToday, isTomorrow, parse, parseISO } from 'date-fns'
 
-const USERS: UserName[] = ['Chris', 'Debbie', 'Haydn']
 const DEFAULT_APPOINTMENT_HOUR = 10
 
 function createDefaultAppointmentInput() {
@@ -18,40 +19,40 @@ function createDefaultAppointmentInput() {
     return format(defaultAppointment, "yyyy-MM-dd'T'HH:mm")
 }
 
-const REMINDER_CONFIG: Record<ReminderType, { icon: React.ReactNode; label: string; color: string }> = {
+const REMINDER_CONFIG: Record<ReminderType, { icon: ReactNode; label: string; color: string }> = {
     simparica: {
-        icon: <Pill className="w-5 h-5" />,
+        icon: <Pill className="h-5 w-5" />,
         label: 'Simparica Trio',
-        color: 'text-rose-500 bg-rose-500/10 border-rose-500/30'
+        color: 'border-rose-200 bg-rose-50/85 text-rose-900',
     },
     grooming: {
-        icon: <Scissors className="w-5 h-5" />,
+        icon: <Scissors className="h-5 w-5" />,
         label: 'Grooming',
-        color: 'text-blue-500 bg-blue-500/10 border-blue-500/30'
+        color: 'border-sky-200 bg-sky-50/85 text-sky-900',
     },
     vet: {
-        icon: <Stethoscope className="w-5 h-5" />,
-        label: 'Vet Appointment',
-        color: 'text-purple-500 bg-purple-500/10 border-purple-500/30'
+        icon: <Stethoscope className="h-5 w-5" />,
+        label: 'Vet appointment',
+        color: 'border-violet-200 bg-violet-50/85 text-violet-900',
     },
 }
 
 type BannerAlert =
     | {
-        id: string
-        type: ReminderType
-        kind: 'complete'
-        message: string
-        actionLabel?: string
-        onComplete: (user: UserName) => Promise<void>
-    }
+          id: string
+          type: ReminderType
+          kind: 'complete'
+          message: string
+          actionLabel?: string
+          onComplete: (user: UserName) => Promise<void>
+      }
     | {
-        id: string
-        type: 'grooming'
-        kind: 'schedule'
-        message: string
-        onSchedule: (user: UserName, appointmentAt: Date) => Promise<void>
-    }
+          id: string
+          type: 'grooming'
+          kind: 'schedule'
+          message: string
+          onSchedule: (user: UserName, appointmentAt: Date) => Promise<void>
+      }
 
 export function RemindersBanner() {
     const { user } = useUser()
@@ -65,7 +66,7 @@ export function RemindersBanner() {
         scheduleReminder,
         completeReminder,
         getLastCompletedDate,
-        isLoading
+        isLoading,
     } = useReminders()
 
     const [activeAction, setActiveAction] = useState<string | null>(null)
@@ -100,10 +101,9 @@ export function RemindersBanner() {
     }
 
     const handleDismiss = (type: string) => {
-        setDismissed(prev => new Set([...prev, type]))
+        setDismissed((prev) => new Set([...prev, type]))
     }
 
-    // Build alerts list
     const alerts: BannerAlert[] = []
 
     if (isSimparicaDue && !dismissed.has('simparica')) {
@@ -111,7 +111,7 @@ export function RemindersBanner() {
             id: 'simparica',
             type: 'simparica',
             kind: 'complete',
-            message: "Pepper's Simparica Trio is due!",
+            message: "Pepper's Simparica Trio is due.",
             onComplete: handleCompleteSimparica,
         })
     }
@@ -125,7 +125,7 @@ export function RemindersBanner() {
             id: 'grooming-due',
             type: 'grooming',
             kind: 'schedule',
-            message: `Grooming is due (last: ${weeksAgo} weeks ago)`,
+            message: `Grooming is due${lastGrooming ? `, last done ${weeksAgo} weeks ago` : ''}.`,
             onSchedule: handleScheduleGrooming,
         })
     }
@@ -160,14 +160,13 @@ export function RemindersBanner() {
         })
     }
 
-    // Add overdue reminders
-    overdueReminders.forEach(reminder => {
+    overdueReminders.forEach((reminder) => {
         if (!dismissed.has(reminder.id)) {
             alerts.push({
                 id: reminder.id,
                 type: reminder.type,
                 kind: 'complete',
-                message: `${REMINDER_CONFIG[reminder.type].label} was due on ${format(parseISO(reminder.due_date), 'MMM d')}`,
+                message: `${REMINDER_CONFIG[reminder.type].label} was due on ${format(parseISO(reminder.due_date), 'MMM d')}.`,
                 onComplete: async (completedBy) => {
                     setCompleting(reminder.id)
                     try {
@@ -184,118 +183,127 @@ export function RemindersBanner() {
     if (alerts.length === 0) return null
 
     return (
-        <div className="space-y-2">
-            {alerts.map(alert => {
+        <div className="space-y-3">
+            {alerts.map((alert) => {
                 const config = REMINDER_CONFIG[alert.type]
+                const isScheduleAction = alert.kind === 'schedule'
 
                 return (
                     <div
                         key={alert.id}
-                        className={`rounded-xl border p-4 ${config.color}`}
+                        className={`rounded-[1.55rem] border p-4 shadow-[0_18px_40px_-34px_rgba(70,39,16,0.35)] ${config.color}`}
                     >
-                        <div className="flex items-start justify-between gap-3">
-                            <div className="flex items-center gap-3">
-                                <div className="p-2 rounded-lg bg-background/50">
-                                    {config.icon}
-                                </div>
-                                <div>
-                                    <div className="flex items-center gap-2">
-                                        <AlertTriangle className="w-4 h-4" />
-                                        <span className="font-medium text-sm">{alert.message}</span>
+                        <div className="flex flex-col gap-4">
+                            <div className="flex items-start justify-between gap-3">
+                                <div className="flex items-start gap-3">
+                                    <div className="rounded-2xl bg-white/75 p-2.5 shadow-sm">
+                                        {config.icon}
+                                    </div>
+                                    <div>
+                                        <div className="flex items-center gap-2 text-xs uppercase tracking-[0.18em] opacity-75">
+                                            <AlertTriangle className="h-3.5 w-3.5" />
+                                            {config.label}
+                                        </div>
+                                        <p className="mt-1 text-sm font-medium leading-6">{alert.message}</p>
                                     </div>
                                 </div>
+
+                                {activeAction !== alert.id ? (
+                                    <Button
+                                        size="icon-sm"
+                                        variant="ghost"
+                                        onClick={() => handleDismiss(alert.id)}
+                                        className="rounded-full"
+                                    >
+                                        <X className="h-4 w-4" />
+                                    </Button>
+                                ) : null}
                             </div>
 
-                            <div className="flex items-center gap-1">
-                                {isReadOnly ? (
-                                    <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                                        Read only
-                                    </span>
-                                ) : activeAction === alert.id ? (
-                                    <div className="flex gap-1">
-                                        {alert.kind === 'schedule' ? (
-                                            <div className="flex flex-col items-end gap-2">
-                                                <input
-                                                    type="datetime-local"
-                                                    value={appointmentInput}
-                                                    onChange={(e) => setAppointmentInput(e.target.value)}
-                                                    className="h-7 px-2 text-xs border rounded bg-background"
-                                                />
-                                                <div className="flex gap-1">
-                                                    {USERS.map(u => (
-                                                        <Button
-                                                            key={u}
-                                                            size="sm"
-                                                            variant="outline"
-                                                            onClick={() => alert.onSchedule(u, parse(appointmentInput, "yyyy-MM-dd'T'HH:mm", new Date()))}
-                                                            disabled={completing === 'grooming'}
-                                                            className="text-xs px-2 py-1 h-7 bg-background"
-                                                        >
-                                                            {completing === 'grooming' ? (
-                                                                <Loader2 className="w-3 h-3 animate-spin" />
-                                                            ) : (
-                                                                u
-                                                            )}
-                                                        </Button>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                        ) : (
-                                            USERS.map(u => (
-                                                <Button
-                                                    key={u}
-                                                    size="sm"
-                                                    variant="outline"
-                                                    onClick={() => alert.onComplete(u)}
-                                                    disabled={completing === alert.id}
-                                                    className="text-xs px-2 py-1 h-7 bg-background"
-                                                >
-                                                    {completing === alert.id ? (
-                                                        <Loader2 className="w-3 h-3 animate-spin" />
-                                                    ) : (
-                                                        u
-                                                    )}
-                                                </Button>
-                                            ))
-                                        )}
-                                    </div>
-                                ) : (
-                                    <>
-                                        <Button
-                                            size="sm"
-                                            variant="secondary"
-                                            onClick={() => {
-                                                if (alert.kind === 'schedule') {
-                                                    setAppointmentInput(createDefaultAppointmentInput())
+                            {isReadOnly ? (
+                                <div className="inline-flex w-fit rounded-full border border-white/80 bg-white/70 px-3 py-1.5 text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
+                                    Read only
+                                </div>
+                            ) : activeAction === alert.id ? (
+                                <div className="space-y-3 rounded-[1.35rem] border border-white/70 bg-white/65 p-3">
+                                    {isScheduleAction ? (
+                                        <label className="space-y-1">
+                                            <span className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
+                                                Appointment time
+                                            </span>
+                                            <input
+                                                type="datetime-local"
+                                                value={appointmentInput}
+                                                onChange={(e) => setAppointmentInput(e.target.value)}
+                                                className="h-11 w-full rounded-2xl border border-input bg-background px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                                            />
+                                        </label>
+                                    ) : null}
+
+                                    <div className="grid gap-2 sm:grid-cols-3">
+                                        {FAMILY_ORDER.map((member) => (
+                                            <button
+                                                key={member}
+                                                onClick={() =>
+                                                    isScheduleAction
+                                                        ? alert.onSchedule(
+                                                              member,
+                                                              parse(appointmentInput, "yyyy-MM-dd'T'HH:mm", new Date())
+                                                          )
+                                                        : alert.onComplete(member)
                                                 }
-                                                setActiveAction(alert.id)
-                                            }}
-                                            disabled={isLoading}
-                                            className="bg-background"
-                                        >
-                                            {alert.kind === 'schedule' ? (
-                                                <>
-                                                    <Calendar className="w-4 h-4 mr-1" />
-                                                    Schedule
-                                                </>
-                                            ) : (
-                                                <>
-                                                    <Check className="w-4 h-4 mr-1" />
-                                                    {alert.actionLabel ?? 'Done'}
-                                                </>
-                                            )}
-                                        </Button>
-                                        <Button
-                                            size="sm"
-                                            variant="ghost"
-                                            onClick={() => handleDismiss(alert.id)}
-                                            className="p-1 h-7 w-7"
-                                        >
-                                            <X className="w-4 h-4" />
-                                        </Button>
-                                    </>
-                                )}
-                            </div>
+                                                disabled={completing === alert.id || completing === 'grooming'}
+                                                className="flex items-center gap-3 rounded-2xl border border-border bg-white px-3 py-2 text-left transition-colors hover:bg-stone-50 disabled:opacity-70"
+                                            >
+                                                <FamilyAvatar userName={member} size="sm" />
+                                                <span className="text-sm font-medium text-foreground">
+                                                    {completing === alert.id || completing === 'grooming' ? (
+                                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                                    ) : (
+                                                        member
+                                                    )}
+                                                </span>
+                                            </button>
+                                        ))}
+                                    </div>
+
+                                    <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        onClick={() => setActiveAction(null)}
+                                        className="rounded-full"
+                                    >
+                                        Cancel
+                                    </Button>
+                                </div>
+                            ) : (
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <Button
+                                        size="sm"
+                                        variant="secondary"
+                                        onClick={() => {
+                                            if (isScheduleAction) {
+                                                setAppointmentInput(createDefaultAppointmentInput())
+                                            }
+                                            setActiveAction(alert.id)
+                                        }}
+                                        disabled={isLoading}
+                                        className="rounded-full bg-white/80"
+                                    >
+                                        {isScheduleAction ? (
+                                            <>
+                                                <Calendar className="mr-1 h-4 w-4" />
+                                                Schedule
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Check className="mr-1 h-4 w-4" />
+                                                {alert.actionLabel ?? 'Mark done'}
+                                            </>
+                                        )}
+                                    </Button>
+                                </div>
+                            )}
                         </div>
                     </div>
                 )
