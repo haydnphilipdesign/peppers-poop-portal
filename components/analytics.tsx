@@ -1,14 +1,18 @@
 'use client'
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { FamilyAvatar } from '@/components/family-avatar'
 import { useAnalytics } from '@/hooks/use-history'
 import type { UserName } from '@/lib/database.types'
-import { BarChart3, Clock3, Footprints, TrendingUp, Trophy, TriangleAlert } from 'lucide-react'
+
+const userEmojis: Record<UserName, string> = {
+    Chris: '👨',
+    Debbie: '👩',
+    Haydn: '🧑',
+}
 
 const userColors: Record<UserName, string> = {
-    Chris: 'bg-sky-500',
-    Debbie: 'bg-rose-500',
+    Chris: 'bg-blue-500',
+    Debbie: 'bg-pink-500',
     Haydn: 'bg-emerald-500',
 }
 
@@ -17,146 +21,142 @@ export function Analytics() {
 
     if (isLoading) {
         return (
-            <div className="rounded-[1.6rem] border border-border bg-white/75 px-4 py-8 text-center text-muted-foreground shadow-[0_18px_40px_-34px_rgba(70,39,16,0.35)]">
-                Loading analytics...
+            <div className="text-center py-8">
+                <div className="animate-spin text-4xl mb-2">📊</div>
+                <p className="text-muted-foreground">Loading analytics...</p>
             </div>
         )
     }
 
     if (error) {
         return (
-            <div className="flex items-start gap-3 rounded-[1.4rem] border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0" />
-                {error}
+            <div className="p-4 rounded-xl bg-destructive/10 text-destructive text-sm border border-destructive/20">
+                ⚠️ {error}
             </div>
         )
     }
 
     if (!analytics) return null
 
-    const maxPoops = Math.max(...analytics.last7Days.map((day) => day.poopCount), 1)
-    const totalTimeOfDay =
-        Object.values(analytics.timeOfDayDistribution).reduce((a, b) => a + b, 0) || 1
+    const maxPoops = Math.max(...analytics.last7Days.map(d => d.poopCount), 1)
+    const totalTimeOfDay = Object.values(analytics.timeOfDayDistribution).reduce((a, b) => a + b, 0) || 1
 
+    // Find top walker
     const walkers = Object.entries(analytics.walkerStats) as [UserName, { walks: number; poops: number; pees: number }][]
-    const topWalker = walkers.reduce(
-        (top, [name, stats]) =>
-            stats.walks > (top.stats?.walks || 0) ? { name, stats } : top,
+    const topWalker = walkers.reduce((top, [name, stats]) =>
+        stats.walks > (top.stats?.walks || 0) ? { name, stats } : top,
         { name: 'Chris' as UserName, stats: analytics.walkerStats.Chris }
     )
 
     return (
         <div className="space-y-4">
-            <div className="grid gap-3 sm:grid-cols-3">
-                <AnalyticsStatCard
-                    title="Best streak"
-                    value={analytics.bestStreak}
-                    suffix="days"
-                    icon={<TrendingUp className="h-5 w-5" />}
-                    tone="bg-amber-50 text-amber-900"
-                />
-                <AnalyticsStatCard
-                    title="Average walks"
-                    value={analytics.averageWalksPerDay.toFixed(1)}
-                    suffix="/ day"
-                    icon={<Footprints className="h-5 w-5" />}
-                    tone="bg-emerald-50 text-emerald-900"
-                />
-                <AnalyticsStatCard
-                    title="Average poops"
-                    value={analytics.averagePoopsPerDay.toFixed(1)}
-                    suffix="/ day"
-                    icon={<span aria-hidden="true">💩</span>}
-                    tone="bg-amber-50 text-amber-900"
-                />
+            {/* Quick Stats */}
+            <div className="grid grid-cols-3 gap-3">
+                <Card className="bg-gradient-to-br from-amber-500/10 to-orange-500/10 border-amber-500/20">
+                    <CardContent className="p-4 text-center">
+                        <div className="text-3xl mb-1">🔥</div>
+                        <div className="text-2xl font-bold text-amber-400">{analytics.bestStreak}</div>
+                        <div className="text-xs text-muted-foreground">Best Streak</div>
+                    </CardContent>
+                </Card>
+                <Card className="bg-gradient-to-br from-green-500/10 to-emerald-500/10 border-green-500/20">
+                    <CardContent className="p-4 text-center">
+                        <div className="text-3xl mb-1">🦮</div>
+                        <div className="text-2xl font-bold text-green-400">{analytics.averageWalksPerDay.toFixed(1)}</div>
+                        <div className="text-xs text-muted-foreground">Avg Walks/Day</div>
+                    </CardContent>
+                </Card>
+                <Card className="bg-gradient-to-br from-amber-500/10 to-orange-500/10 border-amber-500/20">
+                    <CardContent className="p-4 text-center">
+                        <div className="text-3xl mb-1">💩</div>
+                        <div className="text-2xl font-bold text-amber-500">{analytics.averagePoopsPerDay.toFixed(1)}</div>
+                        <div className="text-xs text-muted-foreground">Avg Poops/Day</div>
+                    </CardContent>
+                </Card>
             </div>
 
-            <Card className="rounded-[1.6rem] border-border/80 bg-white/80 shadow-[0_18px_40px_-34px_rgba(70,39,16,0.35)]">
-                <CardHeader className="pb-3">
-                    <CardTitle className="flex items-center gap-2 text-xl font-semibold">
-                        <div className="rounded-full bg-amber-100 p-2 text-amber-900">
-                            <BarChart3 className="h-4 w-4" />
-                        </div>
-                        Last 7 days
+            {/* 7-Day Poop Chart */}
+            <Card>
+                <CardHeader className="pb-2">
+                    <CardTitle className="text-lg font-semibold flex items-center gap-2">
+                        📈 Last 7 Days
                     </CardTitle>
                 </CardHeader>
                 <CardContent>
-                    <div className="flex h-40 items-end justify-between gap-2">
+                    <div className="flex items-end justify-between gap-1 h-32">
                         {analytics.last7Days.map((day, index) => {
                             const height = (day.poopCount / maxPoops) * 100
                             const isToday = index === analytics.last7Days.length - 1
 
                             return (
-                                <div key={day.dateFormatted} className="flex flex-1 flex-col items-center gap-2">
-                                    <div className="flex h-28 w-full flex-col items-center justify-end">
-                                        {day.poopCount > 0 ? (
-                                            <span className="mb-1 text-xs font-medium text-muted-foreground">
+                                <div key={day.dateFormatted} className="flex-1 flex flex-col items-center gap-1">
+                                    <div className="w-full flex flex-col items-center justify-end h-24">
+                                        {day.poopCount > 0 && (
+                                            <span className="text-xs font-medium text-muted-foreground mb-1">
                                                 {day.poopCount}
                                             </span>
-                                        ) : null}
+                                        )}
                                         <div
-                                            className={`w-full max-w-[42px] rounded-t-2xl transition-all ${
-                                                day.poopCount >= 3
-                                                    ? 'bg-gradient-to-t from-emerald-500 to-emerald-400'
-                                                    : day.poopCount > 0
-                                                        ? 'bg-gradient-to-t from-amber-500 to-orange-400'
-                                                        : 'bg-stone-200'
-                                            } ${isToday ? 'ring-2 ring-amber-300 ring-offset-2 ring-offset-background' : ''}`}
-                                            style={{ height: `${Math.max(height, 6)}%` }}
+                                            className={`w-full max-w-[40px] rounded-t-md transition-all ${day.poopCount >= 3
+                                                ? 'bg-gradient-to-t from-green-500 to-green-400'
+                                                : day.poopCount > 0
+                                                    ? 'bg-gradient-to-t from-amber-500 to-amber-400'
+                                                    : 'bg-muted'
+                                                } ${isToday ? 'ring-2 ring-primary ring-offset-2 ring-offset-background' : ''}`}
+                                            style={{ height: `${Math.max(height, 4)}%` }}
                                         />
                                     </div>
-                                    <span className={`text-xs ${isToday ? 'font-semibold text-amber-900' : 'text-muted-foreground'}`}>
+                                    <span className={`text-xs ${isToday ? 'font-bold text-primary' : 'text-muted-foreground'}`}>
                                         {day.dateFormatted}
                                     </span>
                                 </div>
                             )
                         })}
                     </div>
-                    <div className="mt-4 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-                        <LegendSwatch colorClassName="bg-emerald-500" label="Goal met" />
-                        <LegendSwatch colorClassName="bg-amber-500" label="Some poops" />
-                        <LegendSwatch colorClassName="bg-stone-200" label="None" />
+                    <div className="mt-4 flex items-center justify-center gap-4 text-xs text-muted-foreground">
+                        <div className="flex items-center gap-1">
+                            <div className="w-3 h-3 rounded bg-green-500" />
+                            <span>Goal met (3+)</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                            <div className="w-3 h-3 rounded bg-amber-500" />
+                            <span>Some poops</span>
+                        </div>
                     </div>
                 </CardContent>
             </Card>
 
-            <Card className="rounded-[1.6rem] border-border/80 bg-white/80 shadow-[0_18px_40px_-34px_rgba(70,39,16,0.35)]">
-                <CardHeader className="pb-3">
-                    <CardTitle className="flex items-center gap-2 text-xl font-semibold">
-                        <div className="rounded-full bg-amber-100 p-2 text-amber-900">
-                            <Trophy className="h-4 w-4" />
-                        </div>
-                        Walker stats
+            {/* Walker Leaderboard */}
+            <Card>
+                <CardHeader className="pb-2">
+                    <CardTitle className="text-lg font-semibold flex items-center gap-2">
+                        🏆 Walker Stats (30 Days)
                     </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
                     {walkers
                         .sort((a, b) => b[1].walks - a[1].walks)
                         .map(([name, stats], index) => {
-                            const maxWalks = Math.max(...walkers.map((walker) => walker[1].walks), 1)
-                            const width = Math.max((stats.walks / maxWalks) * 100, stats.walks > 0 ? 12 : 0)
+                            const maxWalks = Math.max(...walkers.map(w => w[1].walks), 1)
+                            const width = (stats.walks / maxWalks) * 100
 
                             return (
-                                <div key={name} className="rounded-[1.4rem] border border-border/70 bg-stone-50/80 p-3">
-                                    <div className="flex items-center justify-between gap-3">
-                                        <div className="flex items-center gap-3">
-                                            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-amber-100 text-sm font-semibold text-amber-900">
-                                                {index + 1}
-                                            </div>
-                                            <FamilyAvatar userName={name} />
-                                            <span className="font-medium text-foreground">{name}</span>
+                                <div key={name} className="space-y-1">
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-2">
+                                            {index === 0 && <span className="text-lg">👑</span>}
+                                            <span className="text-xl">{userEmojis[name]}</span>
+                                            <span className="font-medium">{name}</span>
                                         </div>
-
-                                        <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
-                                            <span className="rounded-full bg-white px-2.5 py-1">Walks {stats.walks}</span>
-                                            <span className="rounded-full bg-white px-2.5 py-1">Poops {stats.poops}</span>
-                                            <span className="rounded-full bg-white px-2.5 py-1">Pees {stats.pees}</span>
+                                        <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                                            <span>🦮 {stats.walks}</span>
+                                            <span>💩 {stats.poops}</span>
+                                            <span>💦 {stats.pees}</span>
                                         </div>
                                     </div>
-
-                                    <div className="mt-3 h-2 overflow-hidden rounded-full bg-stone-200">
+                                    <div className="h-2 bg-muted rounded-full overflow-hidden">
                                         <div
-                                            className={`h-full rounded-full ${userColors[name]} transition-[width] duration-500`}
+                                            className={`h-full ${userColors[name]} rounded-full transition-all`}
                                             style={{ width: `${width}%` }}
                                         />
                                     </div>
@@ -166,120 +166,71 @@ export function Analytics() {
                 </CardContent>
             </Card>
 
-            <Card className="rounded-[1.6rem] border-border/80 bg-white/80 shadow-[0_18px_40px_-34px_rgba(70,39,16,0.35)]">
-                <CardHeader className="pb-3">
-                    <CardTitle className="flex items-center gap-2 text-xl font-semibold">
-                        <div className="rounded-full bg-amber-100 p-2 text-amber-900">
-                            <Clock3 className="h-4 w-4" />
-                        </div>
-                        Walk times
+            {/* Time of Day Distribution */}
+            <Card>
+                <CardHeader className="pb-2">
+                    <CardTitle className="text-lg font-semibold flex items-center gap-2">
+                        🌅 Walk Times (30 Days)
                     </CardTitle>
                 </CardHeader>
-                <CardContent className="grid gap-3 sm:grid-cols-4">
-                    <TimeOfDayCard
-                        label="Morning"
-                        timeRange="5am - 12pm"
-                        percentage={Math.round((analytics.timeOfDayDistribution.morning / totalTimeOfDay) * 100)}
-                    />
-                    <TimeOfDayCard
-                        label="Afternoon"
-                        timeRange="12pm - 5pm"
-                        percentage={Math.round((analytics.timeOfDayDistribution.afternoon / totalTimeOfDay) * 100)}
-                    />
-                    <TimeOfDayCard
-                        label="Evening"
-                        timeRange="5pm - 9pm"
-                        percentage={Math.round((analytics.timeOfDayDistribution.evening / totalTimeOfDay) * 100)}
-                    />
-                    <TimeOfDayCard
-                        label="Night"
-                        timeRange="9pm - 5am"
-                        percentage={Math.round((analytics.timeOfDayDistribution.night / totalTimeOfDay) * 100)}
-                    />
-                </CardContent>
-            </Card>
-
-            <Card className="rounded-[1.6rem] border-amber-200/80 bg-[linear-gradient(145deg,hsl(38_100%_96%),hsl(12_82%_94%))] shadow-[0_22px_50px_-40px_rgba(110,57,18,0.42)]">
-                <CardContent className="p-4">
-                    <div className="flex items-center justify-between gap-3">
-                        <div className="flex items-center gap-3">
-                            <div className="rounded-full bg-white/80 p-2 text-amber-900 shadow-sm">
-                                <Trophy className="h-5 w-5" />
+                <CardContent>
+                    <div className="grid grid-cols-4 gap-2">
+                        <div className="text-center p-3 rounded-lg bg-gradient-to-b from-orange-500/10 to-yellow-500/10 border border-orange-500/20">
+                            <div className="text-2xl mb-1">🌅</div>
+                            <div className="text-lg font-bold text-orange-400">
+                                {Math.round((analytics.timeOfDayDistribution.morning / totalTimeOfDay) * 100)}%
                             </div>
-                            <div>
-                                <p className="text-sm text-muted-foreground">Top walker this month</p>
-                                <div className="mt-1 flex items-center gap-2">
-                                    <FamilyAvatar userName={topWalker.name} />
-                                    <p className="text-lg font-semibold text-foreground">{topWalker.name}</p>
-                                </div>
-                            </div>
+                            <div className="text-xs text-muted-foreground">Morning</div>
+                            <div className="text-xs text-muted-foreground/60">5am-12pm</div>
                         </div>
-
-                        <div className="text-right">
-                            <p className="text-3xl font-semibold text-amber-900">{topWalker.stats.walks}</p>
-                            <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Walks</p>
+                        <div className="text-center p-3 rounded-lg bg-gradient-to-b from-yellow-500/10 to-amber-500/10 border border-yellow-500/20">
+                            <div className="text-2xl mb-1">☀️</div>
+                            <div className="text-lg font-bold text-yellow-400">
+                                {Math.round((analytics.timeOfDayDistribution.afternoon / totalTimeOfDay) * 100)}%
+                            </div>
+                            <div className="text-xs text-muted-foreground">Afternoon</div>
+                            <div className="text-xs text-muted-foreground/60">12pm-5pm</div>
+                        </div>
+                        <div className="text-center p-3 rounded-lg bg-gradient-to-b from-rose-500/10 to-orange-500/10 border border-rose-500/20">
+                            <div className="text-2xl mb-1">🌆</div>
+                            <div className="text-lg font-bold text-rose-500">
+                                {Math.round((analytics.timeOfDayDistribution.evening / totalTimeOfDay) * 100)}%
+                            </div>
+                            <div className="text-xs text-muted-foreground">Evening</div>
+                            <div className="text-xs text-muted-foreground/60">5pm-9pm</div>
+                        </div>
+                        <div className="text-center p-3 rounded-lg bg-gradient-to-b from-slate-500/10 to-zinc-500/10 border border-slate-500/20">
+                            <div className="text-2xl mb-1">🌙</div>
+                            <div className="text-lg font-bold text-slate-500">
+                                {Math.round((analytics.timeOfDayDistribution.night / totalTimeOfDay) * 100)}%
+                            </div>
+                            <div className="text-xs text-muted-foreground">Night</div>
+                            <div className="text-xs text-muted-foreground/60">9pm-5am</div>
                         </div>
                     </div>
                 </CardContent>
             </Card>
-        </div>
-    )
-}
 
-function AnalyticsStatCard({
-    title,
-    value,
-    suffix,
-    icon,
-    tone,
-}: {
-    title: string
-    value: string | number
-    suffix: string
-    icon: React.ReactNode
-    tone: string
-}) {
-    return (
-        <div className={`rounded-[1.5rem] px-4 py-4 shadow-[0_18px_40px_-34px_rgba(70,39,16,0.35)] ${tone}`}>
-            <div className="inline-flex rounded-full bg-white/70 p-2 shadow-sm">{icon}</div>
-            <p className="mt-3 text-sm font-medium">{title}</p>
-            <div className="mt-1 flex items-baseline gap-1">
-                <span className="text-3xl font-semibold">{value}</span>
-                <span className="text-sm opacity-80">{suffix}</span>
-            </div>
-        </div>
-    )
-}
-
-function LegendSwatch({
-    colorClassName,
-    label,
-}: {
-    colorClassName: string
-    label: string
-}) {
-    return (
-        <div className="flex items-center gap-2">
-            <div className={`h-3 w-3 rounded-full ${colorClassName}`} />
-            <span>{label}</span>
-        </div>
-    )
-}
-
-function TimeOfDayCard({
-    label,
-    timeRange,
-    percentage,
-}: {
-    label: string
-    timeRange: string
-    percentage: number
-}) {
-    return (
-        <div className="rounded-[1.4rem] border border-border/70 bg-stone-50/80 p-4 text-center">
-            <p className="text-2xl font-semibold text-foreground">{percentage}%</p>
-            <p className="mt-1 font-medium text-foreground">{label}</p>
-            <p className="mt-1 text-xs text-muted-foreground">{timeRange}</p>
+            {/* Top Walker Highlight */}
+            <Card className="bg-gradient-to-br from-yellow-500/10 via-amber-500/10 to-orange-500/10 border-yellow-500/30">
+                <CardContent className="p-4">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                            <span className="text-4xl">👑</span>
+                            <div>
+                                <p className="text-sm text-muted-foreground">Top Walker This Month</p>
+                                <p className="text-xl font-bold text-foreground flex items-center gap-2">
+                                    {userEmojis[topWalker.name]} {topWalker.name}
+                                </p>
+                            </div>
+                        </div>
+                        <div className="text-right">
+                            <p className="text-3xl font-bold text-amber-400">{topWalker.stats.walks}</p>
+                            <p className="text-xs text-muted-foreground">walks</p>
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
         </div>
     )
 }

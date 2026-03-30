@@ -51,45 +51,35 @@ export function Dashboard() {
 
     return (
         <ReadOnlyProvider isReadOnly={!canEdit}>
-            <div className="min-h-dvh bg-[radial-gradient(circle_at_top_right,hsl(34_100%_94%),transparent_28%),radial-gradient(circle_at_left_bottom,hsl(18_85%_93%),transparent_30%),linear-gradient(180deg,hsl(35_38%_98%),hsl(var(--background))_42%)] text-foreground">
-                <header className="sticky top-0 z-50 border-b border-border/70 bg-background/86 backdrop-blur-xl">
-                    <div className="mx-auto flex w-full max-w-3xl items-start justify-between gap-3 px-4 pb-4 pt-[calc(env(safe-area-inset-top)+0.9rem)]">
-                        <div className="space-y-2">
-                            <div className="space-y-1">
-                                <p className="text-[0.65rem] uppercase tracking-[0.24em] text-muted-foreground">
-                                    Pepper&apos;s Portal
-                                </p>
-                                <h1 className="font-serif text-[1.9rem] font-semibold leading-none sm:text-[2.15rem]">
-                                    Daily Care Dashboard
-                                </h1>
-                                <p className="max-w-md text-sm text-muted-foreground">
-                                    Quick walk logging, routines, and reminders for the family.
-                                </p>
-                            </div>
-
-                            <div className="inline-flex items-center gap-2 rounded-full border border-amber-200/70 bg-amber-50/80 px-3 py-1.5 text-sm text-amber-950/80">
-                                <span className="font-medium">Signed in as {user}</span>
-                                <span className="text-amber-500/70">•</span>
-                                <span>{canEdit ? 'Editing on' : 'Read only'}</span>
-                            </div>
+            <div className="min-h-screen bg-[radial-gradient(circle_at_top_right,hsl(32_100%_95%),hsl(var(--background))_36%),radial-gradient(circle_at_20%_120%,hsl(18_85%_94%),transparent_42%)] text-foreground">
+                <header className="sticky top-0 z-50 border-b border-border/70 bg-background/90 backdrop-blur">
+                    <div className="mx-auto flex w-full max-w-2xl items-center justify-between gap-3 px-4 py-3">
+                        <div>
+                            <p className="text-[0.65rem] uppercase tracking-[0.2em] text-muted-foreground">
+                                Pepper&apos;s Portal
+                            </p>
+                            <h1 className="font-serif text-xl font-semibold leading-tight">
+                                Daily Care Dashboard
+                            </h1>
+                            <p className="text-xs text-muted-foreground">Logged in as {user}</p>
                         </div>
 
-                        <div className="flex shrink-0 items-center gap-2">
+                        <div className="flex items-center gap-2">
                             {canEdit ? (
-                                <Button variant="outline" size="sm" onClick={() => void lock()} className="rounded-full">
-                                    Lock editing
+                                <Button variant="outline" size="sm" onClick={() => void lock()}>
+                                    Lock Editing
                                 </Button>
                             ) : null}
-                            <Button variant="ghost" size="sm" onClick={() => setUser(null)} className="rounded-full">
-                                Switch user
+                            <Button variant="ghost" size="sm" onClick={() => setUser(null)}>
+                                Switch User
                             </Button>
                         </div>
                     </div>
                 </header>
 
-                <main className="mx-auto w-full max-w-3xl space-y-4 px-4 py-5">
+                <main className="mx-auto w-full max-w-2xl space-y-5 px-4 py-6">
                     {!hasResolvedStatus ? (
-                        <div className="rounded-[1.5rem] border border-border bg-white/75 p-4 text-sm text-muted-foreground shadow-[0_18px_40px_-34px_rgba(70,39,16,0.35)]">
+                        <div className="rounded-xl border border-border bg-card p-4 text-sm text-muted-foreground">
                             Checking editing access...
                         </div>
                     ) : null}
@@ -105,22 +95,22 @@ export function Dashboard() {
                     {!isLoading && latestWalk ? <LastWalkCard walk={latestWalk} /> : null}
 
                     <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabValue)}>
-                        <TabsList className="h-12 rounded-full border border-border/70 bg-white/75 p-1 shadow-[0_18px_30px_-30px_rgba(70,39,16,0.35)]">
+                        <TabsList className="h-11 rounded-xl border border-border/80 bg-card p-1">
                             <TabsTrigger value="today">Today</TabsTrigger>
                             <TabsTrigger value="history">History</TabsTrigger>
                             <TabsTrigger value="analytics">Analytics</TabsTrigger>
                         </TabsList>
 
-                        <TabsContent value="today" className="mt-4">
-                            <div className="space-y-4">
+                        <TabsContent value="today" className="mt-5">
+                            <div className="space-y-5">
                                 {error ? (
-                                    <div className="rounded-[1.5rem] border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                                    <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-700">
                                         {error}
                                     </div>
                                 ) : null}
 
                                 {isLoading ? (
-                                    <div className="rounded-[1.5rem] border border-border bg-white/75 p-6 text-center shadow-[0_18px_40px_-34px_rgba(70,39,16,0.35)]">
+                                    <div className="rounded-xl border border-border bg-card p-6 text-center">
                                         <p className="text-sm text-muted-foreground">Loading care data...</p>
                                     </div>
                                 ) : null}
@@ -138,23 +128,22 @@ export function Dashboard() {
                                     />
                                 ) : null}
 
-                                {canEdit ? (
-                                    <section className="space-y-2 rounded-[1.75rem] border border-amber-200/70 bg-[linear-gradient(135deg,hsl(39_100%_96%),hsl(28_100%_94%))] p-4 shadow-[0_20px_50px_-42px_rgba(133,78,14,0.55)]">
-                                        <div>
-                                            <p className="text-xs uppercase tracking-[0.24em] text-amber-900/70">
-                                                Quick log
-                                            </p>
-                                            <p className="mt-1 text-sm text-amber-950/75">
-                                                Designed for one-handed updates while you&apos;re out with Pepper.
-                                            </p>
-                                        </div>
+                                {!hasResolvedStatus ? (
+                                    <p className="rounded-xl border border-border px-4 py-3 text-sm text-muted-foreground">
+                                        Checking editing access...
+                                    </p>
+                                ) : canEdit ? (
+                                    <section className="space-y-2">
+                                        <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
+                                            Quick Log
+                                        </p>
                                         <LogWalkButton userName={user} onLogWalk={addWalk} />
                                     </section>
-                                ) : hasResolvedStatus ? (
-                                    <p className="rounded-[1.4rem] border border-amber-200 bg-amber-50/75 px-4 py-3 text-sm text-amber-900">
+                                ) : (
+                                    <p className="rounded-xl border border-amber-600/25 bg-amber-50/60 px-4 py-3 text-sm text-amber-900">
                                         Unlock editing to log walks, routines, and reminders.
                                     </p>
-                                ) : null}
+                                )}
 
                                 <DailyRoutines />
                                 <ReminderManager />
@@ -162,11 +151,11 @@ export function Dashboard() {
                             </div>
                         </TabsContent>
 
-                        <TabsContent value="history" className="mt-4">
+                        <TabsContent value="history" className="mt-5">
                             <HistoryView />
                         </TabsContent>
 
-                        <TabsContent value="analytics" className="mt-4">
+                        <TabsContent value="analytics" className="mt-5">
                             <Analytics />
                         </TabsContent>
                     </Tabs>
