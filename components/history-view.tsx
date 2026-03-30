@@ -25,7 +25,6 @@ export function HistoryView() {
         error,
         goToPreviousDay,
         goToNextDay,
-        goToToday,
         isToday,
     } = useHistory()
 
@@ -63,14 +62,6 @@ export function HistoryView() {
                             Next →
                         </Button>
                     </div>
-
-                    {!isToday && (
-                        <div className="mt-3 text-center">
-                            <Button variant="ghost" size="sm" onClick={goToToday}>
-                                ↩️ Back to Today
-                            </Button>
-                        </div>
-                    )}
                 </CardContent>
             </Card>
 

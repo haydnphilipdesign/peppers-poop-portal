@@ -43,7 +43,6 @@ interface UseHistoryReturn {
     error: string | null
     goToPreviousDay: () => void
     goToNextDay: () => void
-    goToToday: () => void
     isToday: boolean
 }
 
@@ -151,10 +150,6 @@ export function useHistory(): UseHistoryReturn {
         }
     }, [isToday])
 
-    const goToToday = useCallback(() => {
-        setSelectedDate(new Date())
-    }, [])
-
     return {
         selectedDate,
         setSelectedDate,
@@ -163,7 +158,6 @@ export function useHistory(): UseHistoryReturn {
         error,
         goToPreviousDay,
         goToNextDay,
-        goToToday,
         isToday,
     }
 }
