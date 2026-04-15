@@ -2,7 +2,18 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { supabase } from '@/lib/supabase'
-import type { Log, UserName } from '@/lib/database.types'
+import { apiFetch } from '@/lib/api-client'
+import type {
+    ActivityCreateRequest,
+    ActivityDeleteRequest,
+    ActivityUpdateRequest,
+    ApiSuccessResponse,
+    WalkCreateRequest,
+    WalkDeleteRequest,
+    WalkUpdateRequest
+} from '@/lib/api-types'
+import { getRoutineStatus, type RoutineStatus } from '@/lib/activity-utils'
+import type { Activity, Log, UserName } from '@/lib/database.types'
 import { endOfDay, format, startOfDay, subDays, eachDayOfInterval } from 'date-fns'
 import {
     calculateTimeOfDayDistribution,
@@ -39,11 +50,21 @@ interface UseHistoryReturn {
     selectedDate: Date
     setSelectedDate: (date: Date) => void
     dayStats: DayStats | null
+    dayActivities: Activity[]
+    toysStatus: RoutineStatus
+    dinnerStatus: RoutineStatus
     isLoading: boolean
     error: string | null
     goToPreviousDay: () => void
     goToNextDay: () => void
     isToday: boolean
+    addWalk: (options: { poop: boolean; pee: boolean; userName: UserName; createdAt: Date }) => Promise<void>
+    updateWalk: (walk: Walk, updates: { poop: boolean; pee: boolean; userName: UserName; time: Date }) => Promise<void>
+    deleteWalk: (walk: Walk) => Promise<void>
+    logActivity: (type: RoutineStatus['type'], loggedBy: UserName, assignedTo: UserName, createdAt: Date) => Promise<void>
+    updateActivity: (id: string, loggedBy: UserName, assignedTo: UserName, createdAt: Date) => Promise<void>
+    deleteActivity: (id: string) => Promise<void>
+    refetch: () => Promise<void>
 }
 
 interface UseAnalyticsReturn {
@@ -72,10 +93,11 @@ function calculateBestStreak(days: DayStats[]): number {
 export function useHistory(): UseHistoryReturn {
     const [selectedDate, setSelectedDate] = useState<Date>(() => subDays(new Date(), 1))
     const [logs, setLogs] = useState<Log[]>([])
+    const [activities, setActivities] = useState<Activity[]>([])
     const [isLoading, setIsLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
 
-    const fetchLogsForDate = useCallback(async (date: Date) => {
+    const fetchDayData = useCallback(async (date: Date) => {
         try {
             setIsLoading(true)
             setError(null)
@@ -83,16 +105,26 @@ export function useHistory(): UseHistoryReturn {
             const dayStart = startOfDay(date)
             const dayEnd = endOfDay(date)
 
-            const { data, error: fetchError } = await supabase
-                .from('logs')
-                .select('*')
-                .gte('created_at', dayStart.toISOString())
-                .lte('created_at', dayEnd.toISOString())
-                .order('created_at', { ascending: false })
+            const [logsResult, activitiesResult] = await Promise.all([
+                supabase
+                    .from('logs')
+                    .select('*')
+                    .gte('created_at', dayStart.toISOString())
+                    .lte('created_at', dayEnd.toISOString())
+                    .order('created_at', { ascending: false }),
+                supabase
+                    .from('activities')
+                    .select('*')
+                    .gte('created_at', dayStart.toISOString())
+                    .lte('created_at', dayEnd.toISOString())
+                    .order('created_at', { ascending: false }),
+            ])
 
-            if (fetchError) throw fetchError
+            if (logsResult.error) throw logsResult.error
+            if (activitiesResult.error) throw activitiesResult.error
 
-            setLogs(data || [])
+            setLogs(logsResult.data || [])
+            setActivities(activitiesResult.data || [])
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Failed to fetch logs')
         } finally {
@@ -101,19 +133,19 @@ export function useHistory(): UseHistoryReturn {
     }, [])
 
     useEffect(() => {
-        void fetchLogsForDate(selectedDate)
-    }, [selectedDate, fetchLogsForDate])
+        void fetchDayData(selectedDate)
+    }, [selectedDate, fetchDayData])
 
     useEffect(() => {
         const handler = () => {
-            void fetchLogsForDate(selectedDate)
+            void fetchDayData(selectedDate)
         }
 
         window.addEventListener('ppp:data-changed', handler)
         return () => {
             window.removeEventListener('ppp:data-changed', handler)
         }
-    }, [fetchLogsForDate, selectedDate])
+    }, [fetchDayData, selectedDate])
 
     const dayStats = useMemo((): DayStats | null => {
         const walks = groupLogsIntoWalks(logs)
@@ -150,15 +182,160 @@ export function useHistory(): UseHistoryReturn {
         }
     }, [isToday])
 
+    const refetch = useCallback(async () => {
+        await fetchDayData(selectedDate)
+    }, [fetchDayData, selectedDate])
+
+    const addWalk = useCallback(async (options: { poop: boolean; pee: boolean; userName: UserName; createdAt: Date }) => {
+        try {
+            await apiFetch<ApiSuccessResponse>('/api/walks', {
+                method: 'POST',
+                body: JSON.stringify({
+                    poop: options.poop,
+                    pee: options.pee,
+                    userName: options.userName,
+                    createdAt: options.createdAt.toISOString(),
+                } satisfies WalkCreateRequest),
+            })
+
+            await fetchDayData(selectedDate)
+            window.dispatchEvent(new Event('ppp:data-changed'))
+            setError(null)
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'Failed to add walk')
+        }
+    }, [fetchDayData, selectedDate])
+
+    const updateWalk = useCallback(async (
+        walk: Walk,
+        updates: { poop: boolean; pee: boolean; userName: UserName; time: Date }
+    ) => {
+        try {
+            await apiFetch<ApiSuccessResponse>('/api/walks', {
+                method: 'PATCH',
+                body: JSON.stringify({
+                    logIds: walk.logs.map(log => log.id),
+                    poop: updates.poop,
+                    pee: updates.pee,
+                    userName: updates.userName,
+                    createdAt: updates.time.toISOString(),
+                } satisfies WalkUpdateRequest),
+            })
+
+            await fetchDayData(selectedDate)
+            window.dispatchEvent(new Event('ppp:data-changed'))
+            setError(null)
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'Failed to update walk')
+        }
+    }, [fetchDayData, selectedDate])
+
+    const deleteWalk = useCallback(async (walk: Walk) => {
+        try {
+            await apiFetch<ApiSuccessResponse>('/api/walks', {
+                method: 'DELETE',
+                body: JSON.stringify({
+                    logIds: walk.logs.map(log => log.id),
+                } satisfies WalkDeleteRequest),
+            })
+
+            await fetchDayData(selectedDate)
+            window.dispatchEvent(new Event('ppp:data-changed'))
+            setError(null)
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'Failed to delete walk')
+        }
+    }, [fetchDayData, selectedDate])
+
+    const logActivity = useCallback(async (
+        type: RoutineStatus['type'],
+        loggedBy: UserName,
+        assignedTo: UserName,
+        createdAt: Date
+    ) => {
+        try {
+            await apiFetch<ApiSuccessResponse>('/api/activities', {
+                method: 'POST',
+                body: JSON.stringify({
+                    type,
+                    loggedBy,
+                    assignedTo,
+                    createdAt: createdAt.toISOString(),
+                } satisfies ActivityCreateRequest),
+            })
+
+            await fetchDayData(selectedDate)
+            window.dispatchEvent(new Event('ppp:data-changed'))
+            setError(null)
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'Failed to log activity')
+        }
+    }, [fetchDayData, selectedDate])
+
+    const updateActivity = useCallback(async (
+        id: string,
+        loggedBy: UserName,
+        assignedTo: UserName,
+        createdAt: Date
+    ) => {
+        try {
+            await apiFetch<ApiSuccessResponse>('/api/activities', {
+                method: 'PATCH',
+                body: JSON.stringify({
+                    id,
+                    loggedBy,
+                    assignedTo,
+                    createdAt: createdAt.toISOString(),
+                } satisfies ActivityUpdateRequest),
+            })
+
+            await fetchDayData(selectedDate)
+            window.dispatchEvent(new Event('ppp:data-changed'))
+            setError(null)
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'Failed to update activity')
+        }
+    }, [fetchDayData, selectedDate])
+
+    const deleteActivity = useCallback(async (id: string) => {
+        try {
+            await apiFetch<ApiSuccessResponse>('/api/activities', {
+                method: 'DELETE',
+                body: JSON.stringify({
+                    id,
+                } satisfies ActivityDeleteRequest),
+            })
+
+            await fetchDayData(selectedDate)
+            window.dispatchEvent(new Event('ppp:data-changed'))
+            setError(null)
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'Failed to delete activity')
+        }
+    }, [fetchDayData, selectedDate])
+
+    const toysStatus = useMemo(() => getRoutineStatus(activities, 'toys', selectedDate), [activities, selectedDate])
+    const dinnerStatus = useMemo(() => getRoutineStatus(activities, 'dinner', selectedDate), [activities, selectedDate])
+
     return {
         selectedDate,
         setSelectedDate,
         dayStats,
+        dayActivities: activities,
+        toysStatus,
+        dinnerStatus,
         isLoading,
         error,
         goToPreviousDay,
         goToNextDay,
         isToday,
+        addWalk,
+        updateWalk,
+        deleteWalk,
+        logActivity,
+        updateActivity,
+        deleteActivity,
+        refetch,
     }
 }
 

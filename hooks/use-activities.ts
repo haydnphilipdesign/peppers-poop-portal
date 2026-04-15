@@ -15,7 +15,7 @@ interface UseActivitiesReturn {
     isDinnerDone: boolean
     toysFilledBy: UserName | null
     dinnerDoneBy: UserName | null
-    logActivity: (type: ActivityType, loggedBy: UserName, assignedTo: UserName) => Promise<void>
+    logActivity: (type: ActivityType, loggedBy: UserName, assignedTo: UserName, createdAt?: Date) => Promise<void>
     refetch: () => Promise<void>
 }
 
@@ -53,8 +53,11 @@ export function useActivities(): UseActivitiesReturn {
         fetchActivities()
     }, [fetchActivities])
 
-    const logActivity = async (type: ActivityType, loggedBy: UserName, assignedTo: UserName) => {
-        const timestamp = new Date()
+    const logActivity = async (type: ActivityType, loggedBy: UserName, assignedTo: UserName, createdAt?: Date) => {
+        const timestamp = createdAt ?? new Date()
+        const todayStart = startOfDay(new Date())
+        const todayEnd = endOfDay(new Date())
+        const belongsToToday = timestamp >= todayStart && timestamp <= todayEnd
 
         // Optimistic update
         const optimisticActivity: Activity = {
@@ -65,7 +68,9 @@ export function useActivities(): UseActivitiesReturn {
             assigned_to: assignedTo,
         }
 
-        setTodayActivities(prev => [optimisticActivity, ...prev])
+        if (belongsToToday) {
+            setTodayActivities(prev => [optimisticActivity, ...prev])
+        }
 
         try {
             await apiFetch<ApiSuccessResponse>('/api/activities', {
@@ -83,7 +88,9 @@ export function useActivities(): UseActivitiesReturn {
             window.dispatchEvent(new Event('ppp:data-changed'))
         } catch (err) {
             // Rollback
-            setTodayActivities(prev => prev.filter(a => a.id !== optimisticActivity.id))
+            if (belongsToToday) {
+                setTodayActivities(prev => prev.filter(a => a.id !== optimisticActivity.id))
+            }
             const errorMessage = err instanceof Error ? err.message : 'Failed to log activity'
             setError(errorMessage)
         }

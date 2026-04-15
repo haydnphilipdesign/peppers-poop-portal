@@ -34,6 +34,17 @@ export interface ActivityCreateRequest {
   createdAt?: string;
 }
 
+export interface ActivityUpdateRequest {
+  id: string;
+  loggedBy: UserName;
+  assignedTo: UserName;
+  createdAt?: string;
+}
+
+export interface ActivityDeleteRequest {
+  id: string;
+}
+
 export interface ReminderLogRequest {
   type: ReminderType;
   dueDate: string;

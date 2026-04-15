@@ -48,6 +48,17 @@ export const activityCreateSchema = z.object({
   createdAt: isoDateTimeSchema.optional(),
 });
 
+export const activityUpdateSchema = z.object({
+  id: uuidSchema,
+  loggedBy: userNameSchema,
+  assignedTo: userNameSchema,
+  createdAt: isoDateTimeSchema.optional(),
+});
+
+export const activityDeleteSchema = z.object({
+  id: uuidSchema,
+});
+
 export const reminderLogSchema = z.object({
   type: reminderTypeSchema,
   dueDate: isoDateSchema,
