@@ -2,7 +2,9 @@
 
 import { useState } from 'react'
 import { useLogs } from '@/hooks/use-logs'
+import { useMonthlyChampion } from '@/hooks/use-champion'
 import { WalkHistory } from './walk-history'
+import { DailyScoreboard } from './daily-scoreboard'
 import { Leaderboard } from './leaderboard'
 import { DailyRoutines } from './daily-routines'
 import { RemindersBanner } from './reminders-banner'
@@ -26,12 +28,13 @@ export function PublicDashboard() {
         isLoading,
         error,
     } = useLogs()
+    const { champion, monthLabel } = useMonthlyChampion()
 
     const noopDelete = async () => { }
     const noopUpdate = async () => { }
 
     return (
-        <div className="min-h-screen bg-[radial-gradient(circle_at_top_right,hsl(32_100%_95%),hsl(var(--background))_36%),radial-gradient(circle_at_20%_120%,hsl(18_85%_94%),transparent_42%)] text-foreground">
+        <div className="min-h-screen bg-[radial-gradient(circle_at_top_right,hsl(32_100%_95%),hsl(var(--background))_36%),radial-gradient(circle_at_20%_120%,hsl(18_85%_94%),transparent_42%)] text-foreground dark:bg-[radial-gradient(circle_at_top_right,hsl(28_45%_13%),hsl(var(--background))_40%),radial-gradient(circle_at_20%_120%,hsl(14_45%_12%),transparent_44%)]">
             <header className="sticky top-0 z-50 border-b border-border/70 bg-background/90 backdrop-blur">
                 <div className="mx-auto flex w-full max-w-2xl items-center justify-between gap-3 px-4 py-3">
                     <div>
@@ -42,7 +45,7 @@ export function PublicDashboard() {
                             Live Read-Only Dashboard
                         </h1>
                     </div>
-                    <span className="rounded-full border border-sky-500/30 bg-sky-500/10 px-3 py-1 text-xs font-medium text-sky-700">
+                    <span className="rounded-full border border-sky-500/30 bg-sky-500/10 px-3 py-1 text-xs font-medium text-sky-700 dark:text-sky-300">
                         View Only
                     </span>
                 </div>
@@ -61,7 +64,7 @@ export function PublicDashboard() {
                     <TabsContent value="today" className="mt-5">
                         <div className="space-y-5">
                             {error ? (
-                                <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-700">
+                                <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-700 dark:text-red-300">
                                     {error}
                                 </div>
                             ) : null}
@@ -75,11 +78,16 @@ export function PublicDashboard() {
                             <RemindersBanner />
 
                             {!isLoading ? (
-                                <WalkHistory
-                                    walks={todayWalks}
+                                <DailyScoreboard
                                     poopCount={todayPoopCount}
                                     peeCount={todayPeeCount}
                                     walksCount={todayWalksCount}
+                                />
+                            ) : null}
+
+                            {!isLoading ? (
+                                <WalkHistory
+                                    walks={todayWalks}
                                     onDeleteWalk={noopDelete}
                                     onUpdateWalk={noopUpdate}
                                 />
@@ -87,7 +95,13 @@ export function PublicDashboard() {
 
                             <DailyRoutines />
                             <ReminderManager />
-                            {!isLoading ? <Leaderboard monthlyPoints={monthlyPoints} /> : null}
+                            {!isLoading ? (
+                                <Leaderboard
+                                    monthlyPoints={monthlyPoints}
+                                    champion={champion}
+                                    championMonth={monthLabel}
+                                />
+                            ) : null}
                         </div>
                     </TabsContent>
 

@@ -9,11 +9,6 @@ import type { UserName } from '@/lib/database.types'
 
 interface WalkHistoryProps {
     walks: Walk[]
-    poopCount: number
-    peeCount: number
-    walksCount: number
-    poopGoal?: number
-    walksGoal?: number
     onDeleteWalk: (walk: Walk) => Promise<void>
     onUpdateWalk: (walk: Walk, updates: { poop: boolean; pee: boolean; userName: UserName; time: Date }) => Promise<void>
 }
@@ -32,51 +27,8 @@ const userColors: Record<UserName, string> = {
 
 const users: UserName[] = ['Chris', 'Debbie', 'Haydn']
 
-interface WalkStatsBarProps {
-    poopCount: number
-    peeCount: number
-    walksCount: number
-    poopGoal: number
-    walksGoal: number
-}
-
-function WalkStatsBar({
-    poopCount,
-    peeCount,
-    walksCount,
-    poopGoal,
-    walksGoal,
-}: WalkStatsBarProps) {
-    const poopGoalReached = poopCount >= poopGoal
-    const walksGoalReached = walksCount >= walksGoal
-
-    return (
-        <div className="flex items-center gap-4 text-sm">
-            <div className={`flex items-center gap-1.5 px-2 py-1 rounded-lg ${walksGoalReached ? 'bg-green-500/20 text-green-400' : 'bg-muted text-muted-foreground'}`}>
-                <span>🦮</span>
-                <span className="font-semibold">{walksCount}</span>
-                <span className="opacity-60">/{walksGoal}</span>
-            </div>
-            <div className={`flex items-center gap-1.5 px-2 py-1 rounded-lg ${poopGoalReached ? 'bg-green-500/20 text-green-400' : 'bg-muted text-muted-foreground'}`}>
-                <span>💩</span>
-                <span className="font-semibold">{poopCount}</span>
-                <span className="opacity-60">/{poopGoal}</span>
-            </div>
-            <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-muted text-muted-foreground">
-                <span>💦</span>
-                <span className="font-semibold">{peeCount}</span>
-            </div>
-        </div>
-    )
-}
-
 export function WalkHistory({
     walks,
-    poopCount,
-    peeCount,
-    walksCount,
-    poopGoal = 3,
-    walksGoal = 5,
     onDeleteWalk,
     onUpdateWalk
 }: WalkHistoryProps) {
@@ -125,18 +77,9 @@ export function WalkHistory({
         return (
             <Card>
                 <CardHeader className="pb-2">
-                    <div className="flex items-center justify-between flex-wrap gap-2">
-                        <CardTitle className="text-lg font-semibold flex items-center gap-2">
-                            🦮 Today&apos;s Walk Log
-                        </CardTitle>
-                        <WalkStatsBar
-                            poopCount={poopCount}
-                            peeCount={peeCount}
-                            walksCount={walksCount}
-                            poopGoal={poopGoal}
-                            walksGoal={walksGoal}
-                        />
-                    </div>
+                    <CardTitle className="text-lg font-semibold flex items-center gap-2">
+                        🦮 Today&apos;s Walk Log
+                    </CardTitle>
                 </CardHeader>
                 <CardContent>
                     <p className="text-muted-foreground text-center py-4">
@@ -150,18 +93,9 @@ export function WalkHistory({
     return (
         <Card>
             <CardHeader className="pb-2">
-                <div className="flex items-center justify-between flex-wrap gap-2">
-                    <CardTitle className="text-lg font-semibold flex items-center gap-2">
-                        🦮 Today&apos;s Walk Log
-                    </CardTitle>
-                    <WalkStatsBar
-                        poopCount={poopCount}
-                        peeCount={peeCount}
-                        walksCount={walksCount}
-                        poopGoal={poopGoal}
-                        walksGoal={walksGoal}
-                    />
-                </div>
+                <CardTitle className="text-lg font-semibold flex items-center gap-2">
+                    🦮 Today&apos;s Walk Log
+                </CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
                 {walks.map((walk) => (

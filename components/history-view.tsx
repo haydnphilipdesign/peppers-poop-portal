@@ -263,7 +263,7 @@ export function HistoryView() {
             {!isLoading && dayStats && (
                 <>
                     {!isReadOnly ? null : (
-                        <div className="rounded-xl border border-amber-600/25 bg-amber-50/60 px-4 py-3 text-sm text-amber-900">
+                        <div className="rounded-xl border border-amber-600/25 bg-amber-50/60 px-4 py-3 text-sm text-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
                             Unlock editing to fix old walks and routines for this day.
                         </div>
                     )}
@@ -276,17 +276,17 @@ export function HistoryView() {
                         </CardHeader>
                         <CardContent className="space-y-4">
                             <div className="flex flex-wrap items-center gap-3 text-sm">
-                                <div className="flex items-center gap-1.5 rounded-lg bg-green-500/10 px-3 py-2 text-green-400">
+                                <div className="flex items-center gap-1.5 rounded-lg bg-green-500/10 px-3 py-2 text-green-600 dark:text-green-400">
                                     <span>🦮</span>
                                     <span className="font-semibold">{dayStats.walksCount}</span>
                                     <span className="opacity-60">walks</span>
                                 </div>
-                                <div className="flex items-center gap-1.5 rounded-lg bg-amber-500/10 px-3 py-2 text-amber-400">
+                                <div className="flex items-center gap-1.5 rounded-lg bg-amber-500/10 px-3 py-2 text-amber-600 dark:text-amber-400">
                                     <span>💩</span>
                                     <span className="font-semibold">{dayStats.poopCount}</span>
                                     <span className="opacity-60">poops</span>
                                 </div>
-                                <div className="flex items-center gap-1.5 rounded-lg bg-blue-500/10 px-3 py-2 text-blue-400">
+                                <div className="flex items-center gap-1.5 rounded-lg bg-blue-500/10 px-3 py-2 text-blue-600 dark:text-blue-400">
                                     <span>💦</span>
                                     <span className="font-semibold">{dayStats.peeCount}</span>
                                     <span className="opacity-60">pees</span>

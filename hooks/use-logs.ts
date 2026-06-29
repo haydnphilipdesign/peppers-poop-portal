@@ -8,6 +8,7 @@ import type { Log, LogType, UserName, Activity, Reminder } from '@/lib/database.
 import {
     calculatePoopStreak,
     calculateMonthlyPoints,
+    filterRemindersForMonth,
     getLatestWalkFromLogs,
     groupLogsIntoWalks,
     type Walk,
@@ -93,23 +94,7 @@ export function useLogs(): UseLogsReturn {
             if (monthRemindersError) throw monthRemindersError
 
             const remindersData: Reminder[] = allRemindersData ?? []
-            const monthStartTime = monthStart.getTime()
-            const monthEndTime = monthEnd.getTime()
-
-            const monthRemindersData = remindersData.filter(reminder => {
-                const scheduledAt = reminder.scheduled_at ? new Date(reminder.scheduled_at).getTime() : null
-                const completedAt = reminder.completed_at ? new Date(reminder.completed_at).getTime() : null
-
-                const hasScheduledPoints = scheduledAt !== null &&
-                    scheduledAt >= monthStartTime &&
-                    scheduledAt <= monthEndTime
-
-                const hasCompletedPoints = completedAt !== null &&
-                    completedAt >= monthStartTime &&
-                    completedAt <= monthEndTime
-
-                return hasScheduledPoints || hasCompletedPoints
-            })
+            const monthRemindersData = filterRemindersForMonth(remindersData, monthStart, monthEnd)
 
             setTodayLogs(todayData || [])
             setMonthlyLogs(monthData || [])

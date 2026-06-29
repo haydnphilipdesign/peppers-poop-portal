@@ -1,6 +1,7 @@
 @import "tailwindcss";
 
 :root {
+  color-scheme: light;
   --radius: 0.8rem;
 
   --background: 36 38% 96%;
@@ -31,33 +32,37 @@
   --ring: 27 61% 32%;
 }
 
-.dark {
-  --background: 25 19% 9%;
-  --foreground: 35 34% 94%;
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
 
-  --card: 24 18% 12%;
-  --card-foreground: 35 34% 94%;
-  --popover: 24 18% 12%;
-  --popover-foreground: 35 34% 94%;
+    --background: 25 19% 9%;
+    --foreground: 35 34% 94%;
 
-  --primary: 35 78% 72%;
-  --primary-foreground: 24 24% 14%;
+    --card: 24 18% 12%;
+    --card-foreground: 35 34% 94%;
+    --popover: 24 18% 12%;
+    --popover-foreground: 35 34% 94%;
 
-  --secondary: 24 14% 21%;
-  --secondary-foreground: 34 30% 90%;
+    --primary: 35 78% 72%;
+    --primary-foreground: 24 24% 14%;
 
-  --muted: 24 12% 22%;
-  --muted-foreground: 28 20% 68%;
+    --secondary: 24 14% 21%;
+    --secondary-foreground: 34 30% 90%;
 
-  --accent: 166 28% 28%;
-  --accent-foreground: 165 47% 88%;
+    --muted: 24 12% 22%;
+    --muted-foreground: 28 20% 68%;
 
-  --destructive: 0 70% 55%;
-  --destructive-foreground: 0 0% 98%;
+    --accent: 166 28% 28%;
+    --accent-foreground: 165 47% 88%;
 
-  --border: 24 12% 26%;
-  --input: 24 12% 26%;
-  --ring: 35 78% 72%;
+    --destructive: 0 70% 55%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 24 12% 26%;
+    --input: 24 12% 26%;
+    --ring: 35 78% 72%;
+  }
 }
 
 @theme inline {

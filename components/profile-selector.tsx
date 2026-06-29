@@ -4,16 +4,28 @@ import { useUser } from '@/lib/user-context'
 import type { UserName } from '@/lib/database.types'
 
 const profiles: { name: UserName; tone: string; emoji: string }[] = [
-    { name: 'Chris', tone: 'from-sky-100 to-blue-100 border-sky-200', emoji: '👨' },
-    { name: 'Debbie', tone: 'from-rose-100 to-amber-100 border-rose-200', emoji: '👩' },
-    { name: 'Haydn', tone: 'from-emerald-100 to-teal-100 border-emerald-200', emoji: '🧑' },
+    {
+        name: 'Chris',
+        tone: 'from-sky-100 to-blue-100 border-sky-200 dark:from-sky-950/50 dark:to-blue-950/40 dark:border-sky-800/50',
+        emoji: '👨',
+    },
+    {
+        name: 'Debbie',
+        tone: 'from-rose-100 to-amber-100 border-rose-200 dark:from-rose-950/50 dark:to-amber-950/40 dark:border-rose-800/50',
+        emoji: '👩',
+    },
+    {
+        name: 'Haydn',
+        tone: 'from-emerald-100 to-teal-100 border-emerald-200 dark:from-emerald-950/50 dark:to-teal-950/40 dark:border-emerald-800/50',
+        emoji: '🧑',
+    },
 ]
 
 export function ProfileSelector() {
     const { setUser } = useUser()
 
     return (
-        <div className="min-h-screen bg-[radial-gradient(circle_at_top_right,#fce8d2,transparent_50%),radial-gradient(circle_at_bottom_left,#f8dfd3,transparent_45%),hsl(var(--background))] px-4">
+        <div className="min-h-screen bg-[radial-gradient(circle_at_top_right,#fce8d2,transparent_50%),radial-gradient(circle_at_bottom_left,#f8dfd3,transparent_45%),hsl(var(--background))] px-4 dark:bg-[radial-gradient(circle_at_top_right,#2a1d11,transparent_50%),radial-gradient(circle_at_bottom_left,#241a16,transparent_45%),hsl(var(--background))]">
             <div className="mx-auto flex min-h-screen w-full max-w-2xl flex-col items-center justify-center">
                 <div className="text-center">
                     <p className="text-xs uppercase tracking-[0.25em] text-muted-foreground">

@@ -3,6 +3,7 @@ import {
   calculatePoopStreak,
   calculateTimeOfDayDistribution,
   calculateMonthlyPoints,
+  determineMonthlyChampion,
   groupLogsIntoWalks,
 } from "@/lib/domain/metrics";
 import type { Activity, Log, Reminder } from "@/lib/database.types";
@@ -106,6 +107,64 @@ describe("calculateMonthlyPoints", () => {
     );
     expect(points.Debbie).toBe(POINTS.walkLog);
     expect(points.Haydn).toBe(POINTS.activity);
+  });
+});
+
+describe("determineMonthlyChampion", () => {
+  it("crowns the user with the most points", () => {
+    const logs: Log[] = [
+      createLog("1", "2026-05-01T08:00:00.000Z", "poop", "Chris"),
+      createLog("2", "2026-05-01T10:00:00.000Z", "pee", "Chris"),
+      createLog("3", "2026-05-01T09:00:00.000Z", "poop", "Debbie"),
+    ];
+
+    const champion = determineMonthlyChampion(logs, [], []);
+
+    expect(champion).not.toBeNull();
+    expect(champion?.winners).toEqual(["Chris"]);
+    expect(champion?.points).toBe(POINTS.walkLog * 2);
+    expect(champion?.walks).toBe(2);
+  });
+
+  it("breaks a points tie by the number of walks", () => {
+    // Chris: 1 walk + 1 activity = 10 pts but only 1 walk.
+    // Debbie: 2 walks = 10 pts and 2 walks -> Debbie wins the tiebreak.
+    const logs: Log[] = [
+      createLog("1", "2026-05-01T08:00:00.000Z", "poop", "Chris"),
+      createLog("2", "2026-05-02T08:00:00.000Z", "poop", "Debbie"),
+      createLog("3", "2026-05-02T10:00:00.000Z", "pee", "Debbie"),
+    ];
+
+    const activities: Activity[] = [
+      {
+        id: "a1",
+        created_at: "2026-05-01T11:00:00.000Z",
+        type: "dinner",
+        logged_by: "Chris",
+        assigned_to: "Chris",
+      },
+    ];
+
+    const champion = determineMonthlyChampion(logs, activities, []);
+
+    expect(champion?.winners).toEqual(["Debbie"]);
+    expect(champion?.points).toBe(POINTS.walkLog * 2);
+    expect(champion?.walks).toBe(2);
+  });
+
+  it("returns co-champions on an exact points + walks tie", () => {
+    const logs: Log[] = [
+      createLog("1", "2026-05-01T08:00:00.000Z", "poop", "Chris"),
+      createLog("2", "2026-05-01T09:00:00.000Z", "poop", "Debbie"),
+    ];
+
+    const champion = determineMonthlyChampion(logs, [], []);
+
+    expect(champion?.winners).toEqual(["Chris", "Debbie"]);
+  });
+
+  it("returns null when nobody scored that month", () => {
+    expect(determineMonthlyChampion([], [], [])).toBeNull();
   });
 });
 

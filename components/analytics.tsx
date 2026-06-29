@@ -55,21 +55,21 @@ export function Analytics() {
                 <Card className="bg-gradient-to-br from-amber-500/10 to-orange-500/10 border-amber-500/20">
                     <CardContent className="p-4 text-center">
                         <div className="text-3xl mb-1">🔥</div>
-                        <div className="text-2xl font-bold text-amber-400">{analytics.bestStreak}</div>
+                        <div className="text-2xl font-bold text-amber-600 dark:text-amber-400">{analytics.bestStreak}</div>
                         <div className="text-xs text-muted-foreground">Best Streak</div>
                     </CardContent>
                 </Card>
                 <Card className="bg-gradient-to-br from-green-500/10 to-emerald-500/10 border-green-500/20">
                     <CardContent className="p-4 text-center">
                         <div className="text-3xl mb-1">🦮</div>
-                        <div className="text-2xl font-bold text-green-400">{analytics.averageWalksPerDay.toFixed(1)}</div>
+                        <div className="text-2xl font-bold text-green-600 dark:text-green-400">{analytics.averageWalksPerDay.toFixed(1)}</div>
                         <div className="text-xs text-muted-foreground">Avg Walks/Day</div>
                     </CardContent>
                 </Card>
                 <Card className="bg-gradient-to-br from-amber-500/10 to-orange-500/10 border-amber-500/20">
                     <CardContent className="p-4 text-center">
                         <div className="text-3xl mb-1">💩</div>
-                        <div className="text-2xl font-bold text-amber-500">{analytics.averagePoopsPerDay.toFixed(1)}</div>
+                        <div className="text-2xl font-bold text-amber-600 dark:text-amber-400">{analytics.averagePoopsPerDay.toFixed(1)}</div>
                         <div className="text-xs text-muted-foreground">Avg Poops/Day</div>
                     </CardContent>
                 </Card>
@@ -177,7 +177,7 @@ export function Analytics() {
                     <div className="grid grid-cols-4 gap-2">
                         <div className="text-center p-3 rounded-lg bg-gradient-to-b from-orange-500/10 to-yellow-500/10 border border-orange-500/20">
                             <div className="text-2xl mb-1">🌅</div>
-                            <div className="text-lg font-bold text-orange-400">
+                            <div className="text-lg font-bold text-orange-600 dark:text-orange-400">
                                 {Math.round((analytics.timeOfDayDistribution.morning / totalTimeOfDay) * 100)}%
                             </div>
                             <div className="text-xs text-muted-foreground">Morning</div>
@@ -185,7 +185,7 @@ export function Analytics() {
                         </div>
                         <div className="text-center p-3 rounded-lg bg-gradient-to-b from-yellow-500/10 to-amber-500/10 border border-yellow-500/20">
                             <div className="text-2xl mb-1">☀️</div>
-                            <div className="text-lg font-bold text-yellow-400">
+                            <div className="text-lg font-bold text-yellow-600 dark:text-yellow-400">
                                 {Math.round((analytics.timeOfDayDistribution.afternoon / totalTimeOfDay) * 100)}%
                             </div>
                             <div className="text-xs text-muted-foreground">Afternoon</div>
@@ -193,7 +193,7 @@ export function Analytics() {
                         </div>
                         <div className="text-center p-3 rounded-lg bg-gradient-to-b from-rose-500/10 to-orange-500/10 border border-rose-500/20">
                             <div className="text-2xl mb-1">🌆</div>
-                            <div className="text-lg font-bold text-rose-500">
+                            <div className="text-lg font-bold text-rose-600 dark:text-rose-400">
                                 {Math.round((analytics.timeOfDayDistribution.evening / totalTimeOfDay) * 100)}%
                             </div>
                             <div className="text-xs text-muted-foreground">Evening</div>
@@ -201,7 +201,7 @@ export function Analytics() {
                         </div>
                         <div className="text-center p-3 rounded-lg bg-gradient-to-b from-slate-500/10 to-zinc-500/10 border border-slate-500/20">
                             <div className="text-2xl mb-1">🌙</div>
-                            <div className="text-lg font-bold text-slate-500">
+                            <div className="text-lg font-bold text-slate-600 dark:text-slate-300">
                                 {Math.round((analytics.timeOfDayDistribution.night / totalTimeOfDay) * 100)}%
                             </div>
                             <div className="text-xs text-muted-foreground">Night</div>
@@ -225,7 +225,7 @@ export function Analytics() {
                             </div>
                         </div>
                         <div className="text-right">
-                            <p className="text-3xl font-bold text-amber-400">{topWalker.stats.walks}</p>
+                            <p className="text-3xl font-bold text-amber-600 dark:text-amber-400">{topWalker.stats.walks}</p>
                             <p className="text-xs text-muted-foreground">walks</p>
                         </div>
                     </div>

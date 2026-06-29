@@ -5,7 +5,9 @@ import { useUser } from '@/lib/user-context'
 import { ReadOnlyProvider } from '@/lib/read-only-context'
 import { useLogs } from '@/hooks/use-logs'
 import { useWriteAccess } from '@/hooks/use-write-access'
+import { useMonthlyChampion } from '@/hooks/use-champion'
 import { WalkHistory } from './walk-history'
+import { DailyScoreboard } from './daily-scoreboard'
 import { LogWalkButton } from './log-walk-button'
 import { Leaderboard } from './leaderboard'
 import { DailyRoutines } from './daily-routines'
@@ -47,11 +49,14 @@ export function Dashboard() {
     } = useWriteAccess()
     const canEdit = hasResolvedStatus && isUnlocked
 
+    const { champion, monthLabel } = useMonthlyChampion()
+    const isReigningChamp = Boolean(user && champion?.winners.includes(user))
+
     if (!user) return null
 
     return (
         <ReadOnlyProvider isReadOnly={!canEdit}>
-            <div className="min-h-screen bg-[radial-gradient(circle_at_top_right,hsl(32_100%_95%),hsl(var(--background))_36%),radial-gradient(circle_at_20%_120%,hsl(18_85%_94%),transparent_42%)] text-foreground">
+            <div className="min-h-screen bg-[radial-gradient(circle_at_top_right,hsl(32_100%_95%),hsl(var(--background))_36%),radial-gradient(circle_at_20%_120%,hsl(18_85%_94%),transparent_42%)] text-foreground dark:bg-[radial-gradient(circle_at_top_right,hsl(28_45%_13%),hsl(var(--background))_40%),radial-gradient(circle_at_20%_120%,hsl(14_45%_12%),transparent_44%)]">
                 <header className="sticky top-0 z-50 border-b border-border/70 bg-background/90 backdrop-blur">
                     <div className="mx-auto flex w-full max-w-2xl items-center justify-between gap-3 px-4 py-3">
                         <div>
@@ -62,6 +67,11 @@ export function Dashboard() {
                                 Daily Care Dashboard
                             </h1>
                             <p className="text-xs text-muted-foreground">Logged in as {user}</p>
+                            {isReigningChamp ? (
+                                <p className="mt-1 inline-flex items-center gap-1 rounded-full bg-yellow-500/20 px-2 py-0.5 text-[0.7rem] font-medium text-amber-800 dark:text-amber-200">
+                                    👑 Reigning champ · {monthLabel}
+                                </p>
+                            ) : null}
                         </div>
 
                         <div className="flex items-center gap-2">
@@ -104,7 +114,7 @@ export function Dashboard() {
                         <TabsContent value="today" className="mt-5">
                             <div className="space-y-5">
                                 {error ? (
-                                    <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-700">
+                                    <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-700 dark:text-red-300">
                                         {error}
                                     </div>
                                 ) : null}
@@ -118,11 +128,16 @@ export function Dashboard() {
                                 <RemindersBanner />
 
                                 {!isLoading ? (
-                                    <WalkHistory
-                                        walks={todayWalks}
+                                    <DailyScoreboard
                                         poopCount={todayPoopCount}
                                         peeCount={todayPeeCount}
                                         walksCount={todayWalksCount}
+                                    />
+                                ) : null}
+
+                                {!isLoading ? (
+                                    <WalkHistory
+                                        walks={todayWalks}
                                         onDeleteWalk={deleteWalk}
                                         onUpdateWalk={updateWalk}
                                     />
@@ -140,14 +155,20 @@ export function Dashboard() {
                                         <LogWalkButton userName={user} onLogWalk={addWalk} />
                                     </section>
                                 ) : (
-                                    <p className="rounded-xl border border-amber-600/25 bg-amber-50/60 px-4 py-3 text-sm text-amber-900">
+                                    <p className="rounded-xl border border-amber-600/25 bg-amber-50/60 px-4 py-3 text-sm text-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
                                         Unlock editing to log walks, routines, and reminders.
                                     </p>
                                 )}
 
                                 <DailyRoutines />
                                 <ReminderManager />
-                                {!isLoading ? <Leaderboard monthlyPoints={monthlyPoints} /> : null}
+                                {!isLoading ? (
+                                    <Leaderboard
+                                        monthlyPoints={monthlyPoints}
+                                        champion={champion}
+                                        championMonth={monthLabel}
+                                    />
+                                ) : null}
                             </div>
                         </TabsContent>
 

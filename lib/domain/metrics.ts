@@ -150,6 +150,79 @@ export function calculateMonthlyPoints(
   return points;
 }
 
+export interface MonthlyChampion {
+  /** Usually one name; more than one only on an exact points + walks tie. */
+  winners: UserName[];
+  points: number;
+  walks: number;
+}
+
+/**
+ * Keep only reminders that earned points (scheduled or completed) within the
+ * given month window. Mirrors the inline filtering used for the live month.
+ */
+export function filterRemindersForMonth(
+  reminders: Reminder[],
+  monthStart: Date,
+  monthEnd: Date
+): Reminder[] {
+  const startTime = monthStart.getTime();
+  const endTime = monthEnd.getTime();
+
+  return reminders.filter((reminder) => {
+    const scheduledAt = reminder.scheduled_at
+      ? new Date(reminder.scheduled_at).getTime()
+      : null;
+    const completedAt = reminder.completed_at
+      ? new Date(reminder.completed_at).getTime()
+      : null;
+
+    const hasScheduledPoints =
+      scheduledAt !== null && scheduledAt >= startTime && scheduledAt <= endTime;
+    const hasCompletedPoints =
+      completedAt !== null && completedAt >= startTime && completedAt <= endTime;
+
+    return hasScheduledPoints || hasCompletedPoints;
+  });
+}
+
+/**
+ * Crown the winner of a month from already month-scoped data.
+ * Tiebreak: highest points, then most walks, then co-champions on an exact tie.
+ * Returns null when nobody scored (e.g. a month before the app was used).
+ */
+export function determineMonthlyChampion(
+  logs: Log[],
+  activities: Activity[],
+  reminders: Reminder[]
+): MonthlyChampion | null {
+  const points = calculateMonthlyPoints(logs, activities, reminders);
+
+  const walkCounts = createEmptyUserStats(() => 0);
+  groupLogsIntoWalks(logs).forEach((walk) => {
+    walkCounts[walk.userName] += 1;
+  });
+
+  const entries = (Object.keys(points) as UserName[]).map((name) => ({
+    name,
+    points: points[name],
+    walks: walkCounts[name],
+  }));
+
+  const maxPoints = Math.max(...entries.map((entry) => entry.points));
+  if (maxPoints <= 0) {
+    return null;
+  }
+
+  const leaders = entries.filter((entry) => entry.points === maxPoints);
+  const maxWalks = Math.max(...leaders.map((entry) => entry.walks));
+  const winners = leaders
+    .filter((entry) => entry.walks === maxWalks)
+    .map((entry) => entry.name);
+
+  return { winners, points: maxPoints, walks: maxWalks };
+}
+
 export function calculateWalkerStats(
   logs: Log[],
   walks: Walk[]
