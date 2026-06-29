@@ -23,6 +23,7 @@ interface UseRemindersReturn {
     isSimparicaDue: boolean
     isGroomingDue: boolean
     activeGroomingReminder: Reminder | null
+    activeVetReminder: Reminder | null
     groomingAppointmentReminder: Reminder | null
     addReminder: (type: ReminderType, dueDate: Date, notes?: string, completedBy?: UserName, completedAt?: Date) => Promise<void>
     scheduleReminder: (type: ReminderType, appointmentAt: Date, scheduledBy: UserName, notes?: string) => Promise<void>
@@ -263,6 +264,11 @@ export function useReminders(): UseRemindersReturn {
         [getActiveScheduledReminder]
     )
 
+    const activeVetReminder = useMemo(
+        () => getActiveScheduledReminder('vet'),
+        [getActiveScheduledReminder]
+    )
+
     const groomingAppointmentReminder = useMemo(() => {
         if (!activeGroomingReminder?.appointment_at) {
             return null
@@ -333,6 +339,7 @@ export function useReminders(): UseRemindersReturn {
         isSimparicaDue,
         isGroomingDue,
         activeGroomingReminder,
+        activeVetReminder,
         groomingAppointmentReminder,
         addReminder,
         scheduleReminder,

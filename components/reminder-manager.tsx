@@ -27,6 +27,7 @@ export function ReminderManager() {
         scheduleReminder,
         completeReminder,
         activeGroomingReminder,
+        activeVetReminder,
         isLoading
     } = useReminders()
 
@@ -40,6 +41,9 @@ export function ReminderManager() {
     const lastVet = getLastCompletedDate('vet')
     const groomingAppointment = activeGroomingReminder?.appointment_at
         ? new Date(activeGroomingReminder.appointment_at)
+        : null
+    const vetAppointment = activeVetReminder?.appointment_at
+        ? new Date(activeVetReminder.appointment_at)
         : null
 
     const handleLogReminder = async (type: ReminderType, assignedTo: UserName) => {
@@ -85,6 +89,32 @@ export function ReminderManager() {
         }
     }
 
+    const handleScheduleVet = async (scheduledBy: UserName) => {
+        if (!user) return
+
+        setLogging('vet')
+        try {
+            const appointmentAt = parse(appointmentInput, "yyyy-MM-dd'T'HH:mm", new Date())
+            await scheduleReminder('vet', appointmentAt, scheduledBy)
+        } finally {
+            setLogging(null)
+            setShowAssignee(null)
+            setAppointmentInput(createDefaultAppointmentInput())
+        }
+    }
+
+    const handleCompleteScheduledVet = async (completedBy: UserName) => {
+        if (!user || !activeVetReminder) return
+
+        setLogging('vet')
+        try {
+            await completeReminder(activeVetReminder.id, completedBy)
+        } finally {
+            setLogging(null)
+            setShowAssignee(null)
+        }
+    }
+
     const openGroomingSchedule = () => {
         setAppointmentInput(
             groomingAppointment
@@ -92,6 +122,15 @@ export function ReminderManager() {
                 : createDefaultAppointmentInput()
         )
         setShowAssignee('grooming-schedule')
+    }
+
+    const openVetSchedule = () => {
+        setAppointmentInput(
+            vetAppointment
+                ? format(vetAppointment, "yyyy-MM-dd'T'HH:mm")
+                : createDefaultAppointmentInput()
+        )
+        setShowAssignee('vet-schedule')
     }
 
     const groomingStatusCopy = (() => {
@@ -105,6 +144,21 @@ export function ReminderManager() {
         }
         if (lastGrooming) {
             return `Last: ${format(lastGrooming, 'MMM d, yyyy')}`
+        }
+        return 'Not yet logged'
+    })()
+
+    const vetStatusCopy = (() => {
+        if (isLoading) return 'Loading...'
+        if (vetAppointment) {
+            const appointmentLabel = format(vetAppointment, "MMM d, yyyy 'at' h:mm a")
+            const isPastAppointment = isBefore(vetAppointment, new Date())
+            return isPastAppointment
+                ? `Appointment was scheduled for ${appointmentLabel}`
+                : `Scheduled for ${appointmentLabel}`
+        }
+        if (lastVet) {
+            return `Last: ${format(lastVet, 'MMM d, yyyy')}`
         }
         return 'Not yet logged'
     })()
@@ -263,18 +317,62 @@ export function ReminderManager() {
                                 </div>
                                 <div>
                                     <p className="font-medium text-foreground">Vet Visit</p>
-                                    <p className="text-xs text-muted-foreground">
-                                        {isLoading
-                                            ? 'Loading...'
-                                            : lastVet
-                                            ? `Last: ${format(lastVet, 'MMM d, yyyy')}`
-                                            : 'Not yet logged'
-                                        }
-                                    </p>
+                                    <p className="text-xs text-muted-foreground">{vetStatusCopy}</p>
+                                    {activeVetReminder?.scheduled_by ? (
+                                        <p className="text-xs text-muted-foreground">
+                                            Scheduled by {activeVetReminder.scheduled_by}
+                                        </p>
+                                    ) : null}
                                 </div>
                             </div>
 
-                            {isReadOnly ? null : showAssignee === 'vet' ? (
+                            {isReadOnly ? null : showAssignee === 'vet-schedule' ? (
+                                <div className="flex flex-col gap-2 items-end">
+                                    <input
+                                        type="datetime-local"
+                                        value={appointmentInput}
+                                        onChange={(e) => setAppointmentInput(e.target.value)}
+                                        className="h-7 px-2 text-xs border rounded bg-background"
+                                    />
+                                    <div className="flex gap-1">
+                                        {USERS.map(u => (
+                                            <Button
+                                                key={u}
+                                                size="sm"
+                                                variant="outline"
+                                                onClick={() => handleScheduleVet(u)}
+                                                disabled={logging === 'vet'}
+                                                className="text-xs px-2 py-1 h-7"
+                                            >
+                                                {logging === 'vet' ? (
+                                                    <Loader2 className="w-3 h-3 animate-spin" />
+                                                ) : (
+                                                    u
+                                                )}
+                                            </Button>
+                                        ))}
+                                    </div>
+                                </div>
+                            ) : showAssignee === 'vet-complete' ? (
+                                <div className="flex gap-1">
+                                    {USERS.map(u => (
+                                        <Button
+                                            key={u}
+                                            size="sm"
+                                            variant="outline"
+                                            onClick={() => handleCompleteScheduledVet(u)}
+                                            disabled={logging === 'vet'}
+                                            className="text-xs px-2 py-1 h-7"
+                                        >
+                                            {logging === 'vet' ? (
+                                                <Loader2 className="w-3 h-3 animate-spin" />
+                                            ) : (
+                                                u
+                                            )}
+                                        </Button>
+                                    ))}
+                                </div>
+                            ) : showAssignee === 'vet-log' ? (
                                 <div className="flex flex-col gap-2 items-end">
                                     <input
                                         type="date"
@@ -303,15 +401,35 @@ export function ReminderManager() {
                                     </div>
                                 </div>
                             ) : (
-                                <Button
-                                    size="sm"
-                                    variant="secondary"
-                                    onClick={() => setShowAssignee('vet')}
-                                    disabled={isLoading}
-                                >
-                                    <Plus className="w-4 h-4 mr-1" />
-                                    Log
-                                </Button>
+                                <div className="flex flex-col items-end gap-2">
+                                    <Button
+                                        size="sm"
+                                        variant="secondary"
+                                        onClick={openVetSchedule}
+                                        disabled={isLoading}
+                                    >
+                                        <Calendar className="w-4 h-4 mr-1" />
+                                        {vetAppointment ? 'Reschedule' : 'Schedule'}
+                                    </Button>
+                                    <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        onClick={() => setShowAssignee(vetAppointment ? 'vet-complete' : 'vet-log')}
+                                        disabled={isLoading}
+                                    >
+                                        {vetAppointment ? (
+                                            <>
+                                                <Check className="w-4 h-4 mr-1" />
+                                                Complete
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Plus className="w-4 h-4 mr-1" />
+                                                Log Completed
+                                            </>
+                                        )}
+                                    </Button>
+                                </div>
                             )}
                         </div>
                     </div>
