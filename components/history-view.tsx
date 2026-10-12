@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { format, isToday as isTodayDate, parseISO, setHours, setMinutes, startOfDay } from 'date-fns'
-import { CalendarDays, Check, Loader2, Plus } from 'lucide-react'
+import { CalendarDays, Loader2, Plus } from 'lucide-react'
 import { DeleteConfirmation, isUnchangedWalk } from './delete-confirmation'
 import { WalkRow } from './walk-row'
 import { walkOutcomeLabel } from '@/lib/domain/metrics'
@@ -379,37 +379,6 @@ export function HistoryView() {
                                     <span className="font-semibold">{dayStats.peeCount}</span>
                                     <span className="text-foreground">pees</span>
                                 </div>
-                            </div>
-
-                            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                                {routineStatuses.map((status) => (
-                                    <div
-                                        key={status.type}
-                                        className={`rounded-xl border p-3 ${status.isComplete
-                                            ? 'border-emerald-500/30 bg-emerald-500/5'
-                                            : 'border-border bg-muted/20'
-                                            }`}
-                                    >
-                                        <div className="flex flex-wrap items-center justify-between gap-3">
-                                            <div className="flex items-center gap-3">
-                                                <span className="text-2xl">{status.icon}</span>
-                                                <div>
-                                                    <p className="font-medium text-foreground">{status.label}</p>
-                                                    <p className="text-xs text-muted-foreground">{status.description}</p>
-                                                </div>
-                                            </div>
-
-                                            {status.isComplete ? (
-                                                <div className="flex items-center gap-2 text-sm font-medium text-emerald-700 dark:text-emerald-300">
-                                                    <Check className="h-4 w-4" />
-                                                    <span>{status.assignedTo}</span>
-                                                </div>
-                                            ) : (
-                                                <span className="text-sm text-muted-foreground">Missing</span>
-                                            )}
-                                        </div>
-                                    </div>
-                                ))}
                             </div>
                         </CardContent>
                     </Card>

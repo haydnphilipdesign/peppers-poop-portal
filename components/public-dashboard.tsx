@@ -65,8 +65,6 @@ export function PublicDashboard() {
             </header>
 
             <main className="mx-auto w-full max-w-2xl space-y-5 px-4 py-6">
-                <LastWalkCard walk={latestWalk} isLoading={latestIsLoading} isRefreshing={latestIsRefreshing} error={latestError} onRetry={() => void refetch()} />
-
                 <Tabs value={activeTab} onValueChange={(v) => {
                     const tab = v as TabValue
                     setActiveTab(tab)
@@ -80,6 +78,7 @@ export function PublicDashboard() {
 
                     <TabsContent value="today" className="mt-5">
                         <div className="space-y-5">
+                            <LastWalkCard walk={latestWalk} isLoading={latestIsLoading} isRefreshing={latestIsRefreshing} error={latestError} onRetry={() => void refetch()} />
                             {error ? <div role="alert" className="rounded-xl border border-amber-500/30 p-4 text-sm">
                                 <p>{error}</p>
                                 <Button variant="outline" className="mt-2" disabled={isRefreshing || isLoading} onClick={() => void refetch()}>Refresh today&apos;s walks</Button>
