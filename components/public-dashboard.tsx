@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import dynamic from 'next/dynamic'
 import { useLogs } from '@/hooks/use-logs'
 import { useMonthlyChampion } from '@/hooks/use-champion'
 import { WalkHistory } from './walk-history'
@@ -9,15 +10,17 @@ import { Leaderboard } from './leaderboard'
 import { DailyRoutines } from './daily-routines'
 import { RemindersBanner } from './reminders-banner'
 import { ReminderManager } from './reminder-manager'
-import { HistoryView } from './history-view'
-import { Analytics } from './analytics'
 import { LastWalkCard } from './last-walk-card'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
+
+const HistoryView = dynamic(() => import('./history-view').then(module => module.HistoryView))
+const Analytics = dynamic(() => import('./analytics').then(module => module.Analytics))
 
 type TabValue = 'today' | 'history' | 'analytics'
 
 export function PublicDashboard() {
     const [activeTab, setActiveTab] = useState<TabValue>('today')
+    const [visitedTabs, setVisitedTabs] = useState<TabValue[]>(['today'])
     const {
         todayPoopCount,
         todayPeeCount,
@@ -26,7 +29,10 @@ export function PublicDashboard() {
         latestWalk,
         monthlyPoints,
         isLoading,
+        isRefreshing,
+        hasLoaded,
         error,
+        refetch,
     } = useLogs()
     const { champion, monthLabel } = useMonthlyChampion()
 
@@ -52,10 +58,14 @@ export function PublicDashboard() {
             </header>
 
             <main className="mx-auto w-full max-w-2xl space-y-5 px-4 py-6">
-                {!isLoading && latestWalk ? <LastWalkCard walk={latestWalk} /> : null}
+                <LastWalkCard walk={latestWalk} isLoading={isLoading} isRefreshing={isRefreshing} error={error} onRetry={() => void refetch()} />
 
-                <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabValue)}>
-                    <TabsList className="h-11 rounded-xl border border-border/80 bg-card p-1">
+                <Tabs value={activeTab} onValueChange={(v) => {
+                    const tab = v as TabValue
+                    setActiveTab(tab)
+                    setVisitedTabs(previous => previous.includes(tab) ? previous : [...previous, tab])
+                }}>
+                    <TabsList className="h-14 rounded-xl border border-border/80 bg-card p-1">
                         <TabsTrigger value="today">Today</TabsTrigger>
                         <TabsTrigger value="history">History</TabsTrigger>
                         <TabsTrigger value="analytics">Analytics</TabsTrigger>
@@ -63,39 +73,25 @@ export function PublicDashboard() {
 
                     <TabsContent value="today" className="mt-5">
                         <div className="space-y-5">
-                            {error ? (
-                                <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-700 dark:text-red-300">
-                                    {error}
-                                </div>
-                            ) : null}
-
-                            {isLoading ? (
-                                <div className="rounded-xl border border-border bg-card p-6 text-center">
-                                    <p className="text-sm text-muted-foreground">Loading care data...</p>
-                                </div>
-                            ) : null}
+                            <DailyScoreboard
+                                poopCount={todayPoopCount}
+                                peeCount={todayPeeCount}
+                                walksCount={todayWalksCount}
+                                isLoading={isLoading}
+                                unavailable={!hasLoaded && Boolean(error)}
+                            />
+                            <WalkHistory
+                                walks={todayWalks}
+                                onDeleteWalk={noopDelete}
+                                onUpdateWalk={noopUpdate}
+                                isLoading={isLoading}
+                                unavailable={!hasLoaded && Boolean(error)}
+                            />
 
                             <RemindersBanner />
-
-                            {!isLoading ? (
-                                <DailyScoreboard
-                                    poopCount={todayPoopCount}
-                                    peeCount={todayPeeCount}
-                                    walksCount={todayWalksCount}
-                                />
-                            ) : null}
-
-                            {!isLoading ? (
-                                <WalkHistory
-                                    walks={todayWalks}
-                                    onDeleteWalk={noopDelete}
-                                    onUpdateWalk={noopUpdate}
-                                />
-                            ) : null}
-
                             <DailyRoutines />
                             <ReminderManager />
-                            {!isLoading ? (
+                            {hasLoaded ? (
                                 <Leaderboard
                                     monthlyPoints={monthlyPoints}
                                     champion={champion}
@@ -106,11 +102,11 @@ export function PublicDashboard() {
                     </TabsContent>
 
                     <TabsContent value="history" className="mt-5">
-                        <HistoryView />
+                        {visitedTabs.includes('history') ? <HistoryView /> : null}
                     </TabsContent>
 
                     <TabsContent value="analytics" className="mt-5">
-                        <Analytics />
+                        {visitedTabs.includes('analytics') ? <Analytics /> : null}
                     </TabsContent>
                 </Tabs>
 

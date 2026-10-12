@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
 import { apiFetch } from '@/lib/api-client'
 import type { ApiSuccessResponse, WalkCreateRequest, WalkDeleteRequest, WalkUpdateRequest } from '@/lib/api-types'
@@ -21,6 +21,8 @@ interface UseLogsReturn {
     todayWalks: Walk[]
     latestWalk: Walk | null
     isLoading: boolean
+    isRefreshing: boolean
+    hasLoaded: boolean
     error: string | null
     addLog: (type: LogType, userName: UserName, createdAt?: Date) => Promise<void>
     addWalk: (options: { poop: boolean; pee: boolean; userName: UserName; createdAt?: Date }) => Promise<void>
@@ -41,79 +43,85 @@ export function useLogs(): UseLogsReturn {
     const [monthlyReminders, setMonthlyReminders] = useState<Reminder[]>([])
     const [allLogs, setAllLogs] = useState<Log[]>([])
     const [isLoading, setIsLoading] = useState(true)
+    const [isRefreshing, setIsRefreshing] = useState(false)
+    const [hasLoaded, setHasLoaded] = useState(false)
+    const loaded = useRef(false)
+    const requestId = useRef(0)
     const [error, setError] = useState<string | null>(null)
 
     const fetchLogs = useCallback(async () => {
+        const id = ++requestId.current
         try {
-            setIsLoading(true)
+            setIsLoading(!loaded.current)
+            setIsRefreshing(loaded.current)
             const now = new Date()
             const todayStart = startOfDay(now)
             const todayEnd = endOfDay(now)
             const monthStart = startOfMonth(now)
             const monthEnd = endOfMonth(now)
 
-            const { data: todayData, error: todayError } = await supabase
-                .from('logs')
-                .select('*')
-                .gte('created_at', todayStart.toISOString())
-                .lte('created_at', todayEnd.toISOString())
-                .order('created_at', { ascending: false })
-
-            if (todayError) throw todayError
-
-            const { data: monthData, error: monthError } = await supabase
-                .from('logs')
-                .select('*')
-                .gte('created_at', monthStart.toISOString())
-                .lte('created_at', monthEnd.toISOString())
-                .order('created_at', { ascending: false })
-
-            if (monthError) throw monthError
-
             const thirtyDaysAgo = subDays(now, 30)
-            const { data: allData, error: allError } = await supabase
-                .from('logs')
-                .select('*')
-                .gte('created_at', thirtyDaysAgo.toISOString())
-                .order('created_at', { ascending: false })
+            // These reads do not depend on one another. Start them together.
+            const [todayResult, monthResult, allResult, activitiesResult, remindersResult] = await Promise.all([
+                supabase
+                    .from('logs')
+                    .select('*')
+                    .gte('created_at', todayStart.toISOString())
+                    .lte('created_at', todayEnd.toISOString())
+                    .order('created_at', { ascending: false }),
+                supabase
+                    .from('logs')
+                    .select('*')
+                    .gte('created_at', monthStart.toISOString())
+                    .lte('created_at', monthEnd.toISOString())
+                    .order('created_at', { ascending: false }),
+                supabase
+                    .from('logs')
+                    .select('*')
+                    .gte('created_at', thirtyDaysAgo.toISOString())
+                    .order('created_at', { ascending: false }),
+                supabase
+                    .from('activities')
+                    .select('*')
+                    .gte('created_at', monthStart.toISOString())
+                    .lte('created_at', monthEnd.toISOString()),
+                supabase
+                    .from('reminders')
+                    .select('*'),
+            ])
+            if (id !== requestId.current) return
+            for (const result of [todayResult, monthResult, allResult, activitiesResult, remindersResult]) {
+                if (result.error) throw result.error
+            }
 
-            if (allError) throw allError
-
-            const { data: monthActivitiesData, error: monthActivitiesError } = await supabase
-                .from('activities')
-                .select('*')
-                .gte('created_at', monthStart.toISOString())
-                .lte('created_at', monthEnd.toISOString())
-
-            if (monthActivitiesError) throw monthActivitiesError
-
-            const { data: allRemindersData, error: monthRemindersError } = await supabase
-                .from('reminders')
-                .select('*')
-
-            if (monthRemindersError) throw monthRemindersError
-
-            const remindersData: Reminder[] = allRemindersData ?? []
+            const remindersData: Reminder[] = remindersResult.data ?? []
             const monthRemindersData = filterRemindersForMonth(remindersData, monthStart, monthEnd)
 
-            setTodayLogs(todayData || [])
-            setMonthlyLogs(monthData || [])
-            setMonthlyActivities(monthActivitiesData || [])
+            setTodayLogs(todayResult.data || [])
+            setMonthlyLogs(monthResult.data || [])
+            setMonthlyActivities(activitiesResult.data || [])
             setMonthlyReminders(monthRemindersData || [])
-            setAllLogs(allData || [])
+            setAllLogs(allResult.data || [])
+            loaded.current = true
+            setHasLoaded(true)
             setError(null)
         } catch (err) {
-            setError(err instanceof Error ? err.message : 'Failed to fetch logs')
+            if (id === requestId.current) {
+                // PostgREST errors are plain objects rather than Error instances.
+                const message = err && typeof err === 'object' && 'message' in err
+                    ? String(err.message) : 'Unable to load care data.'
+                setError(message)
+            }
         } finally {
-            setIsLoading(false)
+            if (id === requestId.current) {
+                setIsLoading(false)
+                setIsRefreshing(false)
+            }
         }
     }, [])
 
     useEffect(() => {
         void fetchLogs()
-    }, [fetchLogs])
-
-    useEffect(() => {
         const handler = () => {
             void fetchLogs()
         }
@@ -121,27 +129,24 @@ export function useLogs(): UseLogsReturn {
         window.addEventListener('ppp:data-changed', handler)
         return () => {
             window.removeEventListener('ppp:data-changed', handler)
+            requestId.current += 1
         }
     }, [fetchLogs])
 
     const addWalk = async (options: { poop: boolean; pee: boolean; userName: UserName; createdAt?: Date }) => {
-        try {
-            await apiFetch<ApiSuccessResponse>('/api/walks', {
-                method: 'POST',
-                body: JSON.stringify({
-                    poop: options.poop,
-                    pee: options.pee,
-                    userName: options.userName,
-                    createdAt: options.createdAt?.toISOString(),
-                } satisfies WalkCreateRequest),
-            })
+        await apiFetch<ApiSuccessResponse>('/api/walks', {
+            method: 'POST',
+            body: JSON.stringify({
+                poop: options.poop,
+                pee: options.pee,
+                userName: options.userName,
+                createdAt: options.createdAt?.toISOString(),
+            } satisfies WalkCreateRequest),
+        })
 
-            await fetchLogs()
-            window.dispatchEvent(new Event('ppp:data-changed'))
-            setError(null)
-        } catch (err) {
-            setError(err instanceof Error ? err.message : 'Failed to add walk')
-        }
+        // The event refreshes this hook and other care sections once. Saving
+        // succeeds when the write succeeds, independently of subsequent reads.
+        window.dispatchEvent(new Event('ppp:data-changed'))
     }
 
     const addLog = async (type: LogType, userName: UserName, createdAt?: Date) => {
@@ -154,44 +159,32 @@ export function useLogs(): UseLogsReturn {
     }
 
     const deleteWalk = async (walk: Walk) => {
-        try {
-            await apiFetch<ApiSuccessResponse>('/api/walks', {
-                method: 'DELETE',
-                body: JSON.stringify({
-                    logIds: walk.logs.map(log => log.id),
-                } satisfies WalkDeleteRequest),
-            })
+        await apiFetch<ApiSuccessResponse>('/api/walks', {
+            method: 'DELETE',
+            body: JSON.stringify({
+                logIds: walk.logs.map(log => log.id),
+            } satisfies WalkDeleteRequest),
+        })
 
-            await fetchLogs()
-            window.dispatchEvent(new Event('ppp:data-changed'))
-            setError(null)
-        } catch (err) {
-            setError(err instanceof Error ? err.message : 'Failed to delete walk')
-        }
+        window.dispatchEvent(new Event('ppp:data-changed'))
     }
 
     const updateWalk = async (
         walk: Walk,
         updates: { poop: boolean; pee: boolean; userName: UserName; time: Date }
     ) => {
-        try {
-            await apiFetch<ApiSuccessResponse>('/api/walks', {
-                method: 'PATCH',
-                body: JSON.stringify({
-                    logIds: walk.logs.map(log => log.id),
-                    poop: updates.poop,
-                    pee: updates.pee,
-                    userName: updates.userName,
-                    createdAt: updates.time.toISOString(),
-                } satisfies WalkUpdateRequest),
-            })
+        await apiFetch<ApiSuccessResponse>('/api/walks', {
+            method: 'PATCH',
+            body: JSON.stringify({
+                logIds: walk.logs.map(log => log.id),
+                poop: updates.poop,
+                pee: updates.pee,
+                userName: updates.userName,
+                createdAt: updates.time.toISOString(),
+            } satisfies WalkUpdateRequest),
+        })
 
-            await fetchLogs()
-            window.dispatchEvent(new Event('ppp:data-changed'))
-            setError(null)
-        } catch (err) {
-            setError(err instanceof Error ? err.message : 'Failed to update walk')
-        }
+        window.dispatchEvent(new Event('ppp:data-changed'))
     }
 
     const todayPoopCount = useMemo(
@@ -220,6 +213,8 @@ export function useLogs(): UseLogsReturn {
         todayWalks,
         latestWalk,
         isLoading,
+        isRefreshing,
+        hasLoaded,
         error,
         addLog,
         addWalk,

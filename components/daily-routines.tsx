@@ -19,7 +19,9 @@ export function DailyRoutines() {
         toysFilledBy,
         dinnerDoneBy,
         logActivity,
-        isLoading
+        isLoading,
+        error,
+        refetch,
     } = useActivities()
 
     const [showToysAssignee, setShowToysAssignee] = useState(false)
@@ -50,120 +52,127 @@ export function DailyRoutines() {
                 🏠 Daily Routines
             </h2>
 
-            <div className="space-y-2">
-                {/* Toys */}
-                <div className="rounded-xl border border-border bg-card p-4">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                            <span className="text-2xl">🧸</span>
-                            <div>
-                                <p className="font-medium text-foreground">Fill Toys</p>
-                                <p className="text-xs text-muted-foreground">Morning treats</p>
+            {error ? (
+                <div role="alert" className="rounded-xl border border-destructive/30 bg-destructive/10 p-4 text-sm">
+                    <p>Routines could not be checked or saved. Please try again.</p>
+                    <Button variant="outline" className="mt-2" disabled={isLoading} onClick={() => void refetch()}>Retry routines</Button>
+                </div>
+            ) : (
+                <div className="space-y-2">
+                    {/* Toys */}
+                    <div className="rounded-xl border border-border bg-card p-4">
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                            <div className="flex items-center gap-3">
+                                <span className="text-2xl">🧸</span>
+                                <div>
+                                    <p className="font-medium text-foreground">Fill Toys</p>
+                                    <p className="text-xs text-muted-foreground">Morning treats</p>
+                                </div>
                             </div>
-                        </div>
 
-                        {isLoading ? (
-                            <span className="text-sm text-muted-foreground">Checking...</span>
-                        ) : isToysFilled ? (
-                            <div className="flex items-center gap-2 text-green-500">
-                                <Check className="w-5 h-5" />
-                                <span className="text-sm font-medium">{toysFilledBy}</span>
-                            </div>
-                        ) : isReadOnly ? (
-                            <span className="text-sm text-muted-foreground">Not done yet</span>
-                        ) : showToysAssignee ? (
-                            <div className="flex gap-1">
-                                {USERS.map(u => (
-                                    <Button
-                                        key={u}
-                                        size="sm"
-                                        variant="outline"
-                                        onClick={() => handleLog('toys', u)}
-                                        disabled={loggingType === 'toys'}
-                                        className="text-xs px-2 py-1 h-7"
-                                    >
-                                        {loggingType === 'toys' ? (
-                                            <Loader2 className="w-3 h-3 animate-spin" />
+                            {isLoading ? (
+                                <span className="text-sm text-muted-foreground">Checking...</span>
+                            ) : isToysFilled ? (
+                                <div className="flex items-center gap-2 text-green-500">
+                                    <Check className="w-5 h-5" />
+                                    <span className="text-sm font-medium">{toysFilledBy}</span>
+                                </div>
+                            ) : isReadOnly ? (
+                                <span className="text-sm text-muted-foreground">Not done yet</span>
+                            ) : showToysAssignee ? (
+                                <div className="flex flex-wrap gap-2">
+                                    {USERS.map(u => (
+                                        <Button
+                                            key={u}
+                                            size="sm"
+                                            variant="outline"
+                                            onClick={() => handleLog('toys', u)}
+                                            disabled={loggingType === 'toys'}
+                                            className="min-h-11 min-w-11 px-3 text-sm"
+                                        >
+                                            {loggingType === 'toys' ? (
+                                                <Loader2 className="w-3 h-3 animate-spin" />
+                                            ) : (
+                                                u
+                                            )}
+                                        </Button>
+                                    ))}
+                                </div>
+                            ) : (
+                                <Button
+                                    size="sm"
+                                    variant="secondary"
+                                    onClick={() => setShowToysAssignee(true)}
+                                    disabled={isLoading}
+                                >
+                                    Log
+                                </Button>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Dinner */}
+                    <div className={`rounded-xl border bg-card p-4 ${isDinnerTime && !isDinnerDone
+                        ? 'border-amber-500/50 bg-amber-500/5'
+                        : 'border-border'
+                        }`}>
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                            <div className="flex items-center gap-3">
+                                <span className="text-2xl">🍽️</span>
+                                <div>
+                                    <p className="font-medium text-foreground">Make Dinner</p>
+                                    <p className="text-xs text-muted-foreground">
+                                        {isDinnerTime && !isDinnerDone ? (
+                                            <span className="text-amber-500">Due at 5:45 PM</span>
                                         ) : (
-                                            u
+                                            '5:45 PM'
                                         )}
-                                    </Button>
-                                ))}
+                                    </p>
+                                </div>
                             </div>
-                        ) : (
-                            <Button
-                                size="sm"
-                                variant="secondary"
-                                onClick={() => setShowToysAssignee(true)}
-                                disabled={isLoading}
-                            >
-                                Log
-                            </Button>
-                        )}
+
+                            {isLoading ? (
+                                <span className="text-sm text-muted-foreground">Checking...</span>
+                            ) : isDinnerDone ? (
+                                <div className="flex items-center gap-2 text-green-500">
+                                    <Check className="w-5 h-5" />
+                                    <span className="text-sm font-medium">{dinnerDoneBy}</span>
+                                </div>
+                            ) : isReadOnly ? (
+                                <span className="text-sm text-muted-foreground">Not done yet</span>
+                            ) : showDinnerAssignee ? (
+                                <div className="flex flex-wrap gap-2">
+                                    {USERS.map(u => (
+                                        <Button
+                                            key={u}
+                                            size="sm"
+                                            variant="outline"
+                                            onClick={() => handleLog('dinner', u)}
+                                            disabled={loggingType === 'dinner'}
+                                            className="min-h-11 min-w-11 px-3 text-sm"
+                                        >
+                                            {loggingType === 'dinner' ? (
+                                                <Loader2 className="w-3 h-3 animate-spin" />
+                                            ) : (
+                                                u
+                                            )}
+                                        </Button>
+                                    ))}
+                                </div>
+                            ) : (
+                                <Button
+                                    size="sm"
+                                    variant="secondary"
+                                    onClick={() => setShowDinnerAssignee(true)}
+                                    disabled={isLoading}
+                                >
+                                    Log
+                                </Button>
+                            )}
+                        </div>
                     </div>
                 </div>
-
-                {/* Dinner */}
-                <div className={`rounded-xl border bg-card p-4 ${isDinnerTime && !isDinnerDone
-                    ? 'border-amber-500/50 bg-amber-500/5'
-                    : 'border-border'
-                    }`}>
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                            <span className="text-2xl">🍽️</span>
-                            <div>
-                                <p className="font-medium text-foreground">Make Dinner</p>
-                                <p className="text-xs text-muted-foreground">
-                                    {isDinnerTime && !isDinnerDone ? (
-                                        <span className="text-amber-500">Due at 5:45 PM</span>
-                                    ) : (
-                                        '5:45 PM'
-                                    )}
-                                </p>
-                            </div>
-                        </div>
-
-                        {isLoading ? (
-                            <span className="text-sm text-muted-foreground">Checking...</span>
-                        ) : isDinnerDone ? (
-                            <div className="flex items-center gap-2 text-green-500">
-                                <Check className="w-5 h-5" />
-                                <span className="text-sm font-medium">{dinnerDoneBy}</span>
-                            </div>
-                        ) : isReadOnly ? (
-                            <span className="text-sm text-muted-foreground">Not done yet</span>
-                        ) : showDinnerAssignee ? (
-                            <div className="flex gap-1">
-                                {USERS.map(u => (
-                                    <Button
-                                        key={u}
-                                        size="sm"
-                                        variant="outline"
-                                        onClick={() => handleLog('dinner', u)}
-                                        disabled={loggingType === 'dinner'}
-                                        className="text-xs px-2 py-1 h-7"
-                                    >
-                                        {loggingType === 'dinner' ? (
-                                            <Loader2 className="w-3 h-3 animate-spin" />
-                                        ) : (
-                                            u
-                                        )}
-                                    </Button>
-                                ))}
-                            </div>
-                        ) : (
-                            <Button
-                                size="sm"
-                                variant="secondary"
-                                onClick={() => setShowDinnerAssignee(true)}
-                                disabled={isLoading}
-                            >
-                                Log
-                            </Button>
-                        )}
-                    </div>
-                </div>
-            </div>
+            )}
         </section>
     )
 }

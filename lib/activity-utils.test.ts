@@ -1,3 +1,4 @@
+import { describe, it, expect } from "vitest";
 import { getRoutineDefaultTimestamp, getRoutineStatus } from "@/lib/activity-utils";
 import type { Activity } from "@/lib/database.types";
 

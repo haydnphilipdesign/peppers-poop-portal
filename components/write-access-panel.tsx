@@ -43,7 +43,7 @@ export function WriteAccessPanel({
           autoComplete="one-time-code"
           value={pin}
           onChange={(event) => setPin(event.target.value)}
-          className="h-11 flex-1 rounded-lg border border-amber-800/20 bg-white px-3 text-base outline-none ring-0 transition focus:border-amber-700 dark:border-amber-700/30 dark:bg-input dark:text-foreground dark:focus:border-amber-500"
+          className="h-11 min-w-0 flex-1 rounded-lg border border-amber-800/20 bg-white px-3 text-base outline-none ring-0 transition focus:border-amber-700 dark:border-amber-700/30 dark:bg-input dark:text-foreground dark:focus:border-amber-500"
           placeholder="Family PIN"
           aria-label="Family PIN"
           disabled={isLoading}
@@ -58,7 +58,7 @@ export function WriteAccessPanel({
       </form>
 
       {error ? (
-        <p className="mt-3 text-sm font-medium text-red-700 dark:text-red-300">{error}</p>
+        <p role="alert" className="mt-3 text-sm font-medium text-red-700 dark:text-red-300">{error}</p>
       ) : null}
     </section>
   );

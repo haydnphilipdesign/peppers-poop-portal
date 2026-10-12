@@ -11,6 +11,8 @@ interface WalkHistoryProps {
     walks: Walk[]
     onDeleteWalk: (walk: Walk) => Promise<void>
     onUpdateWalk: (walk: Walk, updates: { poop: boolean; pee: boolean; userName: UserName; time: Date }) => Promise<void>
+    isLoading?: boolean
+    unavailable?: boolean
 }
 
 const userEmojis: Record<UserName, string> = {
@@ -30,7 +32,9 @@ const users: UserName[] = ['Chris', 'Debbie', 'Haydn']
 export function WalkHistory({
     walks,
     onDeleteWalk,
-    onUpdateWalk
+    onUpdateWalk,
+    isLoading = false,
+    unavailable = false,
 }: WalkHistoryProps) {
     const isReadOnly = useReadOnly()
     const [editingWalk, setEditingWalk] = useState<Walk | null>(null)
@@ -39,9 +43,12 @@ export function WalkHistory({
     const [editUser, setEditUser] = useState<UserName>('Chris')
     const [editTime, setEditTime] = useState('')
     const [deletingWalkId, setDeletingWalkId] = useState<string | null>(null)
+    const [isSaving, setIsSaving] = useState(false)
+    const [error, setError] = useState<string | null>(null)
 
     const handleStartEdit = (walk: Walk) => {
         setEditingWalk(walk)
+        setError(null)
         setEditPoop(walk.hasPoop)
         setEditPee(walk.hasPee)
         setEditUser(walk.userName)
@@ -52,52 +59,72 @@ export function WalkHistory({
     }
 
     const handleSaveEdit = async () => {
-        if (!editingWalk || (!editPoop && !editPee)) return
+        if (!editingWalk || (!editPoop && !editPee) || isSaving) return
 
         const [hours, minutes] = editTime.split(':').map(Number)
         const newTime = new Date(editingWalk.time)
         newTime.setHours(hours, minutes, 0, 0)
 
-        await onUpdateWalk(editingWalk, {
-            poop: editPoop,
-            pee: editPee,
-            userName: editUser,
-            time: newTime
-        })
-        setEditingWalk(null)
+        setIsSaving(true)
+        setError(null)
+        try {
+            await onUpdateWalk(editingWalk, {
+                poop: editPoop, pee: editPee, userName: editUser, time: newTime,
+            })
+            setEditingWalk(null)
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'Unable to update the walk. Please try again.')
+        } finally {
+            setIsSaving(false)
+        }
     }
 
     const handleDelete = async (walk: Walk) => {
+        if (deletingWalkId) return
         setDeletingWalkId(walk.id)
-        await onDeleteWalk(walk)
-        setDeletingWalkId(null)
+        setError(null)
+        try {
+            await onDeleteWalk(walk)
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'Unable to delete the walk. Please try again.')
+        } finally {
+            setDeletingWalkId(null)
+        }
     }
 
-    if (walks.length === 0) {
+    if (isLoading || unavailable || walks.length === 0) {
         return (
-            <Card>
+            <Card className="min-h-44" aria-busy={isLoading}>
                 <CardHeader className="pb-2">
                     <CardTitle className="text-lg font-semibold flex items-center gap-2">
                         🦮 Today&apos;s Walk Log
                     </CardTitle>
                 </CardHeader>
                 <CardContent>
-                    <p className="text-muted-foreground text-center py-4">
-                        No walks yet today. Time to take Pepper out! 🐕
-                    </p>
+                    {isLoading ? (
+                        <div role="status" className="py-4">
+                            <span className="sr-only">Loading today&apos;s walk log...</span>
+                            <div aria-hidden="true" className="h-11 rounded-xl bg-muted motion-safe:animate-pulse" />
+                        </div>
+                    ) : (
+                        <p className="text-muted-foreground text-center py-4">
+                            {unavailable ? 'Today’s walk log could not be loaded.' : 'No walks logged today yet.'}
+                        </p>
+                    )}
                 </CardContent>
             </Card>
         )
     }
 
     return (
-        <Card>
+        <Card className="min-h-44">
             <CardHeader className="pb-2">
                 <CardTitle className="text-lg font-semibold flex items-center gap-2">
                     🦮 Today&apos;s Walk Log
                 </CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
+                {error ? <p role="alert" className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive">{error}</p> : null}
                 {walks.map((walk) => (
                     <div key={walk.id}>
                         {editingWalk?.id === walk.id ? (
@@ -106,6 +133,8 @@ export function WalkHistory({
                                 <div className="flex items-center justify-between">
                                     <span className="text-sm font-medium">Edit Walk</span>
                                     <button
+                                        aria-label="Cancel editing walk"
+                                        disabled={isSaving}
                                         onClick={() => setEditingWalk(null)}
                                         className="text-muted-foreground hover:text-foreground transition-colors"
                                     >
@@ -114,10 +143,12 @@ export function WalkHistory({
                                 </div>
 
                                 {/* Time picker */}
-                                <div className="flex items-center gap-2">
+                                <div className="flex flex-wrap items-center gap-2">
                                     <label className="text-sm text-muted-foreground">Time:</label>
                                     <input
                                         type="time"
+                                        aria-label="Walk time"
+                                        disabled={isSaving}
                                         value={editTime}
                                         onChange={(e) => setEditTime(e.target.value)}
                                         className="px-2 py-1 rounded-md border border-input bg-background text-foreground text-sm focus:ring-2 focus:ring-ring"
@@ -125,11 +156,13 @@ export function WalkHistory({
                                 </div>
 
                                 {/* User selector */}
-                                <div className="flex items-center gap-2">
+                                <div className="flex flex-wrap items-center gap-2">
                                     <label className="text-sm text-muted-foreground">Walker:</label>
                                     <div className="flex gap-1">
                                         {users.map(user => (
                                             <button
+                                                aria-pressed={editUser === user}
+                                                disabled={isSaving}
                                                 key={user}
                                                 onClick={() => setEditUser(user)}
                                                 className={`px-2 py-1 rounded-md text-sm transition-all ${editUser === user
@@ -144,9 +177,12 @@ export function WalkHistory({
                                 </div>
 
                                 {/* Poop/Pee toggles */}
-                                <div className="flex items-center gap-3">
+                                <div className="flex flex-wrap items-center gap-3">
                                     <label className="text-sm text-muted-foreground">What she did:</label>
                                     <button
+                                        aria-label="Poop"
+                                        aria-pressed={editPoop}
+                                        disabled={isSaving}
                                         onClick={() => setEditPoop(!editPoop)}
                                         className={`px-3 py-1.5 rounded-lg text-lg transition-all ${editPoop
                                             ? 'bg-amber-500/30 shadow-md scale-105 ring-2 ring-amber-500/50'
@@ -156,6 +192,9 @@ export function WalkHistory({
                                         💩
                                     </button>
                                     <button
+                                        aria-label="Pee"
+                                        aria-pressed={editPee}
+                                        disabled={isSaving}
                                         onClick={() => setEditPee(!editPee)}
                                         className={`px-3 py-1.5 rounded-lg text-lg transition-all ${editPee
                                             ? 'bg-blue-500/30 shadow-md scale-105 ring-2 ring-blue-500/50'
@@ -170,18 +209,18 @@ export function WalkHistory({
                                 <div className="flex gap-2 pt-1">
                                     <Button
                                         onClick={handleSaveEdit}
-                                        disabled={!editPoop && !editPee}
+                                        disabled={isSaving || !editTime || (!editPoop && !editPee)}
                                         className="flex-1"
                                         size="sm"
                                     >
-                                        Save Changes
+                                        {isSaving ? 'Saving...' : 'Save Changes'}
                                     </Button>
                                 </div>
                             </div>
                         ) : (
                             // View mode
                             <div
-                                className={`flex items-center justify-between p-3 rounded-xl border ${userColors[walk.userName]} transition-all hover:scale-[1.01] group`}
+                                className={`flex flex-wrap items-center justify-between gap-2 p-3 rounded-xl border ${userColors[walk.userName]}`}
                             >
                                 <div className="flex items-center gap-3">
                                     {/* Time */}
@@ -205,20 +244,23 @@ export function WalkHistory({
                                         {walk.hasPee && <span title="Pee">💦</span>}
                                     </div>
 
-                                    {/* Edit/Delete buttons - visible on hover, hidden in read-only mode */}
+                                    {/* Keep editing controls visible for touch and keyboard users. */}
                                     {!isReadOnly && (
-                                        <div className="ml-2 flex items-center gap-1 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100">
+                                        <div className="flex items-center gap-2">
                                             <button
+                                                aria-label={`Edit ${walk.timeFormatted} walk by ${walk.userName}`}
+                                                disabled={isSaving || Boolean(deletingWalkId)}
                                                 onClick={() => handleStartEdit(walk)}
-                                                className="p-1.5 rounded-lg bg-muted/80 hover:bg-primary/20 text-muted-foreground hover:text-foreground transition-colors"
+                                                className="min-w-11 p-1.5 rounded-lg bg-muted/80 hover:bg-primary/20 text-muted-foreground hover:text-foreground transition-colors"
                                                 title="Edit walk"
                                             >
                                                 ✏️
                                             </button>
                                             <button
+                                                aria-label={`Delete ${walk.timeFormatted} walk by ${walk.userName}`}
                                                 onClick={() => handleDelete(walk)}
-                                                disabled={deletingWalkId === walk.id}
-                                                className="p-1.5 rounded-lg bg-muted/80 hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-colors disabled:opacity-50"
+                                                disabled={isSaving || Boolean(deletingWalkId)}
+                                                className="min-w-11 p-1.5 rounded-lg bg-muted/80 hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-colors disabled:opacity-50"
                                                 title="Delete walk"
                                             >
                                                 {deletingWalkId === walk.id ? '⏳' : '🗑️'}

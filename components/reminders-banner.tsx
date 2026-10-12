@@ -65,7 +65,9 @@ export function RemindersBanner() {
         scheduleReminder,
         completeReminder,
         getLastCompletedDate,
-        isLoading
+        isLoading,
+        error,
+        refetch,
     } = useReminders()
 
     const [activeAction, setActiveAction] = useState<string | null>(null)
@@ -181,7 +183,15 @@ export function RemindersBanner() {
         }
     })
 
-    if (alerts.length === 0) return null
+    if (error) {
+        return (
+            <div role="alert" className="rounded-xl border border-destructive/30 bg-destructive/10 p-4 text-sm">
+                <p>Care alerts could not be checked or saved. Please try again.</p>
+                <Button variant="outline" className="mt-2" disabled={isLoading} onClick={() => void refetch()}>Retry care alerts</Button>
+            </div>
+        )
+    }
+    if (isLoading || alerts.length === 0) return null
 
     return (
         <div className="space-y-2">

@@ -28,7 +28,9 @@ export function ReminderManager() {
         completeReminder,
         activeGroomingReminder,
         activeVetReminder,
-        isLoading
+        isLoading,
+        error,
+        refetch,
     } = useReminders()
 
     const [expanded, setExpanded] = useState(false)
@@ -166,6 +168,7 @@ export function ReminderManager() {
     return (
         <section className="space-y-3">
             <button
+                aria-expanded={expanded}
                 onClick={() => setExpanded(!expanded)}
                 className="w-full flex items-center justify-between text-sm font-semibold text-muted-foreground uppercase tracking-wide hover:text-foreground transition-colors"
             >
@@ -175,7 +178,12 @@ export function ReminderManager() {
                 </span>
             </button>
 
-            {expanded && (
+            {error ? (
+                <div role="alert" className="rounded-xl border border-destructive/30 bg-destructive/10 p-4 text-sm">
+                    <p>Care reminders could not be checked or saved. Please try again.</p>
+                    <Button variant="outline" className="mt-2" disabled={isLoading} onClick={() => void refetch()}>Retry reminders</Button>
+                </div>
+            ) : expanded && (
                 <div className="space-y-2">
                     {/* Grooming */}
                     <div className="rounded-xl border border-border bg-card p-4">
