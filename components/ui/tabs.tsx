@@ -71,7 +71,7 @@ export function TabsList({ children, className }: TabsListProps) {
             role="tablist"
             aria-orientation="horizontal"
             className={cn(
-                'inline-flex items-center justify-center rounded-lg bg-muted p-1 text-muted-foreground w-full',
+                'inline-flex flex-wrap items-center justify-center gap-1 rounded-lg bg-muted p-1 text-muted-foreground w-full',
                 className
             )}
         >
@@ -137,7 +137,7 @@ export function TabsTrigger({ value, children, className }: TabsTriggerProps) {
             onClick={() => context.onValueChange(value)}
             onKeyDown={handleKeyDown}
             className={cn(
-                'inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 flex-1',
+                'inline-flex items-center justify-center min-w-max whitespace-normal rounded-md px-3 py-1.5 text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 flex-1',
                 isActive
                     ? 'bg-background text-foreground shadow-sm'
                     : 'hover:bg-background/50 hover:text-foreground',

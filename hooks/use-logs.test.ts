@@ -2,6 +2,7 @@
 
 import React, { act } from 'react'
 import { createRoot } from 'react-dom/client'
+import { CareDataProvider } from '@/lib/care-data-context'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Log } from '@/lib/database.types'
 
@@ -54,7 +55,7 @@ describe('dashboard data lifecycle', () => {
         container.remove()
     })
     async function render() {
-        await act(async () => root.render(React.createElement(Harness)))
+        await act(async () => root.render(React.createElement(CareDataProvider, null, React.createElement(Harness))))
     }
     function serve(logs: Log[] = [sample]) {
         read.mockImplementation((table: string) => Promise.resolve({ data: table === 'logs' ? logs : [], error: null }))
@@ -111,7 +112,8 @@ describe('dashboard data lifecycle', () => {
         expect(read).not.toHaveBeenCalled()
         write.mockResolvedValueOnce({ success: true })
         await act(async () => current!.addWalk({ poop: true, pee: false, userName: 'Chris' }))
-        expect(read).toHaveBeenCalledTimes(5)
+        expect(read).toHaveBeenCalledTimes(4)
+        expect(read.mock.calls.some(([table]) => table === 'reminders')).toBe(false)
         expect(current!.error).toBeNull()
     })
 })

@@ -11,6 +11,7 @@ import { DailyRoutines } from './daily-routines'
 import { RemindersBanner } from './reminders-banner'
 import { ReminderManager } from './reminder-manager'
 import { LastWalkCard } from './last-walk-card'
+import { Button } from '@/components/ui/button'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 
 const HistoryView = dynamic(() => import('./history-view').then(module => module.HistoryView))
@@ -28,6 +29,12 @@ export function PublicDashboard() {
         todayWalks,
         latestWalk,
         monthlyPoints,
+        latestIsLoading,
+        latestIsRefreshing,
+        latestError,
+        scoringError,
+        scoringHasLoaded,
+        refetchScoring,
         isLoading,
         isRefreshing,
         hasLoaded,
@@ -58,14 +65,14 @@ export function PublicDashboard() {
             </header>
 
             <main className="mx-auto w-full max-w-2xl space-y-5 px-4 py-6">
-                <LastWalkCard walk={latestWalk} isLoading={isLoading} isRefreshing={isRefreshing} error={error} onRetry={() => void refetch()} />
+                <LastWalkCard walk={latestWalk} isLoading={latestIsLoading} isRefreshing={latestIsRefreshing} error={latestError} onRetry={() => void refetch()} />
 
                 <Tabs value={activeTab} onValueChange={(v) => {
                     const tab = v as TabValue
                     setActiveTab(tab)
                     setVisitedTabs(previous => previous.includes(tab) ? previous : [...previous, tab])
                 }}>
-                    <TabsList className="h-14 rounded-xl border border-border/80 bg-card p-1">
+                    <TabsList className="h-auto min-h-14 rounded-xl border border-border/80 bg-card p-1">
                         <TabsTrigger value="today">Today</TabsTrigger>
                         <TabsTrigger value="history">History</TabsTrigger>
                         <TabsTrigger value="analytics">Analytics</TabsTrigger>
@@ -73,6 +80,12 @@ export function PublicDashboard() {
 
                     <TabsContent value="today" className="mt-5">
                         <div className="space-y-5">
+                            {error ? <div role="alert" className="rounded-xl border border-amber-500/30 p-4 text-sm">
+                                <p>{error}</p>
+                                <Button variant="outline" className="mt-2" disabled={isRefreshing || isLoading} onClick={() => void refetch()}>Refresh today&apos;s walks</Button>
+                            </div> : null}
+                            <RemindersBanner />
+                            <DailyRoutines />
                             <DailyScoreboard
                                 poopCount={todayPoopCount}
                                 peeCount={todayPeeCount}
@@ -88,16 +101,23 @@ export function PublicDashboard() {
                                 unavailable={!hasLoaded && Boolean(error)}
                             />
 
-                            <RemindersBanner />
-                            <DailyRoutines />
                             <ReminderManager />
-                            {hasLoaded ? (
-                                <Leaderboard
-                                    monthlyPoints={monthlyPoints}
-                                    champion={champion}
-                                    championMonth={monthLabel}
-                                />
-                            ) : null}
+                            <details className="rounded-xl border border-border/70 bg-card">
+                                <summary className="min-h-11 cursor-pointer px-4 py-3 font-medium">Monthly leaderboard</summary>
+                                <div className="space-y-3 px-3 pb-3">
+                                    {scoringError ? <div role="alert" className="rounded-xl border border-amber-500/30 p-4 text-sm">
+                                        <p>{scoringError}</p>
+                                        <Button variant="outline" className="mt-2" onClick={() => void refetchScoring()}>Refresh leaderboard</Button>
+                                    </div> : !scoringHasLoaded ? <p role="status" className="p-4 text-sm text-muted-foreground">Loading leaderboard...</p> : null}
+                                    {scoringHasLoaded ? (
+                                        <Leaderboard
+                                            monthlyPoints={monthlyPoints}
+                                            champion={champion}
+                                            championMonth={monthLabel}
+                                        />
+                                    ) : null}
+                                </div>
+                            </details>
                         </div>
                     </TabsContent>
 

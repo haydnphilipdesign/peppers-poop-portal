@@ -221,10 +221,11 @@ export function RemindersBanner() {
         }
     })
 
-    if (!error && !saveError && !saved && alerts.length === 0) return null
 
     return (
-        <div className="space-y-2">
+        <section aria-label="Due care" aria-busy={isLoading} className="min-h-24 space-y-2">
+            <h2 className="font-sans text-base font-semibold">Due care</h2>
+            {isLoading ? <p role="status" className="text-sm text-muted-foreground">Checking due care...</p> : !error && alerts.length === 0 ? <p className="text-sm text-muted-foreground">No care alerts to show. See Care Schedule for appointments.</p> : null}
             {error ? <div role="alert" className="rounded-xl border border-destructive/30 bg-destructive/10 p-4 text-sm">
                 <p>{error}</p>
                 <Button variant="outline" className="mt-2" disabled={isLoading} onClick={() => void refetch()}>Retry care alerts</Button>
@@ -260,15 +261,18 @@ export function RemindersBanner() {
                                 ) : activeAction === alert.id ? (
                                     <div className="flex flex-wrap gap-2">
                                         {alert.kind === 'schedule' ? (
-                                            <div className="flex flex-col items-end gap-2">
-                                                <input
-                                                    aria-label="Grooming appointment date and time"
-                                                    disabled={Boolean(completing) || isLoading || Boolean(error)}
-                                                    type="datetime-local"
-                                                    value={appointmentInput}
-                                                    onChange={(e) => setAppointmentInput(e.target.value)}
-                                                    className="h-11 max-w-full px-2 text-base border rounded bg-background"
-                                                />
+                                            <div className="flex min-w-0 max-w-full flex-col gap-2">
+                                                <label className="min-w-0 space-y-1 text-sm">
+                                                    <span className="block">Grooming appointment date and time</span>
+                                                    <input
+                                                        aria-label="Grooming appointment date and time"
+                                                        disabled={Boolean(completing) || isLoading || Boolean(error)}
+                                                        type="datetime-local"
+                                                        value={appointmentInput}
+                                                        onChange={(e) => setAppointmentInput(e.target.value)}
+                                                        className="min-h-11 min-w-0 w-full max-w-full px-2 text-base border rounded bg-background"
+                                                    />
+                                                </label>
                                                 <div className="flex flex-wrap gap-2">
                                                     {USERS.map(u => (
                                                         <Button
@@ -352,6 +356,6 @@ export function RemindersBanner() {
                     </div>
                 )
             })}
-        </div>
+        </section>
     )
 }

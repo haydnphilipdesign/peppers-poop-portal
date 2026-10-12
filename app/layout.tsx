@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
 import { UserProvider } from "@/lib/user-context";
 import "./globals.css";
+import { CareDataProvider } from "@/lib/care-data-context";
 
 // Bundle fonts with the app so builds never depend on Google Fonts responses.
 const headingFont = localFont({
@@ -65,7 +66,7 @@ export default function RootLayout({
       <body
         className={`${headingFont.variable} ${bodyFont.variable} ${geistMono.variable} bg-background text-foreground antialiased`}
       >
-        <UserProvider>{children}</UserProvider>
+        <UserProvider><CareDataProvider>{children}</CareDataProvider></UserProvider>
       </body>
     </html>
   );

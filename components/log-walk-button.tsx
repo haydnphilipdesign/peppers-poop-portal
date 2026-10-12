@@ -116,9 +116,9 @@ export function LogWalkButton({ userName, onLogWalk, disabled = false, onRequire
             }}>
                 <Button
                     disabled={disabled}
-                    className="w-full h-24 text-2xl font-bold bg-gradient-to-br from-amber-700 to-orange-700 hover:from-amber-600 hover:to-orange-600 text-amber-50 shadow-lg transition-colors rounded-2xl border border-amber-300/30"
+                    className="w-full h-auto min-h-24 px-4 py-4 text-2xl font-bold bg-gradient-to-br from-amber-700 to-orange-700 hover:from-amber-600 hover:to-orange-600 text-amber-50 shadow-lg transition-colors rounded-2xl border border-amber-300/30"
                 >
-                    <div className="flex items-center gap-3">
+                    <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1">
                         <span aria-hidden="true" className="text-4xl">🦮</span>
                         <span className="drop-shadow">Log Walk</span>
                     </div>

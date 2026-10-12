@@ -1,7 +1,8 @@
 'use client'
 
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
-import { supabase } from '@/lib/supabase'
+import { useCallback, useMemo } from 'react'
+import { useCareCalendar, useCareResource } from '@/lib/care-data-context'
+import { careReadError } from '@/lib/care-data-store'
 import { apiFetch } from '@/lib/api-client'
 import type {
     ApiSuccessResponse,
@@ -34,48 +35,13 @@ interface UseRemindersReturn {
 }
 
 export function useReminders(): UseRemindersReturn {
-    const [reminders, setReminders] = useState<Reminder[]>([])
-    const [isLoading, setIsLoading] = useState(true)
-    const [hasLoaded, setHasLoaded] = useState(false)
-    const [error, setError] = useState<string | null>(null)
-    const requestId = useRef(0)
-
-    const fetchReminders = useCallback(async (afterSave = false) => {
-        const id = ++requestId.current
-        try {
-            setIsLoading(true)
-
-            const { data, error: fetchError } = await supabase
-                .from('reminders')
-                .select('*')
-                .order('due_date', { ascending: false })
-
-            if (fetchError) throw fetchError
-
-            if (id !== requestId.current) return
-            setHasLoaded(true)
-            setReminders(data || [])
-            setError(null)
-        } catch {
-            if (id === requestId.current) setError(afterSave
-                ? 'Change saved, but reminders could not refresh. Refresh reminders; do not save again.'
-                : 'Care reminders could not be checked. Displayed reminders may be out of date. Please refresh.')
-        } finally {
-            if (id === requestId.current) {
-                setIsLoading(false)
-            }
-        }
-    }, [])
-
-    useEffect(() => {
-        void fetchReminders()
-        const handler = () => { void fetchReminders(true) }
-        window.addEventListener(REMINDERS_CHANGED_EVENT, handler)
-        return () => {
-            window.removeEventListener(REMINDERS_CHANGED_EVENT, handler)
-            requestId.current += 1
-        }
-    }, [fetchReminders])
+    const resource = useCareResource('reminders')
+    const reminders = useMemo(() => resource.data ?? [], [resource.data])
+    const isLoading = resource.pending || resource.isLoading
+    const hasLoaded = resource.data !== null
+    const error = careReadError(resource, 'reminders')
+    const fetchReminders = resource.refetch
+    const { now } = useCareCalendar()
 
     const dispatchReminderChanged = () => {
         window.dispatchEvent(new Event('ppp:data-changed'))
@@ -176,7 +142,6 @@ export function useReminders(): UseRemindersReturn {
     }, [reminders])
 
     // Computed values
-    const now = new Date()
     const today = startOfDay(now)
     const dayAfterTomorrow = addDays(today, 2)
 
@@ -190,14 +155,14 @@ export function useReminders(): UseRemindersReturn {
         [getActiveScheduledReminder]
     )
 
-    const groomingAppointmentReminder = useMemo(() => {
+    const groomingAppointmentReminder = (() => {
         if (!activeGroomingReminder?.appointment_at) {
             return null
         }
 
         const appointmentAt = parseISO(activeGroomingReminder.appointment_at)
         return isBefore(appointmentAt, dayAfterTomorrow) ? activeGroomingReminder : null
-    }, [activeGroomingReminder, dayAfterTomorrow])
+    })()
 
     // Get overdue (past due_date, not completed) and upcoming (within next 7 days) reminders
     const overdueReminders = reminders.filter(r => {

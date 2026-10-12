@@ -2,6 +2,7 @@
 
 import React, { act } from 'react'
 import { createRoot } from 'react-dom/client'
+import { CareDataProvider } from '@/lib/care-data-context'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Activity, Log, Reminder } from '@/lib/database.types'
 
@@ -55,7 +56,7 @@ describe('acknowledged care writes and mounted consumers', () => {
         read.mockImplementation((table: string) => Promise.resolve({ data: records[table], error: null }))
         container = document.createElement('div')
         root = createRoot(container)
-        await act(async () => root.render(React.createElement(Harness)))
+        await act(async () => root.render(React.createElement(CareDataProvider, null, React.createElement(Harness))))
         await act(async () => history.setSelectedDate(now))
         read.mockClear()
     })
@@ -90,16 +91,16 @@ describe('acknowledged care writes and mounted consumers', () => {
         await act(async () => history.updateActivity(activity.id, 'Chris', 'Haydn', now))
         expect(today.toysFilledBy).toBe('Haydn')
         expect(history.toysStatus.activity?.assigned_to).toBe('Haydn')
-        expect(read.mock.calls.filter(([table]) => table === 'activities')).toHaveLength(2)
+        expect(read.mock.calls.filter(([table]) => table === 'activities')).toHaveLength(1)
         read.mockClear()
         write.mockImplementation(async () => { records.activities = []; return { success: true } })
         await act(async () => history.deleteActivity(activity.id))
         expect(today.isToysFilled).toBe(false)
         expect(history.toysStatus.activity).toBeNull()
-        expect(read.mock.calls.filter(([table]) => table === 'activities')).toHaveLength(2)
+        expect(read.mock.calls.filter(([table]) => table === 'activities')).toHaveLength(1)
     })
 
-    it('refreshes each reminder consumer once and never publishes pending completion', async () => {
+    it('shares one reminder refresh across consumers and never publishes pending completion', async () => {
         const pending = deferred<{ success: boolean }>()
         write.mockReturnValue(pending.promise)
         let save!: Promise<void>
@@ -111,7 +112,7 @@ describe('acknowledged care writes and mounted consumers', () => {
         await act(async () => { pending.resolve({ success: true }); await save })
         expect(banner.reminders[0].completed_by).toBe('Debbie')
         expect(schedule.reminders[0].completed_by).toBe('Debbie')
-        expect(read.mock.calls.filter(([table]) => table === 'reminders')).toHaveLength(2)
+        expect(read.mock.calls.filter(([table]) => table === 'reminders')).toHaveLength(1)
     })
 
     it.each(['history', 'today', 'reminders'])('a saved %s change resolves despite failed reads and keeps a stale snapshot with refresh guidance', async resource => {
@@ -133,11 +134,13 @@ describe('acknowledged care writes and mounted consumers', () => {
     it('does not relabel the previous day as new data or accept a late response after date navigation', async () => {
         const old = deferred<{ data: Log[]; error: null }>()
         read.mockReturnValue(old.promise)
-        const earlier = new Date(now); earlier.setDate(earlier.getDate() - 1)
+        const earlier = new Date(now); earlier.setDate(earlier.getDate() - 2)
         await act(async () => history.setSelectedDate(earlier))
         expect(history.dayStats).toBeNull()
         read.mockResolvedValue({ data: [], error: null })
         await act(async () => history.setSelectedDate(now))
+        expect(history.dayStats?.poopCount).toBe(1) // Same-date cached snapshot.
+        await act(async () => history.refetch())
         expect(history.dayStats?.poopCount).toBe(0)
         await act(async () => old.resolve({ data: [log], error: null }))
         expect(history.dayStats?.poopCount).toBe(0)

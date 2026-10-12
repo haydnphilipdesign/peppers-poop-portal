@@ -218,7 +218,7 @@ export function ReminderManager() {
                 className="min-h-11 w-full flex flex-wrap items-center justify-between gap-3 text-sm font-semibold text-muted-foreground uppercase tracking-wide hover:text-foreground transition-colors"
             >
                 <span>📅 Care Schedule</span>
-                <span className="text-xs lowercase font-normal">
+                <span className="text-sm lowercase font-normal">
                     {expanded ? 'collapse' : 'expand'}
                 </span>
             </button>
@@ -242,14 +242,14 @@ export function ReminderManager() {
                                 </div>
                                 <div>
                                     <p className="font-medium text-foreground">Grooming</p>
-                                    <p className="text-xs text-muted-foreground">{groomingStatusCopy}</p>
+                                    <p className="text-sm text-muted-foreground">{groomingStatusCopy}</p>
                                     {activeGroomingReminder?.scheduled_by ? (
-                                        <p className="text-xs text-muted-foreground">
+                                        <p className="text-sm text-muted-foreground">
                                             Scheduled by {activeGroomingReminder.scheduled_by}
                                         </p>
                                     ) : null}
                                     {lastGrooming && !groomingAppointment && (
-                                        <p className="text-xs text-muted-foreground">
+                                        <p className="text-sm text-muted-foreground">
                                             Next: ~{format(addWeeks(lastGrooming, 6), 'MMM d')}
                                         </p>
                                     )}
@@ -257,15 +257,18 @@ export function ReminderManager() {
                             </div>
 
                             {isReadOnly ? null : showAssignee === 'grooming-schedule' ? (
-                                <div className="flex flex-col gap-2 items-end">
-                                    <input
-                                        aria-label="Appointment date and time"
-                                        disabled={Boolean(logging) || isLoading || Boolean(error)}
-                                        type="datetime-local"
-                                        value={appointmentInput}
-                                        onChange={(e) => setAppointmentInput(e.target.value)}
-                                        className="h-11 max-w-full px-2 text-base border rounded bg-background"
-                                    />
+                                <div className="flex min-w-0 w-full max-w-full flex-col gap-2">
+                                    <label className="min-w-0 space-y-1 text-sm">
+                                        <span className="block">Appointment date and time</span>
+                                        <input
+                                            aria-label="Appointment date and time"
+                                            disabled={Boolean(logging) || isLoading || Boolean(error)}
+                                            type="datetime-local"
+                                            value={appointmentInput}
+                                            onChange={(e) => setAppointmentInput(e.target.value)}
+                                            className="min-h-11 min-w-0 w-full max-w-full px-2 text-base border rounded bg-background"
+                                        />
+                                    </label>
                                     <div className="flex flex-wrap gap-2">
                                         {USERS.map(u => (
                                             <Button
@@ -307,16 +310,19 @@ export function ReminderManager() {
                                     ))}
                                 </div>
                             ) : showAssignee === 'grooming-log' ? (
-                                <div className="flex flex-col gap-2 items-end">
-                                    <input
-                                        aria-label="Completed date"
-                                        disabled={Boolean(logging) || isLoading || Boolean(error)}
-                                        type="date"
-                                        value={selectedDate}
-                                        onChange={(e) => setSelectedDate(e.target.value)}
-                                        className="h-11 max-w-full px-2 text-base border rounded bg-background"
-                                        max={format(new Date(), 'yyyy-MM-dd')}
-                                    />
+                                <div className="flex min-w-0 w-full max-w-full flex-col gap-2">
+                                    <label className="min-w-0 space-y-1 text-sm">
+                                        <span className="block">Completed date</span>
+                                        <input
+                                            aria-label="Completed date"
+                                            disabled={Boolean(logging) || isLoading || Boolean(error)}
+                                            type="date"
+                                            value={selectedDate}
+                                            onChange={(e) => setSelectedDate(e.target.value)}
+                                            className="min-h-11 min-w-0 w-full max-w-full px-2 text-base border rounded bg-background"
+                                            max={format(new Date(), 'yyyy-MM-dd')}
+                                        />
+                                    </label>
                                     <div className="flex flex-wrap gap-2">
                                         {USERS.map(u => (
                                             <Button
@@ -380,9 +386,9 @@ export function ReminderManager() {
                                 </div>
                                 <div>
                                     <p className="font-medium text-foreground">Vet Visit</p>
-                                    <p className="text-xs text-muted-foreground">{vetStatusCopy}</p>
+                                    <p className="text-sm text-muted-foreground">{vetStatusCopy}</p>
                                     {activeVetReminder?.scheduled_by ? (
-                                        <p className="text-xs text-muted-foreground">
+                                        <p className="text-sm text-muted-foreground">
                                             Scheduled by {activeVetReminder.scheduled_by}
                                         </p>
                                     ) : null}
@@ -390,15 +396,18 @@ export function ReminderManager() {
                             </div>
 
                             {isReadOnly ? null : showAssignee === 'vet-schedule' ? (
-                                <div className="flex flex-col gap-2 items-end">
-                                    <input
-                                        aria-label="Appointment date and time"
-                                        disabled={Boolean(logging) || isLoading || Boolean(error)}
-                                        type="datetime-local"
-                                        value={appointmentInput}
-                                        onChange={(e) => setAppointmentInput(e.target.value)}
-                                        className="h-11 max-w-full px-2 text-base border rounded bg-background"
-                                    />
+                                <div className="flex min-w-0 w-full max-w-full flex-col gap-2">
+                                    <label className="min-w-0 space-y-1 text-sm">
+                                        <span className="block">Appointment date and time</span>
+                                        <input
+                                            aria-label="Appointment date and time"
+                                            disabled={Boolean(logging) || isLoading || Boolean(error)}
+                                            type="datetime-local"
+                                            value={appointmentInput}
+                                            onChange={(e) => setAppointmentInput(e.target.value)}
+                                            className="min-h-11 min-w-0 w-full max-w-full px-2 text-base border rounded bg-background"
+                                        />
+                                    </label>
                                     <div className="flex flex-wrap gap-2">
                                         {USERS.map(u => (
                                             <Button
@@ -440,16 +449,19 @@ export function ReminderManager() {
                                     ))}
                                 </div>
                             ) : showAssignee === 'vet-log' ? (
-                                <div className="flex flex-col gap-2 items-end">
-                                    <input
-                                        aria-label="Completed date"
-                                        disabled={Boolean(logging) || isLoading || Boolean(error)}
-                                        type="date"
-                                        value={selectedDate}
-                                        onChange={(e) => setSelectedDate(e.target.value)}
-                                        className="h-11 max-w-full px-2 text-base border rounded bg-background"
-                                        max={format(new Date(), 'yyyy-MM-dd')}
-                                    />
+                                <div className="flex min-w-0 w-full max-w-full flex-col gap-2">
+                                    <label className="min-w-0 space-y-1 text-sm">
+                                        <span className="block">Completed date</span>
+                                        <input
+                                            aria-label="Completed date"
+                                            disabled={Boolean(logging) || isLoading || Boolean(error)}
+                                            type="date"
+                                            value={selectedDate}
+                                            onChange={(e) => setSelectedDate(e.target.value)}
+                                            className="min-h-11 min-w-0 w-full max-w-full px-2 text-base border rounded bg-background"
+                                            max={format(new Date(), 'yyyy-MM-dd')}
+                                        />
+                                    </label>
                                     <div className="flex flex-wrap gap-2">
                                         {USERS.map(u => (
                                             <Button

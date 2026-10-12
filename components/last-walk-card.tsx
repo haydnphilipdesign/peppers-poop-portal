@@ -23,11 +23,13 @@ interface LastWalkCardProps {
 }
 
 export function LastWalkCard({ walk, isLoading = false, error, isRefreshing = false, onRetry }: LastWalkCardProps) {
-    const [now, setNow] = useState(() => new Date())
+    const [, setTick] = useState(0)
     useEffect(() => {
-        const timer = window.setInterval(() => setNow(new Date()), 60_000)
+        const timer = window.setInterval(() => setTick(tick => tick + 1), 60_000)
         return () => window.clearInterval(timer)
     }, [])
+    // Parent refreshes at midnight/foreground must update the day label immediately.
+    const now = new Date()
     const timeAgo = walk ? formatDistance(walk.time, now, { addSuffix: true }) : null
     const exactTime = walk ? format(walk.time, 'h:mm a') : null
     const date = walk ? format(walk.time, 'MMM d') : null
@@ -37,9 +39,9 @@ export function LastWalkCard({ walk, isLoading = false, error, isRefreshing = fa
     const isDue = walk && now.getTime() - walk.time.getTime() >= 5 * 60 * 60 * 1000
 
     return (
-        <Card aria-busy={isLoading || isRefreshing} className="min-h-48 border-amber-800/20 bg-gradient-to-br from-amber-50 to-rose-50 py-0 shadow-sm dark:border-amber-300/10 dark:from-amber-950/30 dark:to-rose-950/20">
-            <CardContent className="space-y-2 p-4">
-                <div className="flex h-8 items-center justify-between gap-2">
+        <Card aria-busy={isLoading || isRefreshing} className="min-h-40 border-amber-800/20 bg-gradient-to-br from-amber-50 to-rose-50 py-0 shadow-sm dark:border-amber-300/10 dark:from-amber-950/30 dark:to-rose-950/20">
+            <CardContent className="space-y-1 p-3">
+                <div className="flex min-h-7 items-center justify-between gap-2">
                     <h2 className="flex items-center gap-2 font-sans text-sm font-semibold text-amber-900 dark:text-amber-200">
                         <Clock aria-hidden="true" className="h-4 w-4" /> Latest Walk
                     </h2>

@@ -2,6 +2,7 @@
 
 import { useRef, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { DeleteConfirmation, isUnchangedWalk } from './delete-confirmation'
 import { SaveFeedback } from '@/components/save-feedback'
 import { Button } from '@/components/ui/button'
 import { useReadOnly } from '@/lib/read-only-context'
@@ -41,6 +42,7 @@ export function WalkHistory({
 }: WalkHistoryProps) {
     const isReadOnly = useReadOnly()
     const saving = useRef(false)
+    const [deleteTarget, setDeleteTarget] = useState<Walk | null>(null)
     const [saved, setSaved] = useState(false)
     const [editingWalk, setEditingWalk] = useState<Walk | null>(null)
     const [editPoop, setEditPoop] = useState(false)
@@ -89,13 +91,14 @@ export function WalkHistory({
     }
 
     const handleDelete = async (walk: Walk) => {
-        if (isReadOnly || updatesBlocked || saving.current) return
+        if (isReadOnly || updatesBlocked || saving.current || !isUnchangedWalk(walk, walks.find(current => current.id === walk.id))) return
         saving.current = true
         setSaved(false)
         setDeletingWalkId(walk.id)
         setError(null)
         try {
             await onDeleteWalk(walk)
+            setDeleteTarget(null)
             setSaved(true)
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Unable to delete the walk. Please try again.')
@@ -104,6 +107,19 @@ export function WalkHistory({
             setDeletingWalkId(null)
         }
     }
+
+    const targetChanged = Boolean(deleteTarget && !isUnchangedWalk(deleteTarget, walks.find(current => current.id === deleteTarget.id)))
+    const deleteConfirmation = (
+        <DeleteConfirmation
+            open={Boolean(deleteTarget)}
+            description={deleteTarget ? `Walk on ${deleteTarget.time.toLocaleDateString()} at ${deleteTarget.timeFormatted} by ${deleteTarget.userName} (${[deleteTarget.hasPoop && 'poop', deleteTarget.hasPee && 'pee'].filter(Boolean).join(' and ')}).` : ''}
+            pending={Boolean(deletingWalkId)}
+            blocked={isReadOnly || updatesBlocked || targetChanged}
+            error={targetChanged && !deletingWalkId ? 'This walk changed or was removed. Cancel and review the current walk log before removing.' : error}
+            onCancel={() => setDeleteTarget(null)}
+            onConfirm={() => { if (deleteTarget) void handleDelete(deleteTarget) }}
+        />
+    )
 
     if (isLoading || unavailable || walks.length === 0) {
         return (
@@ -114,6 +130,7 @@ export function WalkHistory({
                     </CardTitle>
                 </CardHeader>
                 <CardContent>
+                    {deleteConfirmation}
                     <SaveFeedback error={error} saved={saved} />
                     {isLoading ? (
                         <div role="status" className="py-4">
@@ -138,6 +155,7 @@ export function WalkHistory({
                 </CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
+                {deleteConfirmation}
                 <SaveFeedback error={error} saved={saved} />
                 {walks.map((walk) => (
                     <div key={walk.id}>
@@ -165,14 +183,14 @@ export function WalkHistory({
                                         disabled={updatesBlocked || isReadOnly || isSaving}
                                         value={editTime}
                                         onChange={(e) => setEditTime(e.target.value)}
-                                        className="min-h-11 px-3 py-2 rounded-md border border-input bg-background text-foreground text-sm focus:ring-2 focus:ring-ring"
+                                        className="min-h-11 px-3 py-2 rounded-md border border-input bg-background text-foreground text-base focus:ring-2 focus:ring-ring"
                                     />
                                 </div>
 
                                 {/* User selector */}
                                 <div className="flex flex-wrap items-center gap-2">
                                     <label className="text-sm text-muted-foreground">Walker:</label>
-                                    <div className="flex gap-1">
+                                    <div className="flex flex-wrap gap-1">
                                         {users.map(user => (
                                             <button
                                                 aria-pressed={editUser === user}
@@ -272,7 +290,7 @@ export function WalkHistory({
                                             </button>
                                             <button
                                                 aria-label={`Delete ${walk.timeFormatted} walk by ${walk.userName}`}
-                                                onClick={() => handleDelete(walk)}
+                                                onClick={() => { setError(null); setDeleteTarget(walk) }}
                                                 disabled={updatesBlocked || isReadOnly || isSaving || Boolean(deletingWalkId)}
                                                 className="min-h-11 min-w-11 p-2 rounded-lg bg-muted/80 hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-colors disabled:opacity-50"
                                                 title="Delete walk"

@@ -1,10 +1,11 @@
 'use client'
 
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
-import { supabase } from '@/lib/supabase'
+import { useMemo } from 'react'
+import { dateRange, useCareCalendar, useCareResource } from '@/lib/care-data-context'
+import { careReadError } from '@/lib/care-data-store'
 import { apiFetch } from '@/lib/api-client'
 import type { ApiSuccessResponse, WalkCreateRequest, WalkDeleteRequest, WalkUpdateRequest } from '@/lib/api-types'
-import type { Log, LogType, UserName, Activity, Reminder } from '@/lib/database.types'
+import type { Log, LogType, UserName } from '@/lib/database.types'
 import {
     calculatePoopStreak,
     calculateMonthlyPoints,
@@ -33,105 +34,36 @@ interface UseLogsReturn {
     todayPeeCount: number
     todayWalksCount: number
     streak: number
+    latestIsLoading: boolean
+    latestIsRefreshing: boolean
+    latestError: string | null
+    scoringError: string | null
+    scoringHasLoaded: boolean
+    refetchScoring: () => Promise<void>
     monthlyPoints: Record<UserName, number>
 }
 
 export function useLogs(): UseLogsReturn {
-    const [todayLogs, setTodayLogs] = useState<Log[]>([])
-    const [monthlyLogs, setMonthlyLogs] = useState<Log[]>([])
-    const [monthlyActivities, setMonthlyActivities] = useState<Activity[]>([])
-    const [monthlyReminders, setMonthlyReminders] = useState<Reminder[]>([])
-    const [allLogs, setAllLogs] = useState<Log[]>([])
-    const [isLoading, setIsLoading] = useState(true)
-    const [isRefreshing, setIsRefreshing] = useState(false)
-    const [hasLoaded, setHasLoaded] = useState(false)
-    const loaded = useRef(false)
-    const requestId = useRef(0)
-    const [error, setError] = useState<string | null>(null)
-
-    const fetchLogs = useCallback(async (afterSave = false) => {
-        const id = ++requestId.current
-        try {
-            setIsLoading(!loaded.current)
-            setIsRefreshing(loaded.current)
-            const now = new Date()
-            const todayStart = startOfDay(now)
-            const todayEnd = endOfDay(now)
-            const monthStart = startOfMonth(now)
-            const monthEnd = endOfMonth(now)
-
-            const thirtyDaysAgo = subDays(now, 30)
-            // These reads do not depend on one another. Start them together.
-            const [todayResult, monthResult, allResult, activitiesResult, remindersResult] = await Promise.all([
-                supabase
-                    .from('logs')
-                    .select('*')
-                    .gte('created_at', todayStart.toISOString())
-                    .lte('created_at', todayEnd.toISOString())
-                    .order('created_at', { ascending: false }),
-                supabase
-                    .from('logs')
-                    .select('*')
-                    .gte('created_at', monthStart.toISOString())
-                    .lte('created_at', monthEnd.toISOString())
-                    .order('created_at', { ascending: false }),
-                supabase
-                    .from('logs')
-                    .select('*')
-                    .gte('created_at', thirtyDaysAgo.toISOString())
-                    .order('created_at', { ascending: false }),
-                supabase
-                    .from('activities')
-                    .select('*')
-                    .gte('created_at', monthStart.toISOString())
-                    .lte('created_at', monthEnd.toISOString()),
-                supabase
-                    .from('reminders')
-                    .select('*'),
-            ])
-            if (id !== requestId.current) return
-            for (const result of [todayResult, monthResult, allResult, activitiesResult, remindersResult]) {
-                if (result.error) throw result.error
-            }
-
-            const remindersData: Reminder[] = remindersResult.data ?? []
-            const monthRemindersData = filterRemindersForMonth(remindersData, monthStart, monthEnd)
-
-            setTodayLogs(todayResult.data || [])
-            setMonthlyLogs(monthResult.data || [])
-            setMonthlyActivities(activitiesResult.data || [])
-            setMonthlyReminders(monthRemindersData || [])
-            setAllLogs(allResult.data || [])
-            loaded.current = true
-            setHasLoaded(true)
-            setError(null)
-        } catch (err) {
-            if (id === requestId.current) {
-                // PostgREST errors are plain objects rather than Error instances.
-                const message = err && typeof err === 'object' && 'message' in err
-                    ? String(err.message) : 'Unable to load care data.'
-                setError(afterSave ? 'Change saved, but care data could not refresh. Retry loading; do not save again.' : message)
-            }
-        } finally {
-            if (id === requestId.current) {
-                setIsLoading(false)
-                setIsRefreshing(false)
-            }
-        }
-    }, [])
-
-    useEffect(() => {
-        void fetchLogs()
-        const handler = () => {
-            void fetchLogs(true)
-        }
-
-        window.addEventListener('ppp:data-changed', handler)
-        return () => {
-            window.removeEventListener('ppp:data-changed', handler)
-            requestId.current += 1
-        }
-    }, [fetchLogs])
+    const { now } = useCareCalendar()
+    const today = useCareResource('logs', dateRange(now))
+    const month = useCareResource('logs', dateRange(now, true))
+    const recent = useCareResource('logs', { start: startOfDay(subDays(now, 30)).toISOString(), end: endOfDay(now).toISOString() })
+    const activities = useCareResource('activities', dateRange(now, true))
+    const reminders = useCareResource('reminders')
+    const todayLogs = useMemo(() => today.data ?? [], [today.data])
+    const monthlyLogs = useMemo(() => month.data ?? [], [month.data])
+    const allLogs = useMemo(() => recent.data ?? [], [recent.data])
+    const monthlyActivities = useMemo(() => activities.data ?? [], [activities.data])
+    const monthlyReminders = useMemo(() => filterRemindersForMonth(reminders.data ?? [], startOfMonth(now), endOfMonth(now)), [reminders.data, now])
+    const hasLoaded = today.data !== null
+    const isLoading = today.isLoading
+    const isRefreshing = today.pending && hasLoaded
+    const error = careReadError(today, 'care data')
+    const latestError = careReadError(recent, 'latest walk')
+    const scoringError = careReadError(month, 'leaderboard') ?? careReadError(activities, 'leaderboard') ?? careReadError(reminders, 'leaderboard')
+    const scoringHasLoaded = month.data !== null && activities.data !== null && reminders.data !== null
+    const refetch = async () => { await Promise.all([today.refetch(), recent.refetch()]) }
+    const refetchScoring = async () => { await Promise.all([month.refetch(), activities.refetch(), reminders.refetch()]) }
 
     const addWalk = async (options: { poop: boolean; pee: boolean; userName: UserName; createdAt?: Date }) => {
         await apiFetch<ApiSuccessResponse>('/api/walks', {
@@ -205,7 +137,7 @@ export function useLogs(): UseLogsReturn {
         [monthlyActivities, monthlyLogs, monthlyReminders]
     )
 
-    const streak = useMemo(() => calculatePoopStreak(allLogs), [allLogs])
+    const streak = calculatePoopStreak(allLogs)
 
     return {
         todayLogs,
@@ -220,7 +152,13 @@ export function useLogs(): UseLogsReturn {
         addWalk,
         deleteWalk,
         updateWalk,
-        refetch: fetchLogs,
+        refetch,
+        latestIsLoading: recent.isLoading,
+        latestIsRefreshing: recent.pending && recent.data !== null,
+        latestError,
+        scoringError,
+        scoringHasLoaded,
+        refetchScoring,
         todayPoopCount,
         todayPeeCount,
         todayWalksCount,

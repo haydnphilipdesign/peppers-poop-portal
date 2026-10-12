@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { format, isToday as isTodayDate, parseISO, setHours, setMinutes, startOfDay } from 'date-fns'
 import { CalendarDays, Check, Loader2, Pencil, Plus, Trash2 } from 'lucide-react'
+import { DeleteConfirmation, isUnchangedWalk } from './delete-confirmation'
 import { SaveFeedback } from '@/components/save-feedback'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -62,6 +63,7 @@ export function HistoryView() {
         deleteActivity,
     } = useHistory()
 
+    const [deleteTarget, setDeleteTarget] = useState<{ walk: Walk } | { routine: RoutineStatus } | null>(null)
     const saving = useRef(false)
     const [saveTarget, setSaveTarget] = useState<string | null>(null)
     const [saveError, setSaveError] = useState<string | null>(null)
@@ -89,6 +91,13 @@ export function HistoryView() {
     const careBusy = isReadOnly || isRefreshing || Boolean(error) || mutationPending
 
     const routineStatuses = useMemo(() => [toysStatus, dinnerStatus], [toysStatus, dinnerStatus])
+    const deleteTargetChanged = Boolean(deleteTarget && ('walk' in deleteTarget
+        ? !isUnchangedWalk(deleteTarget.walk, dayStats?.walks.find(walk => walk.id === deleteTarget.walk.id))
+        : (() => {
+            const current = routineStatuses.find(status => status.type === deleteTarget.routine.type)?.activity
+            const original = deleteTarget.routine.activity
+            return !current || !original || current.id !== original.id || current.assigned_to !== original.assigned_to || current.created_at !== original.created_at || current.logged_by !== original.logged_by
+        })()))
     const selectedDateInput = format(selectedDate, 'yyyy-MM-dd')
     const fullDateLabel = format(selectedDate, 'EEEE, MMMM d, yyyy')
 
@@ -103,6 +112,7 @@ export function HistoryView() {
         setAddPee(false)
         setEditingWalk(null)
         setEditingRoutine(null)
+        setDeleteTarget(null)
     }, [selectedDate, user])
 
     const handleDateChange = (value: string) => {
@@ -182,6 +192,7 @@ export function HistoryView() {
         setDeletingWalkId(walk.id)
         try {
             await deleteWalk(walk)
+            setDeleteTarget(null)
             if (editingWalk?.id === walk.id) {
                 setEditingWalk(null)
             }
@@ -239,6 +250,7 @@ export function HistoryView() {
         setDeletingRoutine(status.type)
         try {
             await deleteActivity(status.activity.id)
+            setDeleteTarget(null)
             if (editingRoutine === status.type) {
                 setEditingRoutine(null)
             }
@@ -253,9 +265,24 @@ export function HistoryView() {
 
     return (
         <div className="space-y-4">
+            <DeleteConfirmation
+                open={Boolean(deleteTarget)}
+                description={deleteTarget ? 'walk' in deleteTarget
+                    ? `Walk on ${format(deleteTarget.walk.time, 'MMM d, yyyy')} at ${deleteTarget.walk.timeFormatted} by ${deleteTarget.walk.userName} (${[deleteTarget.walk.hasPoop && 'poop', deleteTarget.walk.hasPee && 'pee'].filter(Boolean).join(' and ')}).`
+                    : `${deleteTarget.routine.label} on ${fullDateLabel}, done by ${deleteTarget.routine.assignedTo}.` : ''}
+                pending={Boolean(deletingWalkId || deletingRoutine)}
+                blocked={careBusy || deleteTargetChanged}
+                error={deleteTargetChanged && !deletingWalkId && !deletingRoutine ? 'This record changed or was removed. Cancel and review the current day before removing.' : saveError}
+                onCancel={() => setDeleteTarget(null)}
+                onConfirm={() => {
+                    if (!deleteTarget || deleteTargetChanged) return
+                    if ('walk' in deleteTarget) void handleDeleteWalk(deleteTarget.walk)
+                    else void handleRoutineDelete(deleteTarget.routine)
+                }}
+            />
             <Card>
                 <CardContent className="p-4 space-y-4">
-                    <div className="flex items-center justify-between gap-2">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
                         <Button
                             variant="outline"
                             size="sm"
@@ -266,7 +293,7 @@ export function HistoryView() {
                             ← Prev
                         </Button>
 
-                        <div className="text-center flex-1">
+                        <div className="order-first w-full min-w-0 text-center sm:order-none sm:w-auto sm:flex-1">
                             <p className="font-semibold text-foreground">
                                 {fullDateLabel}
                             </p>
@@ -362,7 +389,7 @@ export function HistoryView() {
                                             : 'border-border bg-muted/20'
                                             }`}
                                     >
-                                        <div className="flex items-center justify-between gap-3">
+                                        <div className="flex flex-wrap items-center justify-between gap-3">
                                             <div className="flex items-center gap-3">
                                                 <span className="text-2xl">{status.icon}</span>
                                                 <div>
@@ -422,7 +449,7 @@ export function HistoryView() {
                                                 type="time"
                                                 value={addTime}
                                                 onChange={(event) => setAddTime(event.target.value)}
-                                                className="rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                                                className="min-h-11 min-w-0 w-full max-w-full rounded-md border border-input bg-background px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-ring"
                                             />
                                         </div>
 
@@ -607,7 +634,7 @@ export function HistoryView() {
                                                                 <Pencil className="h-4 w-4" />
                                                             </button>
                                                             <button
-                                                                onClick={() => void handleDeleteWalk(walk)}
+                                                                onClick={() => { setSaveError(null); setDeleteTarget({ walk }) }}
                                                                 disabled={careBusy}
                                                                 className="min-h-11 min-w-11 rounded-lg bg-muted/80 p-2 text-muted-foreground transition-colors hover:bg-destructive/20 hover:text-destructive disabled:opacity-50"
                                                                 aria-label="Delete walk"
@@ -673,11 +700,12 @@ export function HistoryView() {
                                                 {USERS.map((routineUser) => (
                                                     <Button
                                                         key={routineUser}
+                                                        aria-label={routineUser}
                                                         size="sm"
                                                         variant="outline"
                                                         onClick={() => void handleRoutineSave(status, routineUser)}
                                                         disabled={careBusy}
-                                                        className="bg-background text-xs"
+                                                        className="bg-background text-sm"
                                                     >
                                                         {savingRoutine === status.type ? (
                                                             <Loader2 className="h-3 w-3 animate-spin" />
@@ -696,20 +724,22 @@ export function HistoryView() {
                                                 </Button>
                                             </div>
                                         ) : (
-                                            <div className="flex items-center gap-2">
+                                            <div className="flex flex-wrap items-center gap-2">
+                                                {!status.isComplete ? <Button size="sm" variant="secondary" disabled={careBusy || !user} onClick={() => { if (user) void handleRoutineSave(status, user) }}>Done by {user}</Button> : null}
                                                 <Button
                                                     size="sm"
-                                                    variant={status.isComplete ? 'outline' : 'secondary'}
+                                                    variant="outline"
                                                     disabled={careBusy}
+                                                    aria-expanded={editingRoutine === status.type}
                                                     onClick={() => setEditingRoutine(status.type)}
                                                 >
-                                                    {status.isComplete ? 'Change' : 'Log'}
+                                                    {status.isComplete ? 'Change' : 'Someone else'}
                                                 </Button>
                                                 {status.activity && (
                                                     <Button
                                                         size="sm"
                                                         variant="ghost"
-                                                        onClick={() => void handleRoutineDelete(status)}
+                                                        onClick={() => { setSaveError(null); setDeleteTarget({ routine: status }) }}
                                                         disabled={careBusy}
                                                     >
                                                         {deletingRoutine === status.type ? (

@@ -30,7 +30,7 @@ export function Leaderboard({ monthlyPoints, champion, championMonth }: Leaderbo
     return (
         <Card className="bg-gradient-to-br from-amber-500/10 to-rose-500/10 border-amber-500/20">
             <CardHeader className="pb-2">
-                <CardTitle className="text-lg font-semibold flex items-center gap-2">
+                <CardTitle className="text-lg font-semibold flex flex-wrap items-center gap-2">
                     🏆 {currentMonth} Leaderboard
                 </CardTitle>
             </CardHeader>
@@ -51,15 +51,15 @@ export function Leaderboard({ monthlyPoints, champion, championMonth }: Leaderbo
                     return (
                         <div
                             key={name}
-                            className={`flex items-center justify-between p-3 rounded-xl transition-all ${index === 0
+                            className={`flex flex-wrap items-center justify-between gap-2 p-3 rounded-xl transition-all ${index === 0
                                 ? 'bg-yellow-500/20 border border-yellow-500/30 shadow-md'
                                 : 'bg-muted/50'
                                 }`}
                         >
-                            <div className="flex items-center gap-3">
+                            <div className="flex flex-wrap items-center gap-3">
                                 <span className="text-2xl">{medals[index] || '🎖️'}</span>
                                 <span className="text-xl">{userEmojis[name]}</span>
-                                <span className="font-medium text-foreground flex items-center gap-1.5">
+                                <span className="font-medium text-foreground flex flex-wrap items-center gap-1.5">
                                     {name}
                                     {isChampion ? (
                                         <span title={`${championMonth} champion`} aria-label={`${championMonth} champion`}>

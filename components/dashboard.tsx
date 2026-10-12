@@ -42,6 +42,12 @@ export function Dashboard() {
         todayWalks,
         latestWalk,
         monthlyPoints,
+        latestIsLoading,
+        latestIsRefreshing,
+        latestError,
+        scoringError,
+        scoringHasLoaded,
+        refetchScoring,
         addWalk,
         deleteWalk,
         updateWalk,
@@ -70,8 +76,8 @@ export function Dashboard() {
     return (
         <ReadOnlyProvider isReadOnly={!canEdit} onRequireUnlock={() => setUnlockOpen(true)}>
             <div className="min-h-screen bg-[radial-gradient(circle_at_top_right,hsl(32_100%_95%),hsl(var(--background))_36%),radial-gradient(circle_at_20%_120%,hsl(18_85%_94%),transparent_42%)] text-foreground dark:bg-[radial-gradient(circle_at_top_right,hsl(28_45%_13%),hsl(var(--background))_40%),radial-gradient(circle_at_20%_120%,hsl(14_45%_12%),transparent_44%)]">
-                <header className="sticky top-0 z-40 border-b border-border/70 bg-background/90 backdrop-blur">
-                    <div className="mx-auto flex w-full max-w-2xl flex-col items-start justify-between gap-2 px-4 py-3 sm:flex-row sm:items-center">
+                <header className="border-b border-border/70 bg-background/90">
+                    <div className="mx-auto w-full max-w-2xl px-4 py-3">
                         <div>
                             <p className="text-[0.65rem] uppercase tracking-[0.2em] text-muted-foreground">
                                 Pepper&apos;s Portal
@@ -90,14 +96,6 @@ export function Dashboard() {
                             </div>
                         </div>
 
-                        <div className="flex w-full items-center gap-2 sm:w-auto">
-                            <Button variant="outline" className="flex-1 sm:flex-none" disabled={isAuthLoading} onClick={() => canEdit ? void lock() : setUnlockOpen(true)}>
-                                {canEdit ? 'Lock Editing' : 'Unlock Editing'}
-                            </Button>
-                            <Button variant="ghost" className="flex-1 sm:flex-none" onClick={() => setUser(null)}>
-                                Switch User
-                            </Button>
-                        </div>
                     </div>
                 </header>
 
@@ -144,7 +142,7 @@ export function Dashboard() {
                         setActiveTab(tab)
                         setVisitedTabs(previous => previous.includes(tab) ? previous : [...previous, tab])
                     }}>
-                        <TabsList className="h-14 rounded-xl border border-border/80 bg-card p-1">
+                        <TabsList className="h-auto min-h-14 rounded-xl border border-border/80 bg-card p-1">
                             <TabsTrigger value="today">Today</TabsTrigger>
                             <TabsTrigger value="history">History</TabsTrigger>
                             <TabsTrigger value="analytics">Analytics</TabsTrigger>
@@ -152,7 +150,13 @@ export function Dashboard() {
 
                         <TabsContent value="today" className="mt-5">
                             <div className="space-y-5">
-                                <LastWalkCard walk={latestWalk} isLoading={isLoading} isRefreshing={isRefreshing} error={error} onRetry={() => void refetch()} />
+                                <LastWalkCard walk={latestWalk} isLoading={latestIsLoading} isRefreshing={latestIsRefreshing} error={latestError} onRetry={() => void refetch()} />
+                                {error ? <div role="alert" className="rounded-xl border border-amber-500/30 p-4 text-sm">
+                                    <p>{error}</p>
+                                    <Button variant="outline" className="mt-2" disabled={isRefreshing || isLoading} onClick={() => void refetch()}>Refresh today&apos;s walks</Button>
+                                </div> : null}
+                                <RemindersBanner />
+                                <DailyRoutines />
                                 <DailyScoreboard
                                     poopCount={todayPoopCount}
                                     peeCount={todayPeeCount}
@@ -169,16 +173,23 @@ export function Dashboard() {
                                     unavailable={!hasLoaded && Boolean(error)}
                                 />
 
-                                <RemindersBanner />
-                                <DailyRoutines />
                                 <ReminderManager />
-                                {hasLoaded ? (
-                                    <Leaderboard
-                                        monthlyPoints={monthlyPoints}
-                                        champion={champion}
-                                        championMonth={monthLabel}
-                                    />
-                                ) : null}
+                                <details className="rounded-xl border border-border/70 bg-card">
+                                    <summary className="min-h-11 cursor-pointer px-4 py-3 font-medium">Monthly leaderboard</summary>
+                                    <div className="space-y-3 px-3 pb-3">
+                                        {scoringError ? <div role="alert" className="rounded-xl border border-amber-500/30 p-4 text-sm">
+                                            <p>{scoringError}</p>
+                                            <Button variant="outline" className="mt-2" onClick={() => void refetchScoring()}>Refresh leaderboard</Button>
+                                        </div> : !scoringHasLoaded ? <p role="status" className="p-4 text-sm text-muted-foreground">Loading leaderboard...</p> : null}
+                                        {scoringHasLoaded ? (
+                                            <Leaderboard
+                                                monthlyPoints={monthlyPoints}
+                                                champion={champion}
+                                                championMonth={monthLabel}
+                                            />
+                                        ) : null}
+                                    </div>
+                                </details>
                             </div>
                         </TabsContent>
 
@@ -191,8 +202,23 @@ export function Dashboard() {
                         </TabsContent>
                     </Tabs>
 
-                    <footer className="border-t border-border/60 pt-5 text-center text-xs text-muted-foreground">
-                        Pepper&apos;s Portal • family care tracker
+                    <footer className="border-t border-border/60 pt-5 text-sm text-muted-foreground">
+                        <details className="rounded-xl border border-border/60 bg-card">
+                            <summary className="min-h-11 cursor-pointer px-4 py-3 font-medium text-foreground">Profile &amp; access</summary>
+                            <div className="space-y-3 px-4 pb-4">
+                                <p>Profile: {user} · {canEdit ? 'Editing enabled' : 'Editing locked'}</p>
+                                <div className="flex flex-wrap gap-2">
+                                    <Button variant="outline" disabled={isAuthLoading} onClick={() => canEdit ? void lock() : setUnlockOpen(true)}>
+                                        {canEdit ? 'Lock Editing' : 'Unlock Editing'}
+                                    </Button>
+                                    <Button variant="outline" disabled={isAuthLoading} onClick={() => setUser(null)}>
+                                        Switch User
+                                    </Button>
+                                </div>
+                                {accessError ? <p role="alert">{accessError}</p> : null}
+                            </div>
+                        </details>
+                        <p className="pt-4 text-center text-xs">Pepper&apos;s Portal • family care tracker</p>
                     </footer>
                 </main>
             </div>

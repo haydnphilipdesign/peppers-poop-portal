@@ -7,7 +7,8 @@ import { useActivities } from '@/hooks/use-activities'
 import type { ActivityType, UserName } from '@/lib/database.types'
 import { SaveFeedback } from '@/components/save-feedback'
 import { Button } from '@/components/ui/button'
-import { Check, Loader2 } from 'lucide-react'
+import { Check } from 'lucide-react'
+import { ROUTINE_CONFIG } from '@/lib/activity-utils'
 
 const USERS: UserName[] = ['Chris', 'Debbie', 'Haydn']
 
@@ -75,120 +76,45 @@ export function DailyRoutines() {
             {loggingType ? <p role="status" className="text-sm text-muted-foreground">Saving routine...</p> : isLoading && hasLoaded ? <p role="status" className="text-sm text-muted-foreground">Refreshing routines...</p> : null}
             {(hasLoaded || !error) && (
                 <div className="space-y-2">
-                    {/* Toys */}
-                    <div className="rounded-xl border border-border bg-card p-4">
-                        <div className="flex flex-wrap items-center justify-between gap-3">
-                            <div className="flex items-center gap-3">
-                                <span className="text-2xl">🧸</span>
-                                <div>
-                                    <p className="font-medium text-foreground">Fill Toys</p>
-                                    <p className="text-xs text-muted-foreground">Morning treats</p>
+                    {(['toys', 'dinner'] as const).map(type => {
+                        const config = ROUTINE_CONFIG[type]
+                        const complete = type === 'toys' ? isToysFilled : isDinnerDone
+                        const assignedTo = type === 'toys' ? toysFilledBy : dinnerDoneBy
+                        const choosing = type === 'toys' ? showToysAssignee : showDinnerAssignee
+                        const choose = (value: boolean) => type === 'toys' ? setShowToysAssignee(value) : setShowDinnerAssignee(value)
+                        const blocked = Boolean(loggingType) || isLoading || Boolean(error)
+                        return (
+                            <div key={type} className={`rounded-xl border bg-card p-3 ${type === 'dinner' && isDinnerTime && !complete ? 'border-amber-500/50' : 'border-border'}`}>
+                                <div className="flex flex-wrap items-center justify-between gap-2">
+                                    <div className="flex items-center gap-3">
+                                        <span aria-hidden="true" className="text-2xl">{config.icon}</span>
+                                        <div>
+                                            <p className="font-medium">{config.label}</p>
+                                            <p className="text-sm text-muted-foreground">{type === 'dinner' && isDinnerTime && !complete ? 'Due at 5:45 PM' : config.description}</p>
+                                        </div>
+                                    </div>
+                                    {isLoading && !hasLoaded ? <span role="status" className="text-sm text-muted-foreground">Checking...</span> : complete ? (
+                                        <span className="flex items-center gap-2 text-sm font-medium text-emerald-700 dark:text-emerald-300"><Check aria-hidden="true" className="h-5 w-5" />Done by {assignedTo}</span>
+                                    ) : <span className="text-sm text-muted-foreground">Not done yet</span>}
                                 </div>
+                                {!complete && !isReadOnly && (hasLoaded || !isLoading) ? (
+                                    <div className="mt-3 space-y-2">
+                                        <div className="flex flex-wrap gap-2">
+                                            <Button variant="secondary" disabled={blocked || !user} onClick={() => { if (user) void handleLog(type, user) }}>Done by {user}</Button>
+                                            <Button variant="outline" aria-expanded={choosing} disabled={blocked} onClick={() => choose(!choosing)}>Someone else</Button>
+                                        </div>
+                                        {choosing ? <div role="group" aria-label={`Who did ${config.label}?`} className="space-y-2">
+                                            <p className="text-sm text-muted-foreground">Who did {config.label}? Choosing a person saves the routine.</p>
+                                            <div className="flex flex-wrap gap-2">
+                                                {USERS.map(person => <Button key={person} variant="outline" disabled={blocked} onClick={() => void handleLog(type, person)}>Done by {person}</Button>)}
+                                                <Button variant="ghost" disabled={Boolean(loggingType)} onClick={() => choose(false)}>Cancel</Button>
+                                            </div>
+                                        </div> : null}
+                                    </div>
+                                ) : null}
                             </div>
-
-                            {isLoading && !hasLoaded ? (
-                                <span className="text-sm text-muted-foreground">Checking...</span>
-                            ) : isToysFilled ? (
-                                <div className="flex items-center gap-2 text-green-500">
-                                    <Check className="w-5 h-5" />
-                                    <span className="text-sm font-medium">{toysFilledBy}</span>
-                                </div>
-                            ) : isReadOnly ? (
-                                <span className="text-sm text-muted-foreground">Not done yet</span>
-                            ) : showToysAssignee ? (
-                                <div className="flex flex-wrap gap-2">
-                                    {USERS.map(u => (
-                                        <Button
-                                            key={u}
-                                            aria-label={u}
-                                            size="sm"
-                                            variant="outline"
-                                            onClick={() => handleLog('toys', u)}
-                                            disabled={Boolean(loggingType) || isLoading || Boolean(error)}
-                                            className="min-h-11 min-w-11 px-3 text-sm"
-                                        >
-                                            {loggingType === 'toys' ? (
-                                                <Loader2 className="w-3 h-3 animate-spin" />
-                                            ) : (
-                                                u
-                                            )}
-                                        </Button>
-                                    ))}
-                                </div>
-                            ) : (
-                                <Button
-                                    size="sm"
-                                    variant="secondary"
-                                    onClick={() => setShowToysAssignee(true)}
-                                    disabled={isLoading || Boolean(error)}
-                                >
-                                    Log
-                                </Button>
-                            )}
-                        </div>
-                    </div>
-
-                    {/* Dinner */}
-                    <div className={`rounded-xl border bg-card p-4 ${isDinnerTime && !isDinnerDone
-                        ? 'border-amber-500/50 bg-amber-500/5'
-                        : 'border-border'
-                        }`}>
-                        <div className="flex flex-wrap items-center justify-between gap-3">
-                            <div className="flex items-center gap-3">
-                                <span className="text-2xl">🍽️</span>
-                                <div>
-                                    <p className="font-medium text-foreground">Make Dinner</p>
-                                    <p className="text-xs text-muted-foreground">
-                                        {isDinnerTime && !isDinnerDone ? (
-                                            <span className="text-amber-500">Due at 5:45 PM</span>
-                                        ) : (
-                                            '5:45 PM'
-                                        )}
-                                    </p>
-                                </div>
-                            </div>
-
-                            {isLoading && !hasLoaded ? (
-                                <span className="text-sm text-muted-foreground">Checking...</span>
-                            ) : isDinnerDone ? (
-                                <div className="flex items-center gap-2 text-green-500">
-                                    <Check className="w-5 h-5" />
-                                    <span className="text-sm font-medium">{dinnerDoneBy}</span>
-                                </div>
-                            ) : isReadOnly ? (
-                                <span className="text-sm text-muted-foreground">Not done yet</span>
-                            ) : showDinnerAssignee ? (
-                                <div className="flex flex-wrap gap-2">
-                                    {USERS.map(u => (
-                                        <Button
-                                            key={u}
-                                            aria-label={u}
-                                            size="sm"
-                                            variant="outline"
-                                            onClick={() => handleLog('dinner', u)}
-                                            disabled={Boolean(loggingType) || isLoading || Boolean(error)}
-                                            className="min-h-11 min-w-11 px-3 text-sm"
-                                        >
-                                            {loggingType === 'dinner' ? (
-                                                <Loader2 className="w-3 h-3 animate-spin" />
-                                            ) : (
-                                                u
-                                            )}
-                                        </Button>
-                                    ))}
-                                </div>
-                            ) : (
-                                <Button
-                                    size="sm"
-                                    variant="secondary"
-                                    onClick={() => setShowDinnerAssignee(true)}
-                                    disabled={isLoading || Boolean(error)}
-                                >
-                                    Log
-                                </Button>
-                            )}
-                        </div>
-                    </div>
+                        )
+                    })}
                 </div>
             )}
         </section>

@@ -4,7 +4,7 @@ Created: October 12, 2026
 
 Audience: Chris and Debbie, primarily using the app on mobile devices
 
-Status: Phase 1 implemented and verified locally on October 12, 2026; later phases remain proposed
+Status: Phases 1–3 implemented and verified locally on October 12, 2026; Phase 4 remains a data-model/migration proposal and Phase 5 requires actual-device/family validation
 
 ## Goal and constraints
 
@@ -102,21 +102,17 @@ Browser evidence: Browser plugin unavailable; Playwright used an existing Chromi
 
 Temporary browser script, screenshots, and results live outside the repository in `C:/Users/haydn/.codex/tmp/pepper-phase1-*`. No dependencies, database schema, deployment, or server write routes changed. These checks prove the rendered client handles simulated responses; they do **not** verify live Supabase persistence, cross-device updates, physical phones, Safari/home-screen behavior, a screen reader, or system text enlargement. A transport failure after a server commit remains ambiguous until data is read again; durable request idempotency is a future API/data-model decision, not a claim made by this frontend contract.
 
-## Early design recommendations (proposals only)
+## Early design recommendations
 
-### Shared data ownership — R2 / Phase 2
+### Shared data ownership — R2 / Phase 2 (adopted)
 
-Use a small care-data provider for reusable resource snapshots before adding a cache library. The reminder collection is the best first owner: banner, schedule, and monthly scoring need the same public rows. Today/History activities can share identical date-scoped requests. Keep walk reads independent from leaderboard inputs so a scoring failure cannot hide available care records (R3).
-
-Define keys by resource and exact scope: all reminders; activity or log ranges with start/end ISO timestamps and calendar timezone. Different day/month/last-30-day queries must not reuse an incompatible response. Each entry should own its snapshot, in-flight promise, last successful read time, read error, and request generation. Consumers subscribe; mutations invalidate the affected entries once. Keep write errors local to the draft. Preserve successful snapshots during background reads, share identical in-flight reads, ignore superseded responses, and clean up subscriptions. Do not make a general cache framework or persistent offline queue for this small app.
-
-Refresh on foreground return and day/month rollover; recheck calendar boundaries on return because background timers can stop. The current code follows device-local days. Confirm whether the family wants a fixed household timezone before changing that rule. Review the provider's ownership/invalidation rules before implementation. Phase 1 still makes two reminder reads for two consumers; eliminating that duplication is intentionally Phase 2.
+The small in-memory care-data provider proposed in Phase 1 was explained before implementation and adopted in Phase 2. It shares reminder snapshots and identical date-scoped log/activity requests without adding a dependency. See **Phase 2 delivery** below for the final keys, freshness, invalidation, and cleanup rules. The device-local calendar rule is preserved; no fixed household timezone was introduced.
 
 ### Explicit walk record — R5 / Phase 4
 
 The concern is still present: adjacent outcome logs within 30 minutes are grouped without a shared identity or matching walker. Repeated adjacent gaps can even form a longer chain. Those inferred groups drive counts, points, attribution, edits, and deletions. Phase 1 does not change grouping or pretend historical identity is known.
 
-Recommend a dedicated `walks` parent record with stable UUID, occurrence time, and walker, plus `logs.walk_id` for its bathroom outcomes. One server transaction creates/updates the parent and its outcomes; editing/removal targets the walk UUID. The parent owns time/person, while each outcome belongs to exactly one parent. Keeping existing outcome rows allows a staged compatibility period for existing readers and outcome counts. Compare this with only adding a shared UUID to logs: that is smaller initially, but cannot represent an outing with no outcomes and leaves walk metadata repeated. The parent model is a better long-term boundary. Whether to expose Neither, and how it scores, still needs the family's decision.
+Recommend a dedicated `walks` parent record with stable UUID, occurrence time, and walker, plus `logs.walk_id` for its bathroom outcomes. One server transaction creates/updates the parent and its outcomes; editing/removal targets the walk UUID. The parent owns time/person, while each outcome belongs to exactly one parent. Keeping existing outcome rows allows a staged compatibility period for existing readers and outcome counts. Compare this with only adding a shared UUID to logs: that is smaller initially, but cannot represent an outing with no outcomes and leaves walk metadata repeated. The parent model is a better long-term boundary. The user approved exposing Neither on October 12, 2026 for occasional outings without either bathroom outcome; its goals/counts/points behavior still needs to be specified in the Phase 4 proposal.
 
 Before implementation, present the schema/API/type/metrics changes together and agree how ambiguous historical groups will be labeled and counted. Do not silently treat the current 30-minute inference as a certain reconstruction. Produce a backfill preview with mixed-walker/close-outing ambiguities and compare totals/points with the baseline; retain original rows and an auditable mapping. Choose preservation/review rules explicitly before converting ambiguous history.
 
@@ -160,6 +156,56 @@ This is initially an in-memory data-sharing improvement. It does not imply persi
 
 `components/dashboard.tsx`, `components/public-dashboard.tsx`, `hooks/use-logs.ts`, `hooks/use-activities.ts`, `hooks/use-reminders.ts`, `hooks/use-history.ts`, `hooks/use-champion.ts`, and `lib/api-client.ts`.
 
+## Phase 2 delivery — October 12, 2026
+
+R2 (shared reads), R3 (independent walk availability), R4 (foreground/calendar refresh), and the read-freshness portions of R9 are complete for the current client contract. Phase 1 write acknowledgement, retained drafts, duplicate-tap guards, post-save read guidance, and public read-only behavior remain intact. R5 remains a proposal: no walk identity, grouping, API write route, database schema, or migration was changed.
+
+### Ownership and read map
+
+`CareDataProvider` in the root layout owns a per-page `CareDataStore`, shared by the dashboard and lazily mounted/visited tabs. Hooks subscribe to resource snapshots; components retain their own forms and write errors. Server rendering does not share a global store between visitors.
+
+| Resource / exact scope | Consumers |
+| --- | --- |
+| All reminders, descending due date | Banner, Care Schedule, current monthly scores, previous-month champion |
+| Logs for a local day | Today totals/walk history; History when selecting the same day |
+| Activities for a local day | Today routines; History when selecting the same day |
+| Logs / activities for the current local month | Current leaderboard inputs |
+| Logs / activities for the previous local month | Champion inputs |
+| Logs from the start of 30 calendar days ago through the end of today | Latest Walk/streak and visited Analytics; aligns their previously overlapping windows |
+| Logs / activities for another selected local day | History; separate entry for each exact range |
+
+Keys contain the table, exact start/end ISO timestamps (or no bounds for all reminders), device timezone, and consistent descending ordering. Month, day, and recent queries cannot substitute for one another. Each entry holds data, pending state, error/save-refresh context, last successful read time, generation, in-flight promise, and subscribers.
+
+### Refresh and failure rules
+
+- Initial or stale mounts read the resource; identical concurrent reads and concurrent manual retries share the same in-flight request. A newly mounted consumer reuses a successful snapshot younger than 60 seconds. Reusing a snapshot is an in-memory read optimization, not a freshness guarantee across devices. Inactive snapshots are pruned during unsubscribe when the cache exceeds 32 entries; active snapshots, including already visited hidden tabs, remain subscribed.
+- Successful writes keep the existing events. The single provider invalidates log/activity entries on `ppp:data-changed`, and reminder entries on `ppp:reminders-changed`. Reminder writes emit both events, so rows refresh once and scoring recomputes from the same reminder snapshot. General events conservatively refresh all active log/activity scopes, since existing events do not carry mutation dates. Inactive entries are marked stale for their next mount. Rejected writes emit no invalidation and retain the Phase 1 local error/draft behavior.
+- Invalidation after a write or foreground return supersedes an unfinished older read. Per-entry generations ignore old responses. Manual retries share an already-running request. Errors keep successful snapshots and their original scope; a failed new-day read cannot present yesterday's totals as today's data. Successful writes remain successful if the ensuing read fails; save-specific guidance continues to say not to save again.
+- Today logs, recent logs (Latest Walk), and monthly scoring inputs publish independently. Neither slow/unavailable reminders nor monthly activities/champion inputs can hold successful walk data behind a combined request. Latest Walk, today's walk availability, and leaderboard errors have separate visible refresh controls. Loaded leaderboard/cards remain mounted during same-scope background reads; initial unavailable scores are not shown as zero rankings. The noncritical champion retains available same-scope inputs and cannot overwrite the new month's crown with an old request.
+- Visible `visibilitychange`, window focus, and reconnect (`online`) signals coalesce over 50ms into an active-resource refresh. The same pass recomputes calendar scopes and emits a foreground signal to editing access. No connection diagnosis or offline-save claim is inferred from a failed read.
+- Calendar checks run at the next local midnight, capped at one minute to detect clock/timezone changes. On day, month, timezone, or offset changes, consumers select new exact scopes; reminder due logic and History's `isToday` also recompute. Foreground return checks immediately after the coalescing interval, even if background timers were suspended. History retains its explicitly selected date. Latest Walk's day label updates immediately on the calendar render and its elapsed-time display still ticks each minute.
+- **Calendar decision:** preserve device-local dates, matching existing behavior. Local calendar arithmetic handles 23/25-hour daylight-saving days. A fixed household timezone remains a future family/product decision; different device timezones can still have different definitions of Today.
+- Editing status refreshes on foreground return and every five visible minutes with `cache: no-store`. Generations prevent a late status response from undoing a newer unlock/lock or HTTP 401 expiration. Foreground checks wait while an access mutation is pending. Expiration preserves the existing explicit PIN-unlock-and-retry flow.
+- Provider cleanup removes events/timers, unsubscribes consumers, and invalidates pending generations. The transports may finish, but their obsolete results cannot publish. The periodic access and Latest Walk timers also clean up. There is no persistent offline cache, queued write, live subscription, or new dependency.
+
+### Acceptance evidence
+
+| Check | Evidence |
+| --- | --- |
+| Identical reminder consumers share rows and reads | Hook regression mounts banner, schedule, scores, and champion behind one delayed request; both reminder views receive the same snapshot. Chromium observes one initial reminder request. Concurrent retry regression proves one read recovers both consumers. |
+| Reminder saves update both views and scoring | Phase 1 pending/rejected-write regressions remain; the shared write test asserts one reminder read and current-score update. A backdated-completion regression recalculates the prior month's champion. Browser scheduling/banner completion and saved-then-read-failed recovery update both views through the shared owner. |
+| Scoring failure does not hide walks | Hook tests cover failed reminders/monthly activities and stalled/failed monthly/recent log reads while Today succeeds. Browser checks an unavailable reminder/leaderboard with available Latest Walk, totals, and editable walk history. |
+| Foreground return refreshes care and editing status | Hook/browser fixtures simulate another device's changed rows, exercise visibility/focus signals, and inspect Today plus previously visited History/Analytics. Access changes to locked; one coalesced reminder read is observed. |
+| Day/month rollover and DST | Fake-clock hook/browser tests cross October 31 into November 1, inspect new-day totals/routines, new-month scores/champion, Analytics, due reminders, and the retained History selection. Suspended-clock foreground recovery advances into another day/month. Dedicated date tests and intercepted browser URLs verify New York's 23-hour spring and 25-hour fall day ranges, plus device-timezone scope isolation. |
+| Late responses / cleanup | Shared store tests and retained Phase 1 regressions reject superseded reads, protect exact date scopes, retain snapshots on unavailable reads, and prove timers/events stop after unmount. Access regression prevents a late pre-expiry response from re-unlocking editing. |
+| Stable action, mobile/save/public behavior | Chromium measured **0px** Log Walk document-position movement during delayed initial loading, foreground refresh/access locking, and month rollover. The repeated Phase 1 browser suite verifies failed walk/routine/reminder writes, retained earlier-time drafts, rapid taps, HTTP 401 unlock, acknowledged-save/failed-read recovery, visited tabs, and public Today/History at 320/390/1280px. |
+
+Validation: **65 tests passed** (18 added to the 47-test Phase 1 suite); `npx tsc --noEmit`, `npm run lint`, `npm run build`, and `git diff --check` passed. Domain-metrics statement coverage is approximately 99.1%; coverage configuration still measures metrics only, not overall client/UI coverage. No production scoring/grouping rules were altered by the additional tests.
+
+Browser evidence: Browser plugin unavailable; temporary Playwright script reused the existing Chromium installation without installing dependencies. The production build ran at `http://127.0.0.1:3000` with 320×844, 390×844, and 1280×844 simulated viewports, America/New_York timezone, and reduced motion. Supabase reads/API writes were intercepted to verify initial loading/empty/unavailable states, independent scoring failure, stale data, successful retry, write 401/500, read 503, pending saves, foreground events, and browser-clock boundaries. Screenshots and DOM checks found no horizontal overflow in exercised states, no framework overlay, and no application exceptions; failed-resource console messages corresponded to intentional fixture failures. Screenshot review caught and fixed a briefly incorrect Latest Walk “Today” label after midnight; the rollover regression now checks the previous day's explicit date.
+
+Temporary browser scripts, results (17 scenario groups), and screenshots are outside the repository at `C:/Users/haydn/.codex/tmp/pepper-phase2-*`. The production build used a fixture Supabase URL/key in the build process environment only; `.env.local` was not changed. This verifies the rendered client and deterministic intercepted responses, not live persistence or actual cross-device networking. Physical phones, Safari/home-screen resume behavior, screen readers, enlarged text, and live Supabase remain unverified. No deployment or migration was performed.
+
 ## Phase 3: Simpler daily interactions and information hierarchy
 
 Address R6, R7, and R8. Produce a mobile preview or a concrete layout proposal before substantial rearrangement. Validate the choices with the family rather than assuming fewer taps always means a better experience.
@@ -170,7 +216,7 @@ Address R6, R7, and R8. Produce a mobile preview or a concrete layout proposal b
 - Explore placing due care and daily routines ahead of a potentially long walk history.
 - Explore a more compact totals presentation, with leaderboard/gamification taking less space in the main care flow. Retain access to existing information.
 - Preserve layout stability when alerts load. Design loading/reserved-space behavior alongside the proposed order.
-- Clarify the selected person and editing state. Evaluate reducing the prominence of infrequent actions such as switching profiles or locking editing, while keeping them easy to locate.
+- Clarify the selected person and editing state. **Header controls completed:** the family uses a persistent profile per phone and rarely locks editing or switches users. These controls now live in a collapsed Profile & access section in the footer; the header scrolls away. PIN unlock remains available directly through Log Walk and affected save feedback.
 - Explore defaulting routine attribution to the selected person, with a clear way to choose someone else. Preserve logging on another family member's behalf.
 - Add a clear deletion confirmation or design a genuine undo. Evaluate confirmations first if they can address the risk with less complexity. Any undo must actually restore the saved data correctly.
 - Review wording, spacing, tap targets, and scrolling across expanded Care Schedule and History forms, not just the dashboard's first viewport.
@@ -183,9 +229,53 @@ Address R6, R7, and R8. Produce a mobile preview or a concrete layout proposal b
 - All existing care, history, and analytics functionality remains reachable.
 - Long histories, due alerts, large text, and expanded forms do not cause clipping or unexpected movement of primary controls.
 
-## Phase 4: Accurate walk records and an optional Neither outcome
+### Phase 3 targeted header improvement — October 12, 2026
+
+The user confirmed that Lock Editing and Switch User are rarely needed because each family member uses their own phone. Moved both controls into a keyboard-operable, collapsed **Profile & access** section in the footer, retaining manual locking and profile changes. Removed the family dashboard header's sticky positioning and button row; the selected profile remains visible and asynchronous crown space remains reserved. Log Walk stays mounted above all asynchronous care sections and continues to open PIN unlocking when editing expires. This is a targeted change requested by the user, not completion of the broader Phase 3 hierarchy/deletion/attribution work.
+
+Validation: the existing **65 tests**, TypeScript, lint, production build, and `git diff --check` passed. Fixture-driven Playwright/Chromium checks at 320, 390, and 1280px cover initial delayed reads with **0px** Log Walk movement, no header buttons, nonsticky scrolling, collapsed footer controls, keyboard expansion, manual lock, Log Walk PIN unlocking/focus return, failed-save retry, foreground expiration, profile switching/persistence, and the unchanged public read-only view. Rendered screenshots/DOM checks found no horizontal overflow or application exceptions in the exercised states. Browser plugin unavailable; reused the existing Chromium installation. Scripts/results/screenshots are outside the repository at `C:/Users/haydn/.codex/tmp/pepper-header-*` and `pepper-settings-*`. Reads and writes remain intercepted fixtures; live persistence and actual-device behavior remain unverified. No deployment or database changes were made.
+
+## Phase 3 delivery — October 12, 2026
+
+R6 (daily hierarchy), R7 (deletion prevention), and R8 (routine attribution) are implemented. R10 received further simulated-mobile/large-text checks; family observation, live persistence, and actual-device accessibility remain Phase 5 work. The checkout already contained Phase 1/2 and header improvements; those changes were preserved.
+
+### Preview and final decisions
+
+Before rearrangement, presented a concrete 390px HTML/screenshot proposal with example data and explained the section order and loading behavior. The user's final layout choice keeps **Today's walk log expanded below routines**. Care Schedule and Monthly leaderboard start collapsed. Preview/evidence files are outside the repository at `C:/Users/haydn/.codex/tmp/pepper-phase3-*`.
+
+- Family Today now reads **Latest Walk → Due care → Daily Routines → compact totals → expanded Today's walk log → Care Schedule → collapsed Monthly leaderboard**. History and Analytics retain their tabs. The public view receives the same Today hierarchy and remains read-only; its existing public header is unchanged.
+- The family header still scrolls away, with persistent selected profile, reserved champion space, and collapsed footer **Profile & access** controls. **Log Walk remains mounted above all asynchronous sections and tabs**, with direct PIN recovery, retained earlier-time drafts, save acknowledgement, and duplicate-tap protection. Its normal-size document position moved **0px** through tested loading, errors, refresh/access changes, and calendar rollover.
+- Latest Walk retains elapsed/exact time, person, outcomes, due nudge, stale/loading/error feedback and retry in a smaller reserved card. Due care always has a labeled section with minimum loading/no-alert space. Multiple alerts and expanded forms can grow below the primary action; lower sections are not promised a fixed position for arbitrary alert heights. “No care alerts to show” does not claim every appointment is completed. Compact totals retain goals, goal acknowledgements, counts, and explicit loading/unavailable states. Leaderboard points/champions/explanation/retry remain accessible on expansion; its shared consumers stay mounted.
+- Daily routines and missing History routines default to **Done by [selected profile]**. **Someone else** opens named choices without changing the device profile; Today explains that choosing saves. Completed History routines retain Change/reassignment/removal. The profile is the recorder, and the chosen person is the assignee. Pending actions use the existing synchronous guard, block conflicting taps, and close/reset only after acknowledgement. Failed forms/pickers survive read refresh and PIN recovery; retry remains explicit.
+- Today/History walk deletion and History routine removal open a shared confirmation drawer naming date/time/person/outcomes or routine/date/assignee. It warns removal cannot be undone and initially focuses **Cancel**. No delete is sent before **Remove record**. Cancel/Escape returns focus; pending removal blocks dismissal and duplicate taps; rejected writes retain the target/error. Read refresh/locked editing blocks confirmation, and HTTP 401 PIN recovery retains the target. A changed/removed record in a new snapshot blocks removal and asks for a fresh selection; empty/replacement snapshots cannot silently revive an old delete. This client check does not add atomic server concurrency control. No optimistic deletion or undo is claimed.
+- Expanded appointment/completion inputs now have visible labels, 16px text, available-width sizing, and wrapping person controls. History walk inputs/person groups fit narrow screens. Text buttons can grow/wrap; Log Walk keeps its normal 96px minimum and grows for enlarged text. Tabs can wrap to another row with existing keyboard navigation. Screenshot review prompted wrapping leaderboard/summary rows and a separate date-title row on narrow History screens.
+
+### Acceptance evidence
+
+| Check | Evidence |
+| --- | --- |
+| Daily care before long histories | Chromium verifies section order at 320/390/1280px and a due reminder with 12 expanded walks. Reviewed first viewport, full-page, expanded-form, confirmation, and dark screenshots. |
+| Profile attribution and correction | New component tests cover one-tap selected profile, another-person rejection/retry, lock/unlock, and historical attribution. Browser checks recorder/assignee request bodies, named completion, pending controls, and Today/History synchronization. |
+| Accidental deletion prevention | Component/browser checks cover Today/History confirmations, routine identity, Cancel without writes, Cancel focus/focus return, failed deletion, synchronous double taps, access/read blocking, and acknowledged removal. Browser additionally exercises confirmation-to-PIN recovery. |
+| Existing functions remain reachable | Browser exercises walk create/edit/delete, earlier-time drafts, routine reassignment/removal, schedule/banner completion, visited Analytics, leaderboard expansion, footer lock/profile persistence, and public Today/History. |
+| Phase 1/2 reliability preserved | Repeated browser contracts and retained hook tests cover shared reads, independent failures, rejected writes, saved-then-read-failed guidance, stale snapshots, foreground data/access refresh, midnight/month rollover, DST, and explicit PIN retry. |
+| Small screens and larger text | Browser covers 320/390/1280px, expanded forms, long histories, dark mode, and simulated 200% text for Today/leaderboard/Care Schedule/History. Exercised states have no horizontal page overflow; screenshot review caught and fixed enlarged tabs, row clipping, and narrow form/date navigation issues. |
+
+Validation: **73 tests passed** (eight added to the 65-test Phase 2/header baseline); `npx tsc --noEmit`, `npm run lint`, `npm run build`, and `git diff --check` passed. Domain-metrics statement coverage remains approximately 99.1%, scoped to metrics rather than total UI coverage. No API write routes, shared store/hooks, dependencies, migrations, or scoring/grouping rules changed in this phase.
+
+Browser environment: Browser plugin unavailable; temporary Playwright scripts reused existing Chromium at `http://127.0.0.1:3000`, America/New_York, reduced motion, 320×844 / 390×844 / 1280×844 viewports. Production build uses a fixture Supabase URL/key only in the build process environment; `.env.local` is unchanged. Reads/writes are intercepted fixtures. Page identity, meaningful content, framework-overlay absence, application-exception checks, responsive screenshots, and interactions pass. Intentional HTTP 401/500/503 failures produce expected resource-error console messages. Scripts/results/screenshots are `pepper-phase3-qa*`, `pepper-phase3-contract-*`, `pepper-phase3-extra*`, and repeated `pepper-header-*` outside the repository.
+
+These checks verify client behavior, not live Supabase persistence or actual cross-device networking. Physical phones, Safari/home-screen resume, on-screen keyboards, screen readers, system text settings, and parents completing tasks without instructions remain unverified. Doubled browser text does not establish every OS/browser accessibility mode. Transport failure after server commit remains ambiguous; durable idempotency remains a Phase 4/API decision. Confirmations still operate on inferred walk groups: nearby outings/mixed walkers can remain grouped until explicit identity is implemented. No deployment or database changes occurred.
+
+### Phase 4 boundary
+
+Neither remains approved for occasional outings without bathroom outcomes. Necessary migrations remain authorized once concrete design, historical-data handling, verification, and recovery are presented. Phase 3 **does not expose Neither or execute migrations**. Retain the dedicated-walk-parent/additive-FK proposal, auditable mapping/backfill preview, count/point comparison, ambiguous-history review, atomic RPC permissions, and backup/compatibility recovery approach below. Present the specific schema/API release and goals/points behavior together before execution; timestamps cannot establish certain historical identity.
+
+## Phase 4: Accurate walk records and a Neither outcome
 
 Implement R5 only after presenting the data-model proposal, migration strategy, and compatibility implications. Begin investigating the issue in Phase 1; it is a correctness concern, not cosmetic backlog.
+
+User decisions recorded October 12, 2026: Neither is approved for occasional outings where Pepper does not pee or poop. The user also authorizes applying database migrations if needed for the agreed implementation. Present the concrete schema/API changes, ambiguous-history backfill approach, verification, and recovery plan before execution. This authorization carries forward; no migration is required or applied during Phase 3 layout work.
 
 ### Confirmed concern
 
@@ -198,7 +288,7 @@ Implement R5 only after presenting the data-model proposal, migration strategy, 
 - Plan how ambiguous historical groups will be handled. Existing timestamps alone cannot reliably reconstruct every original outing, so document uncertainty rather than silently inventing certainty.
 - Update relevant API routes, RPCs, types, metrics, history, analytics, and editing/deletion behavior together.
 - Include a staged migration, backup/verification approach, and recovery plan. Do not apply a live database migration as an incidental part of a frontend change.
-- Ask whether the family wants to track outings where Pepper does neither. If requested, add a clearly labeled Neither outcome. Current validation and storage require poop or pee, so this needs coordinated data and UI changes.
+- Add the approved, clearly labeled Neither outcome for an outing with no poop or pee. Current validation and storage require poop or pee, so this needs coordinated data and UI changes.
 - Decide how any new outcome affects goals, counts, and points before implementing it.
 
 ### Acceptance checks
@@ -208,7 +298,7 @@ Implement R5 only after presenting the data-model proposal, migration strategy, 
 - Poop and pee from one outing remain associated with that outing.
 - Editing or deleting an outing affects only that outing.
 - Existing records remain available and scoring changes are explained and verified.
-- If Neither is approved, it creates a valid outing without inventing a bathroom event.
+- Neither creates a valid outing without inventing a bathroom event.
 
 ### Relevant source
 
@@ -253,4 +343,4 @@ R10 applies throughout every phase, with a dedicated final pass.
 
 ## Recommended next scope
 
-Proceed with Phase 2: agree shared ownership/refresh rules, separate walk availability from scoring errors, then share reminder/day-scoped reads and add foreground/calendar-boundary refresh. Carry the walk-identity proposal to a concrete migration/backfill review before Phase 3 layout work. Arrange real-device/live-persistence validation alongside that work; the Phase 1 simulated browser evidence cannot replace it.
+Phase 3 local implementation is complete. Gather family feedback on the expanded log below daily care and verify actual phones/live persistence in Phase 5. Next present the concrete Phase 4 explicit-walk/Neither schema, atomic API, goals/points, ambiguous-history/backfill preview, verification, and recovery design before using the existing migration authorization. Keep that data work separate from this frontend release.
