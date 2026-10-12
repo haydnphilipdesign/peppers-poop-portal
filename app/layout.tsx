@@ -1,23 +1,35 @@
 import type { Metadata, Viewport } from "next";
-import { Cormorant_Garamond, Source_Sans_3, Geist_Mono } from "next/font/google";
+import localFont from "next/font/local";
 import { UserProvider } from "@/lib/user-context";
 import "./globals.css";
 
-const headingFont = Cormorant_Garamond({
+// Bundle fonts with the app so builds never depend on Google Fonts responses.
+const headingFont = localFont({
+  src: "./fonts/cormorant-garamond-latin.woff2",
   variable: "--font-heading",
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
+  weight: "400 700",
+  style: "normal",
+  display: "swap",
+  adjustFontFallback: "Times New Roman",
+  fallback: ["Georgia", "serif"],
 });
 
-const bodyFont = Source_Sans_3({
+const bodyFont = localFont({
+  src: "./fonts/source-sans-3-latin.woff2",
   variable: "--font-body",
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
+  weight: "400 700",
+  style: "normal",
+  display: "swap",
+  fallback: ["Segoe UI", "sans-serif"],
 });
 
-const geistMono = Geist_Mono({
+const geistMono = localFont({
+  src: "./fonts/geist-mono-latin.woff2",
   variable: "--font-geist-mono",
-  subsets: ["latin"],
+  weight: "100 900",
+  style: "normal",
+  display: "swap",
+  fallback: ["monospace"],
 });
 
 export const metadata: Metadata = {
