@@ -3,6 +3,7 @@
 import { useRef, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { DeleteConfirmation, isUnchangedWalk } from './delete-confirmation'
+import { walkOutcomeLabel } from '@/lib/domain/metrics'
 import { SaveFeedback } from '@/components/save-feedback'
 import { Button } from '@/components/ui/button'
 import { useReadOnly } from '@/lib/read-only-context'
@@ -66,7 +67,7 @@ export function WalkHistory({
     }
 
     const handleSaveEdit = async () => {
-        if (!editingWalk || (!editPoop && !editPee) || isReadOnly || updatesBlocked || saving.current) return
+        if (!editingWalk || isReadOnly || updatesBlocked || saving.current) return
 
         const [hours, minutes] = editTime.split(':').map(Number)
         const newTime = new Date(editingWalk.time)
@@ -112,7 +113,7 @@ export function WalkHistory({
     const deleteConfirmation = (
         <DeleteConfirmation
             open={Boolean(deleteTarget)}
-            description={deleteTarget ? `Walk on ${deleteTarget.time.toLocaleDateString()} at ${deleteTarget.timeFormatted} by ${deleteTarget.userName} (${[deleteTarget.hasPoop && 'poop', deleteTarget.hasPee && 'pee'].filter(Boolean).join(' and ')}).` : ''}
+            description={deleteTarget ? `Walk on ${deleteTarget.time.toLocaleDateString()} at ${deleteTarget.timeFormatted} by ${deleteTarget.userName} (${walkOutcomeLabel(deleteTarget)}).` : ''}
             pending={Boolean(deletingWalkId)}
             blocked={isReadOnly || updatesBlocked || targetChanged}
             error={targetChanged && !deletingWalkId ? 'This walk changed or was removed. Cancel and review the current walk log before removing.' : error}
@@ -199,7 +200,7 @@ export function WalkHistory({
                                                 onClick={() => setEditUser(user)}
                                                 className={`min-h-11 min-w-11 px-3 py-2 rounded-md text-sm transition-all ${editUser === user
                                                     ? 'bg-primary text-primary-foreground'
-                                                    : 'bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+                                                    : 'bg-muted text-foreground hover:bg-accent hover:text-accent-foreground'
                                                     }`}
                                             >
                                                 {userEmojis[user]} {user}
@@ -237,11 +238,12 @@ export function WalkHistory({
                                     </button>
                                 </div>
 
+                                <Button variant="outline" disabled={updatesBlocked || isReadOnly || isSaving} aria-pressed={!editPoop && !editPee} onClick={() => { setEditPoop(false); setEditPee(false) }}>Neither</Button>
                                 {/* Save button */}
                                 <div className="flex gap-2 pt-1">
                                     <Button
                                         onClick={handleSaveEdit}
-                                        disabled={updatesBlocked || isReadOnly || isSaving || !editTime || (!editPoop && !editPee)}
+                                        disabled={updatesBlocked || isReadOnly || isSaving || !editTime}
                                         className="min-h-11 flex-1"
                                         size="sm"
                                     >
@@ -256,7 +258,7 @@ export function WalkHistory({
                             >
                                 <div className="flex items-center gap-3">
                                     {/* Time */}
-                                    <span className="text-sm font-mono font-medium text-muted-foreground min-w-[70px]">
+                                    <span className="text-sm font-mono font-medium text-foreground min-w-[70px]">
                                         {walk.timeFormatted}
                                     </span>
 
@@ -271,9 +273,11 @@ export function WalkHistory({
 
                                 <div className="flex items-center gap-2">
                                     {/* What Pepper did */}
-                                    <div className="flex items-center gap-1 text-2xl">
+                                    <div className="flex flex-wrap items-center gap-1 text-2xl">
                                         {walk.hasPoop && <span title="Poop">💩</span>}
                                         {walk.hasPee && <span title="Pee">💦</span>}
+                                        {!walk.hasPoop && !walk.hasPee && <span className="text-sm">Neither</span>}
+                                        {walk.provenance === 'legacy_estimate' && <span className="text-xs text-muted-foreground">Historical estimate</span>}
                                     </div>
 
                                     {/* Keep editing controls visible for touch and keyboard users. */}

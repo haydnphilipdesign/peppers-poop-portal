@@ -127,6 +127,29 @@ textarea {
   min-height: 44px;
 }
 
+/* A solid indicator stays legible on both the tinted cards and dark surfaces. */
+:where(button, a, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 3px;
+}
+
+/* Vaul's drag backdrop sits below the drawer. When the drawer itself scrolls,
+   that pseudo-element otherwise scrolls over the form and intercepts taps. */
+[data-slot="drawer-content"][data-vaul-drawer]::after {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
 * {
   -webkit-tap-highlight-color: transparent;
 }

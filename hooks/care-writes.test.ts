@@ -18,6 +18,7 @@ vi.mock('@/lib/supabase', () => ({ supabase: {
         return query
     },
 } }))
+import { walkFixtures } from '@/lib/walk-test-fixtures'
 import { useHistory } from './use-history'
 import { useActivities } from './use-activities'
 import { useReminders } from './use-reminders'
@@ -53,7 +54,7 @@ describe('acknowledged care writes and mounted consumers', () => {
         write.mockReset()
         read.mockReset()
         records = { logs: [log], activities: [activity], reminders: [reminder] }
-        read.mockImplementation((table: string) => Promise.resolve({ data: records[table], error: null }))
+        read.mockImplementation((table: string) => Promise.resolve({ data: table === 'walks' ? walkFixtures(records.logs as Log[]) : records[table], error: null }))
         container = document.createElement('div')
         root = createRoot(container)
         await act(async () => root.render(React.createElement(CareDataProvider, null, React.createElement(Harness))))

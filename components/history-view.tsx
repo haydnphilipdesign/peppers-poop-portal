@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { format, isToday as isTodayDate, parseISO, setHours, setMinutes, startOfDay } from 'date-fns'
 import { CalendarDays, Check, Loader2, Pencil, Plus, Trash2 } from 'lucide-react'
 import { DeleteConfirmation, isUnchangedWalk } from './delete-confirmation'
+import { walkOutcomeLabel } from '@/lib/domain/metrics'
 import { SaveFeedback } from '@/components/save-feedback'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -65,6 +66,7 @@ export function HistoryView() {
 
     const [deleteTarget, setDeleteTarget] = useState<{ walk: Walk } | { routine: RoutineStatus } | null>(null)
     const saving = useRef(false)
+    const addDraftId = useRef<string | undefined>(undefined)
     const [saveTarget, setSaveTarget] = useState<string | null>(null)
     const [saveError, setSaveError] = useState<string | null>(null)
     const [saved, setSaved] = useState(false)
@@ -73,6 +75,7 @@ export function HistoryView() {
     const [addTime, setAddTime] = useState(getDefaultWalkTimeValue)
     const [addPoop, setAddPoop] = useState(false)
     const [addPee, setAddPee] = useState(false)
+    const [addNeither, setAddNeither] = useState(false)
     const [isAddingWalk, setIsAddingWalk] = useState(false)
 
     const [editingWalk, setEditingWalk] = useState<Walk | null>(null)
@@ -110,6 +113,7 @@ export function HistoryView() {
         setAddTime(getDefaultWalkTimeValue())
         setAddPoop(false)
         setAddPee(false)
+        setAddNeither(false)
         setEditingWalk(null)
         setEditingRoutine(null)
         setDeleteTarget(null)
@@ -129,7 +133,7 @@ export function HistoryView() {
     }
 
     const handleAddWalk = async () => {
-        if (!user || isReadOnly || isRefreshing || Boolean(error) || saving.current || !addTime || (!addPoop && !addPee)) return
+        if (!user || isReadOnly || isRefreshing || Boolean(error) || saving.current || !addTime || (!addPoop && !addPee && !addNeither)) return
 
         saving.current = true
         setSaveTarget('add-walk')
@@ -138,6 +142,7 @@ export function HistoryView() {
         setIsAddingWalk(true)
         try {
             await addWalk({
+                draftId: addDraftId.current,
                 poop: addPoop,
                 pee: addPee,
                 userName: addWalker,
@@ -148,6 +153,7 @@ export function HistoryView() {
             setAddTime(getDefaultWalkTimeValue())
             setAddPoop(false)
             setAddPee(false)
+            setAddNeither(false)
             setAddWalker(user)
             setSaved(true)
         } catch (err) {
@@ -159,7 +165,7 @@ export function HistoryView() {
     }
 
     const handleSaveWalk = async () => {
-        if (!editingWalk || isReadOnly || isRefreshing || Boolean(error) || saving.current || !editTime || (!editPoop && !editPee)) return
+        if (!editingWalk || isReadOnly || isRefreshing || Boolean(error) || saving.current || !editTime) return
 
         saving.current = true
         setSaveTarget(editingWalk.id)
@@ -268,7 +274,7 @@ export function HistoryView() {
             <DeleteConfirmation
                 open={Boolean(deleteTarget)}
                 description={deleteTarget ? 'walk' in deleteTarget
-                    ? `Walk on ${format(deleteTarget.walk.time, 'MMM d, yyyy')} at ${deleteTarget.walk.timeFormatted} by ${deleteTarget.walk.userName} (${[deleteTarget.walk.hasPoop && 'poop', deleteTarget.walk.hasPee && 'pee'].filter(Boolean).join(' and ')}).`
+                    ? `Walk on ${format(deleteTarget.walk.time, 'MMM d, yyyy')} at ${deleteTarget.walk.timeFormatted} by ${deleteTarget.walk.userName} (${walkOutcomeLabel(deleteTarget.walk)}).`
                     : `${deleteTarget.routine.label} on ${fullDateLabel}, done by ${deleteTarget.routine.assignedTo}.` : ''}
                 pending={Boolean(deletingWalkId || deletingRoutine)}
                 blocked={careBusy || deleteTargetChanged}
@@ -366,17 +372,17 @@ export function HistoryView() {
                                 <div className="flex items-center gap-1.5 rounded-lg bg-green-500/10 px-3 py-2 text-green-600 dark:text-green-400">
                                     <span>🦮</span>
                                     <span className="font-semibold">{dayStats.walksCount}</span>
-                                    <span className="opacity-60">walks</span>
+                                    <span className="text-foreground">walks</span>
                                 </div>
                                 <div className="flex items-center gap-1.5 rounded-lg bg-amber-500/10 px-3 py-2 text-amber-600 dark:text-amber-400">
                                     <span>💩</span>
                                     <span className="font-semibold">{dayStats.poopCount}</span>
-                                    <span className="opacity-60">poops</span>
+                                    <span className="text-foreground">poops</span>
                                 </div>
                                 <div className="flex items-center gap-1.5 rounded-lg bg-blue-500/10 px-3 py-2 text-blue-600 dark:text-blue-400">
                                     <span>💦</span>
                                     <span className="font-semibold">{dayStats.peeCount}</span>
-                                    <span className="opacity-60">pees</span>
+                                    <span className="text-foreground">pees</span>
                                 </div>
                             </div>
 
@@ -399,7 +405,7 @@ export function HistoryView() {
                                             </div>
 
                                             {status.isComplete ? (
-                                                <div className="flex items-center gap-2 text-sm font-medium text-emerald-500">
+                                                <div className="flex items-center gap-2 text-sm font-medium text-emerald-700 dark:text-emerald-300">
                                                     <Check className="h-4 w-4" />
                                                     <span>{status.assignedTo}</span>
                                                 </div>
@@ -424,7 +430,7 @@ export function HistoryView() {
                                         size="sm"
                                         variant={showAddWalk ? 'outline' : 'secondary'}
                                         disabled={careBusy}
-                                        onClick={() => setShowAddWalk((open) => !open)}
+                                        onClick={() => { if (!showAddWalk) addDraftId.current = crypto.randomUUID(); setShowAddWalk((open) => !open) }}
                                     >
                                         <Plus className="mr-1 h-4 w-4" />
                                         {showAddWalk ? 'Cancel' : 'Add Walk'}
@@ -462,7 +468,7 @@ export function HistoryView() {
                                                     onClick={() => setAddWalker(walkUser)}
                                                     className={`min-h-11 min-w-11 rounded-md px-3 py-2 text-sm transition-all ${addWalker === walkUser
                                                         ? 'bg-primary text-primary-foreground'
-                                                        : 'bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+                                                        : 'bg-muted text-foreground hover:bg-accent hover:text-accent-foreground'
                                                         }`}
                                                 >
                                                     {userEmojis[walkUser]} {walkUser}
@@ -476,7 +482,7 @@ export function HistoryView() {
                                         <button
                                             disabled={careBusy}
                                             aria-label="Poop" aria-pressed={addPoop}
-                                            onClick={() => setAddPoop((value) => !value)}
+                                            onClick={() => { setAddPoop((value) => !value); setAddNeither(false) }}
                                             className={`min-h-11 min-w-11 rounded-lg px-3 py-2 text-lg transition-all ${addPoop
                                                 ? 'bg-amber-500/30 ring-2 ring-amber-500/50'
                                                 : 'bg-muted opacity-60 hover:opacity-80'
@@ -487,7 +493,7 @@ export function HistoryView() {
                                         <button
                                             disabled={careBusy}
                                             aria-label="Pee" aria-pressed={addPee}
-                                            onClick={() => setAddPee((value) => !value)}
+                                            onClick={() => { setAddPee((value) => !value); setAddNeither(false) }}
                                             className={`min-h-11 min-w-11 rounded-lg px-3 py-2 text-lg transition-all ${addPee
                                                 ? 'bg-blue-500/30 ring-2 ring-blue-500/50'
                                                 : 'bg-muted opacity-60 hover:opacity-80'
@@ -497,9 +503,10 @@ export function HistoryView() {
                                         </button>
                                     </div>
 
+                                    <Button variant="outline" disabled={careBusy} aria-pressed={addNeither} onClick={() => { setAddNeither(true); setAddPoop(false); setAddPee(false) }}>Neither</Button>
                                     <Button
                                         onClick={() => void handleAddWalk()}
-                                        disabled={careBusy || !addTime || (!addPoop && !addPee)}
+                                        disabled={careBusy || !addTime || (!addPoop && !addPee && !addNeither)}
                                         className="min-h-11 w-full sm:w-auto"
                                     >
                                         {isAddingWalk ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
@@ -553,7 +560,7 @@ export function HistoryView() {
                                                                 onClick={() => setEditUser(walkUser)}
                                                                 className={`min-h-11 min-w-11 rounded-md px-3 py-2 text-sm transition-all ${editUser === walkUser
                                                                     ? 'bg-primary text-primary-foreground'
-                                                                    : 'bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+                                                                    : 'bg-muted text-foreground hover:bg-accent hover:text-accent-foreground'
                                                                     }`}
                                                             >
                                                                 {userEmojis[walkUser]} {walkUser}
@@ -588,10 +595,11 @@ export function HistoryView() {
                                                     </button>
                                                 </div>
 
+                                                <Button variant="outline" disabled={careBusy} aria-pressed={!editPoop && !editPee} onClick={() => { setEditPoop(false); setEditPee(false) }}>Neither</Button>
                                                 <div className="flex gap-2 pt-1">
                                                     <Button
                                                         onClick={() => void handleSaveWalk()}
-                                                        disabled={careBusy || !editTime || (!editPoop && !editPee)}
+                                                        disabled={careBusy || !editTime}
                                                         className="flex-1"
                                                         size="sm"
                                                     >
@@ -602,10 +610,10 @@ export function HistoryView() {
                                             </div>
                                         ) : (
                                             <div
-                                                className={`group flex items-center justify-between rounded-xl border p-3 transition-all ${userColors[walk.userName]}`}
+                                                className={`group flex flex-wrap gap-2 items-center justify-between rounded-xl border p-3 transition-all ${userColors[walk.userName]}`}
                                             >
                                                 <div className="flex items-center gap-3">
-                                                    <span className="min-w-[70px] text-sm font-mono font-medium text-muted-foreground">
+                                                    <span className="min-w-[70px] text-sm font-mono font-medium text-foreground">
                                                         {walk.timeFormatted}
                                                     </span>
                                                     <div className="flex items-center gap-1.5">
@@ -617,9 +625,11 @@ export function HistoryView() {
                                                 </div>
 
                                                 <div className="flex items-center gap-2">
-                                                    <div className="flex items-center gap-1 text-2xl">
+                                                    <div className="flex flex-wrap items-center gap-1 text-2xl">
                                                         {walk.hasPoop && <span title="Poop">💩</span>}
                                                         {walk.hasPee && <span title="Pee">💦</span>}
+                                                        {!walk.hasPoop && !walk.hasPee && <span className="text-sm">Neither</span>}
+                                                        {walk.provenance === 'legacy_estimate' && <span className="text-xs text-muted-foreground">Historical estimate</span>}
                                                     </div>
 
                                                     {!isReadOnly && (
@@ -680,7 +690,7 @@ export function HistoryView() {
                                                 <p className="font-medium text-foreground">{status.label}</p>
                                                 <p className="text-xs text-muted-foreground">{status.description}</p>
                                                 {status.isComplete ? (
-                                                    <p className="mt-1 text-sm text-emerald-500">
+                                                    <p className="mt-1 text-sm text-emerald-700 dark:text-emerald-300">
                                                         Logged for {fullDateLabel} by <strong>{status.assignedTo}</strong>
                                                     </p>
                                                 ) : (

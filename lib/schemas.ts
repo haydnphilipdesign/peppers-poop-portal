@@ -12,34 +12,16 @@ const isoDateSchema = z
   .string()
   .regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format (expected yyyy-MM-dd)");
 
-export const walkCreateSchema = z
-  .object({
-    userName: userNameSchema,
-    createdAt: isoDateTimeSchema.optional(),
-    poop: z.boolean(),
-    pee: z.boolean(),
-  })
-  .refine((data) => data.poop || data.pee, {
-    message: "A walk must include at least one log type",
-    path: ["poop"],
-  });
-
-export const walkUpdateSchema = z
-  .object({
-    logIds: z.array(uuidSchema).min(1, "At least one log id is required"),
-    userName: userNameSchema,
-    createdAt: isoDateTimeSchema,
-    poop: z.boolean(),
-    pee: z.boolean(),
-  })
-  .refine((data) => data.poop || data.pee, {
-    message: "A walk must include at least one log type",
-    path: ["poop"],
-  });
-
-export const walkDeleteSchema = z.object({
-  logIds: z.array(uuidSchema).min(1, "At least one log id is required"),
+export const walkCreateSchema = z.object({
+  requestId: uuidSchema, userName: userNameSchema, createdAt: z.iso.datetime({ offset: true }),
+  poop: z.boolean(), pee: z.boolean(),
+}).strict();
+export const walkUpdateSchema = walkCreateSchema.extend({
+  walkId: uuidSchema, expectedRevision: z.number().int().positive(),
 });
+export const walkDeleteSchema = z.object({
+  requestId: uuidSchema, walkId: uuidSchema, expectedRevision: z.number().int().positive(),
+}).strict();
 
 export const activityCreateSchema = z.object({
   type: activityTypeSchema,

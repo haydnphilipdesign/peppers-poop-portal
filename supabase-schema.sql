@@ -1,4 +1,6 @@
 -- Pepper's Portal Database Schema (hardened)
+-- Baseline bootstrap only. Do not rerun after explicit-walk migration:
+-- it would replace the upgraded RPCs and soft-delete read policy.
 -- Run this in your Supabase SQL Editor
 
 CREATE TABLE IF NOT EXISTS logs (

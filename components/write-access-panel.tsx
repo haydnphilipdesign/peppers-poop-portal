@@ -1,6 +1,6 @@
 'use client'
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useId, useState } from "react";
 import { Button } from "@/components/ui/button";
 
 interface WriteAccessPanelProps {
@@ -15,6 +15,8 @@ export function WriteAccessPanel({
   error,
 }: WriteAccessPanelProps) {
   const [pin, setPin] = useState("");
+  const pinId = useId();
+  const errorId = useId();
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -36,29 +38,37 @@ export function WriteAccessPanel({
         Data stays visible while locked. Editing controls activate after unlock.
       </p>
 
-      <form className="mt-4 flex gap-2" onSubmit={handleSubmit}>
-        <input
-          type="password"
-          inputMode="numeric"
-          autoComplete="one-time-code"
-          value={pin}
-          onChange={(event) => setPin(event.target.value)}
-          className="h-11 min-w-0 flex-1 rounded-lg border border-amber-800/20 bg-white px-3 text-base outline-none ring-0 transition focus:border-amber-700 dark:border-amber-700/30 dark:bg-input dark:text-foreground dark:focus:border-amber-500"
-          placeholder="Family PIN"
-          aria-label="Family PIN"
-          disabled={isLoading}
-        />
+      <form className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-end" onSubmit={handleSubmit}>
+        <label htmlFor={pinId} className="min-w-0 flex-1 space-y-1 text-sm font-medium">
+          <span className="block">Family PIN</span>
+          <input
+            id={pinId}
+            type="password"
+            inputMode="numeric"
+            autoComplete="one-time-code"
+            value={pin}
+            onChange={(event) => setPin(event.target.value)}
+            className="min-h-11 w-full min-w-0 rounded-lg border border-amber-800/20 bg-white px-3 py-2 text-base transition focus:border-amber-700 dark:border-amber-700/30 dark:bg-input dark:text-foreground dark:focus:border-amber-500"
+            placeholder="Family PIN"
+            aria-label="Family PIN"
+            aria-invalid={error === "That PIN is incorrect."}
+            aria-describedby={error ? errorId : undefined}
+            disabled={isLoading}
+          />
+        </label>
         <Button
           type="submit"
-          className="h-11 bg-stone-900 px-4 text-sm text-amber-50 hover:bg-stone-800 dark:bg-amber-200 dark:text-stone-900 dark:hover:bg-amber-100"
+          className="min-h-11 bg-stone-900 px-4 text-sm text-amber-50 hover:bg-stone-800 dark:bg-amber-200 dark:text-stone-900 dark:hover:bg-amber-100"
           disabled={isLoading || pin.trim().length < 4}
         >
           {isLoading ? "Checking..." : "Unlock"}
         </Button>
       </form>
 
+      {isLoading ? <p role="status" className="mt-3 text-sm">Checking PIN...</p> : null}
+
       {error ? (
-        <p role="alert" className="mt-3 text-sm font-medium text-red-700 dark:text-red-300">{error}</p>
+        <p id={errorId} role="alert" className="mt-3 text-sm font-medium text-red-700 dark:text-red-300">{error}</p>
       ) : null}
     </section>
   );

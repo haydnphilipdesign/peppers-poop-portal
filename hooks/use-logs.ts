@@ -3,15 +3,14 @@
 import { useMemo } from 'react'
 import { dateRange, useCareCalendar, useCareResource } from '@/lib/care-data-context'
 import { careReadError } from '@/lib/care-data-store'
-import { apiFetch } from '@/lib/api-client'
-import type { ApiSuccessResponse, WalkCreateRequest, WalkDeleteRequest, WalkUpdateRequest } from '@/lib/api-types'
+import { useWalkMutation } from '@/hooks/use-walk-mutation'
+import type { WalkCreateDraft, WalkDeleteRequest, WalkUpdateRequest } from '@/lib/api-types'
 import type { Log, LogType, UserName } from '@/lib/database.types'
 import {
     calculatePoopStreak,
     calculateMonthlyPoints,
     filterRemindersForMonth,
-    getLatestWalkFromLogs,
-    groupLogsIntoWalks,
+    recordsToWalks,
     type Walk,
 } from '@/lib/domain/metrics'
 import { endOfDay, endOfMonth, startOfDay, startOfMonth, subDays } from 'date-fns'
@@ -26,7 +25,7 @@ interface UseLogsReturn {
     hasLoaded: boolean
     error: string | null
     addLog: (type: LogType, userName: UserName, createdAt?: Date) => Promise<void>
-    addWalk: (options: { poop: boolean; pee: boolean; userName: UserName; createdAt?: Date }) => Promise<void>
+    addWalk: (options: { draftId?: string; poop: boolean; pee: boolean; userName: UserName; createdAt?: Date }) => Promise<void>
     deleteWalk: (walk: Walk) => Promise<void>
     updateWalk: (walk: Walk, updates: { poop: boolean; pee: boolean; userName: UserName; time: Date }) => Promise<void>
     refetch: () => Promise<void>
@@ -44,36 +43,40 @@ interface UseLogsReturn {
 }
 
 export function useLogs(): UseLogsReturn {
+    const mutateWalk = useWalkMutation()
     const { now } = useCareCalendar()
-    const today = useCareResource('logs', dateRange(now))
-    const month = useCareResource('logs', dateRange(now, true))
-    const recent = useCareResource('logs', { start: startOfDay(subDays(now, 30)).toISOString(), end: endOfDay(now).toISOString() })
+    const today = useCareResource('walks', dateRange(now))
+    const todayOutcomes = useCareResource('logs', dateRange(now))
+    const recentOutcomes = useCareResource('logs', { start: startOfDay(subDays(now, 30)).toISOString(), end: endOfDay(now).toISOString() })
+    const month = useCareResource('walks', dateRange(now, true))
+    const recent = useCareResource('walks', { start: startOfDay(subDays(now, 30)).toISOString(), end: endOfDay(now).toISOString() })
     const activities = useCareResource('activities', dateRange(now, true))
     const reminders = useCareResource('reminders')
-    const todayLogs = useMemo(() => today.data ?? [], [today.data])
-    const monthlyLogs = useMemo(() => month.data ?? [], [month.data])
-    const allLogs = useMemo(() => recent.data ?? [], [recent.data])
+    const todayLogs = useMemo(() => todayOutcomes.data ?? [], [todayOutcomes.data])
+    const monthlyLogs = useMemo(() => month.data?.flatMap(walk => walk.logs) ?? [], [month.data])
+    const allLogs = useMemo(() => recentOutcomes.data ?? [], [recentOutcomes.data])
     const monthlyActivities = useMemo(() => activities.data ?? [], [activities.data])
     const monthlyReminders = useMemo(() => filterRemindersForMonth(reminders.data ?? [], startOfMonth(now), endOfMonth(now)), [reminders.data, now])
-    const hasLoaded = today.data !== null
-    const isLoading = today.isLoading
-    const isRefreshing = today.pending && hasLoaded
-    const error = careReadError(today, 'care data')
+    const hasLoaded = today.data !== null && todayOutcomes.data !== null
+    const isLoading = today.isLoading || todayOutcomes.isLoading
+    const isRefreshing = (today.pending || todayOutcomes.pending) && hasLoaded
+    const error = careReadError(today, 'care data') ?? careReadError(todayOutcomes, 'care data')
     const latestError = careReadError(recent, 'latest walk')
     const scoringError = careReadError(month, 'leaderboard') ?? careReadError(activities, 'leaderboard') ?? careReadError(reminders, 'leaderboard')
     const scoringHasLoaded = month.data !== null && activities.data !== null && reminders.data !== null
-    const refetch = async () => { await Promise.all([today.refetch(), recent.refetch()]) }
+    const refetch = async () => { await Promise.all([today.refetch(), todayOutcomes.refetch(), recent.refetch(), recentOutcomes.refetch()]) }
     const refetchScoring = async () => { await Promise.all([month.refetch(), activities.refetch(), reminders.refetch()]) }
 
-    const addWalk = async (options: { poop: boolean; pee: boolean; userName: UserName; createdAt?: Date }) => {
-        await apiFetch<ApiSuccessResponse>('/api/walks', {
+    const addWalk = async (options: { draftId?: string; poop: boolean; pee: boolean; userName: UserName; createdAt?: Date }) => {
+        await mutateWalk({
             method: 'POST',
             body: JSON.stringify({
+                draftId: options.draftId,
                 poop: options.poop,
                 pee: options.pee,
                 userName: options.userName,
                 createdAt: options.createdAt?.toISOString(),
-            } satisfies WalkCreateRequest),
+            } satisfies WalkCreateDraft),
         })
 
         // The event refreshes this hook and other care sections once. Saving
@@ -91,11 +94,11 @@ export function useLogs(): UseLogsReturn {
     }
 
     const deleteWalk = async (walk: Walk) => {
-        await apiFetch<ApiSuccessResponse>('/api/walks', {
+        await mutateWalk({
             method: 'DELETE',
             body: JSON.stringify({
-                logIds: walk.logs.map(log => log.id),
-            } satisfies WalkDeleteRequest),
+                walkId: walk.id, expectedRevision: walk.revision,
+            } satisfies Omit<WalkDeleteRequest, 'requestId'>),
         })
 
         window.dispatchEvent(new Event('ppp:data-changed'))
@@ -105,15 +108,15 @@ export function useLogs(): UseLogsReturn {
         walk: Walk,
         updates: { poop: boolean; pee: boolean; userName: UserName; time: Date }
     ) => {
-        await apiFetch<ApiSuccessResponse>('/api/walks', {
+        await mutateWalk({
             method: 'PATCH',
             body: JSON.stringify({
-                logIds: walk.logs.map(log => log.id),
+                walkId: walk.id, expectedRevision: walk.revision,
                 poop: updates.poop,
                 pee: updates.pee,
                 userName: updates.userName,
                 createdAt: updates.time.toISOString(),
-            } satisfies WalkUpdateRequest),
+            } satisfies Omit<WalkUpdateRequest, 'requestId'>),
         })
 
         window.dispatchEvent(new Event('ppp:data-changed'))
@@ -128,13 +131,13 @@ export function useLogs(): UseLogsReturn {
         [todayLogs]
     )
 
-    const todayWalks = useMemo(() => groupLogsIntoWalks(todayLogs), [todayLogs])
-    const latestWalk = useMemo(() => getLatestWalkFromLogs(allLogs), [allLogs])
+    const todayWalks = useMemo(() => recordsToWalks(today.data ?? []), [today.data])
+    const latestWalk = useMemo(() => recordsToWalks(recent.data ?? []).at(-1) ?? null, [recent.data])
 
     const todayWalksCount = todayWalks.length
     const monthlyPoints = useMemo(
-        () => calculateMonthlyPoints(monthlyLogs, monthlyActivities, monthlyReminders),
-        [monthlyActivities, monthlyLogs, monthlyReminders]
+        () => calculateMonthlyPoints(monthlyLogs, monthlyActivities, monthlyReminders, recordsToWalks(month.data ?? [])),
+        [monthlyActivities, monthlyLogs, monthlyReminders, month.data]
     )
 
     const streak = calculatePoopStreak(allLogs)

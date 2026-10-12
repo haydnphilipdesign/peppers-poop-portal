@@ -24,6 +24,7 @@ vi.mock('@/lib/supabase', () => ({ supabase: {
         return query
     },
 } }))
+import { walkFixtures } from '@/lib/walk-test-fixtures'
 import { useLogs } from './use-logs'
 import { useActivities } from './use-activities'
 import { useReminders } from './use-reminders'
@@ -67,7 +68,7 @@ describe('shared snapshots and foreground/calendar freshness', () => {
         return React.createElement(LastWalkCard, { walk: l.latestWalk, isLoading: l.latestIsLoading })
     }
     function serve() {
-        read.mockImplementation((scope: CareQuery) => Promise.resolve(ok(records[scope.table].filter(row => {
+        read.mockImplementation((scope: CareQuery) => Promise.resolve(ok((scope.table === 'walks' ? walkFixtures(records.logs) : records[scope.table]).filter(row => {
             const time = row.created_at
             return (!scope.start || time >= scope.start) && (!scope.end || time <= scope.end)
         }))))
@@ -107,7 +108,7 @@ describe('shared snapshots and foreground/calendar freshness', () => {
     })
 
     it.each(['activities', 'reminders'])('%s scoring failure cannot hide walks or today totals', async table => {
-        read.mockImplementation((scope: CareQuery) => Promise.resolve(scope.table === table ? failure : ok(scope.table === 'logs' ? [fixtureLog] : [])))
+        read.mockImplementation((scope: CareQuery) => Promise.resolve(scope.table === table ? failure : ok(scope.table === 'walks' ? walkFixtures([fixtureLog]) : scope.table === 'logs' ? [fixtureLog] : [])))
         await render()
         expect(logs.todayWalksCount).toBe(1)
         expect(logs.latestWalk?.userName).toBe('Chris')
@@ -121,7 +122,7 @@ describe('shared snapshots and foreground/calendar freshness', () => {
     it('publishes today without waiting for monthly or recent log reads', async () => {
         const pending = deferred<Result>()
         const scope = dateRange(start)
-        read.mockImplementation((query: CareQuery) => query.table === 'logs' && query.start !== scope.start ? pending.promise : Promise.resolve(ok(query.table === 'logs' ? [fixtureLog] : [])))
+        read.mockImplementation((query: CareQuery) => query.table === 'walks' && query.start !== scope.start ? pending.promise : Promise.resolve(ok(query.table === 'walks' ? walkFixtures([fixtureLog]) : query.table === 'logs' ? [fixtureLog] : [])))
         await render()
         expect(logs.todayWalksCount).toBe(1)
         expect(logs.isLoading).toBe(false)
@@ -257,7 +258,7 @@ describe('shared snapshots and foreground/calendar freshness', () => {
 
     it('isolates exact ranges and timezone scopes while sharing identical cache reads', async () => {
         const store = new CareDataStore()
-        const first = { table: 'logs' as const, ...dateRange(start), timezone: 'America/New_York' }
+        const first = { table: 'walks' as const, ...dateRange(start), timezone: 'America/New_York' }
         const second = { ...first, ...dateRange(new Date(2026, 9, 30)) }
         await store.read(first); await store.read(first)
         expect(read).toHaveBeenCalledTimes(1)

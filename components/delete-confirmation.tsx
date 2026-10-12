@@ -6,9 +6,9 @@ import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription, Dr
 import { SaveFeedback } from '@/components/save-feedback'
 import type { Walk } from '@/lib/domain/metrics'
 
-/** A foreground refresh can change an inferred group while confirmation is open. */
+/** Recheck parent metadata too: a Neither walk has no outcome rows. */
 export function isUnchangedWalk(target: Walk, current: Walk | undefined): boolean {
-    return Boolean(current && current.logs.length === target.logs.length && target.logs.every(log =>
+    return Boolean(current && current.id === target.id && current.revision === target.revision && current.time.getTime() === target.time.getTime() && current.userName === target.userName && current.hasPoop === target.hasPoop && current.hasPee === target.hasPee && current.logs.length === target.logs.length && target.logs.every(log =>
         current.logs.some(row => row.id === log.id && row.type === log.type && row.created_at === log.created_at && row.user_name === log.user_name)
     ))
 }

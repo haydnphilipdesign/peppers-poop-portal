@@ -31,7 +31,7 @@ export function CareDataProvider({ children }: { children: React.ReactNode }) {
             scope = next
             if (changed || refresh) {
                 setCalendar(next)
-                store.invalidate(['logs', 'activities', 'reminders'])
+                store.invalidate(['walks', 'logs', 'activities', 'reminders'])
             }
         }
         const tick = () => {
@@ -49,7 +49,7 @@ export function CareDataProvider({ children }: { children: React.ReactNode }) {
                 window.dispatchEvent(new Event('ppp:foreground'))
             }, 50)
         }
-        const changed = () => store.invalidate(['logs', 'activities'], true)
+        const changed = () => store.invalidate(['walks', 'logs', 'activities'], true)
         const remindersChanged = () => store.invalidate(['reminders'], true)
         window.addEventListener('ppp:data-changed', changed)
         window.addEventListener('ppp:reminders-changed', remindersChanged)

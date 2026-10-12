@@ -9,14 +9,20 @@ export interface ApiErrorResponse {
 }
 
 export interface WalkCreateRequest {
+  requestId: string;
   userName: UserName;
-  createdAt?: string;
+  createdAt: string;
   poop: boolean;
   pee: boolean;
 }
 
+// The client fixes an omitted occurrence time when it first creates a request.
+export type WalkCreateDraft = Omit<WalkCreateRequest, 'requestId' | 'createdAt'> & { createdAt?: string; draftId?: string };
+
 export interface WalkUpdateRequest {
-  logIds: string[];
+  requestId: string;
+  walkId: string;
+  expectedRevision: number;
   userName: UserName;
   createdAt: string;
   poop: boolean;
@@ -24,7 +30,9 @@ export interface WalkUpdateRequest {
 }
 
 export interface WalkDeleteRequest {
-  logIds: string[];
+  requestId: string;
+  walkId: string;
+  expectedRevision: number;
 }
 
 export interface ActivityCreateRequest {

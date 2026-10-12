@@ -61,6 +61,42 @@ describe('History failure recovery', () => {
         expect(container.textContent).toContain('Change saved.')
     })
 
+    it('requires an explicit outcome choice for creation and retains Neither on a failed save', async () => {
+        await act(async () => button('Add Walk').click())
+        expect(button('Save Walk').disabled).toBe(true)
+        await act(async () => button('Neither').click())
+        expect(button('Save Walk').disabled).toBe(false)
+        addWalk.mockRejectedValueOnce(new Error('Save unavailable'))
+        await act(async () => button('Save Walk').click())
+        expect(addWalk).toHaveBeenCalledWith(expect.objectContaining({ poop: false, pee: false }))
+        expect(button('Neither').getAttribute('aria-pressed')).toBe('true')
+        await act(async () => button('Poop').click())
+        expect(button('Neither').getAttribute('aria-pressed')).toBe('false')
+    })
+
+    it('can change a bathroom walk to Neither without disabling Save', async () => {
+        await act(async () => button('Edit walk').click())
+        await act(async () => button('Neither').click())
+        expect(button('Save Changes').disabled).toBe(false)
+        updateWalk.mockResolvedValueOnce(undefined)
+        await act(async () => button('Save Changes').click())
+        expect(updateWalk).toHaveBeenCalledWith(walk, expect.objectContaining({ poop: false, pee: false }))
+    })
+
+    it('retains create draft identity for retry, but changes it after cancel/reopen', async () => {
+        addWalk.mockRejectedValue(new Error('Unavailable'))
+        await act(async () => button('Add Walk').click())
+        await act(async () => button('Neither').click())
+        await act(async () => button('Save Walk').click())
+        const first = addWalk.mock.calls[0][0].draftId
+        await act(async () => button('Save Walk').click())
+        expect(addWalk.mock.calls[1][0].draftId).toBe(first)
+        await act(async () => button('Cancel').click())
+        await act(async () => button('Add Walk').click())
+        await act(async () => button('Save Walk').click())
+        expect(addWalk.mock.calls[2][0].draftId).not.toBe(first)
+    })
+
     it('retains the edit form and original record on failed edit and delete', async () => {
         updateWalk.mockRejectedValueOnce(new Error('Edit unavailable'))
         await act(async () => button('Edit walk').click())

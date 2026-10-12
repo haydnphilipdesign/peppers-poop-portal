@@ -1,108 +1,39 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getSupabaseAdmin } from "@/lib/server/supabase-admin";
-import { requireWriteSession } from "@/lib/server/write-auth";
-import {
-  walkCreateSchema,
-  walkDeleteSchema,
-  walkUpdateSchema,
-} from "@/lib/schemas";
+import { NextRequest, NextResponse } from 'next/server'
+import { getSupabaseAdmin } from '@/lib/server/supabase-admin'
+import { requireWriteSession } from '@/lib/server/write-auth'
+import { walkCreateSchema, walkDeleteSchema, walkUpdateSchema } from '@/lib/schemas'
 
-export async function POST(request: NextRequest) {
-  const unauthorized = requireWriteSession(request);
-  if (unauthorized) {
-    return unauthorized;
-  }
-
-  try {
-    const body = await request.json();
-    const parsed = walkCreateSchema.safeParse(body);
-    if (!parsed.success) {
-      return NextResponse.json({ error: "Invalid walk payload." }, { status: 400 });
+async function mutate(request: NextRequest, operation: 'create' | 'update' | 'delete') {
+    const unauthorized = requireWriteSession(request)
+    if (unauthorized) return unauthorized
+    let body: unknown
+    try { body = await request.json() } catch {
+        return NextResponse.json({ error: 'Invalid walk payload.' }, { status: 400 })
     }
-
-    const supabase = getSupabaseAdmin();
-    const { data, error } = await supabase.rpc("insert_walk", {
-      p_created_at: parsed.data.createdAt ?? new Date().toISOString(),
-      p_user_name: parsed.data.userName,
-      p_has_poop: parsed.data.poop,
-      p_has_pee: parsed.data.pee,
-    } as never);
-
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+    const schema = operation === 'create' ? walkCreateSchema : operation === 'update' ? walkUpdateSchema : walkDeleteSchema
+    const parsed = schema.safeParse(body)
+    if (!parsed.success) return NextResponse.json({ error: 'Invalid walk payload. Reload the app if it is out of date.' }, { status: 400 })
+    const value = parsed.data
+    try {
+        const { data, error } = await getSupabaseAdmin().rpc('mutate_walk_v2', {
+            p_request_id: value.requestId, p_operation: operation,
+            p_walk_id: 'walkId' in value ? value.walkId : null,
+            p_expected_revision: 'expectedRevision' in value ? value.expectedRevision : null,
+            p_created_at: 'createdAt' in value ? value.createdAt : null,
+            p_user_name: 'userName' in value ? value.userName : null,
+            p_has_poop: 'poop' in value ? value.poop : null,
+            p_has_pee: 'pee' in value ? value.pee : null,
+        })
+        if (error) {
+            const conflict = error.code === 'P0001'
+            return NextResponse.json({ error: conflict ? 'This walk or request changed. Refresh and select the walk again.' : 'Unable to save the walk. Please retry your entry.' }, { status: conflict ? 409 : 500 })
+        }
+        return NextResponse.json({ success: true, ...data })
+    } catch {
+        return NextResponse.json({ error: 'Walk saving is unavailable. Please retry your entry.' }, { status: 503 })
     }
-
-    return NextResponse.json({ success: true, logIds: data ?? [] });
-  } catch {
-    return NextResponse.json(
-      { error: "Unable to process walk creation." },
-      { status: 400 }
-    );
-  }
 }
 
-export async function PATCH(request: NextRequest) {
-  const unauthorized = requireWriteSession(request);
-  if (unauthorized) {
-    return unauthorized;
-  }
-
-  try {
-    const body = await request.json();
-    const parsed = walkUpdateSchema.safeParse(body);
-    if (!parsed.success) {
-      return NextResponse.json({ error: "Invalid walk payload." }, { status: 400 });
-    }
-
-    const supabase = getSupabaseAdmin();
-    const { data, error } = await supabase.rpc("replace_walk", {
-      p_log_ids: parsed.data.logIds,
-      p_created_at: parsed.data.createdAt,
-      p_user_name: parsed.data.userName,
-      p_has_poop: parsed.data.poop,
-      p_has_pee: parsed.data.pee,
-    } as never);
-
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    }
-
-    return NextResponse.json({ success: true, logIds: data ?? [] });
-  } catch {
-    return NextResponse.json(
-      { error: "Unable to process walk update." },
-      { status: 400 }
-    );
-  }
-}
-
-export async function DELETE(request: NextRequest) {
-  const unauthorized = requireWriteSession(request);
-  if (unauthorized) {
-    return unauthorized;
-  }
-
-  try {
-    const body = await request.json();
-    const parsed = walkDeleteSchema.safeParse(body);
-    if (!parsed.success) {
-      return NextResponse.json({ error: "Invalid walk payload." }, { status: 400 });
-    }
-
-    const supabase = getSupabaseAdmin();
-    const { error } = await supabase.rpc("delete_walk", {
-      p_log_ids: parsed.data.logIds,
-    } as never);
-
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    }
-
-    return NextResponse.json({ success: true });
-  } catch {
-    return NextResponse.json(
-      { error: "Unable to process walk deletion." },
-      { status: 400 }
-    );
-  }
-}
+export const POST = (request: NextRequest) => mutate(request, 'create')
+export const PATCH = (request: NextRequest) => mutate(request, 'update')
+export const DELETE = (request: NextRequest) => mutate(request, 'delete')

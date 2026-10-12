@@ -29,10 +29,16 @@ PEPPERS_PORTAL_PIN=...
 PEPPERS_PORTAL_SESSION_SECRET=...
 ```
 
-3. Apply Supabase schema scripts:
+3. For a new database, apply the baseline Supabase schema scripts:
 
 - `supabase-schema.sql`
 - `supabase-activities-schema.sql`
+
+Then follow [the Phase 4 migration procedure](docs/phase4-walk-design.md) to apply `migrations/001-explicit-walks.sql`, review/export `002-backfill-preview.sql`, run the reviewed backfill, and apply `003-verify-and-constrain.sql`. This app requires the explicit walk schema. For an existing database, start with the migration procedure and a verified backup; do not rerun the baseline scripts on an upgraded database.
+
+Neither earns five walk points and counts toward the walk goal, with no bathroom events. Existing ambiguous groups are labeled Historical estimate. Bathroom goals/streaks continue using original outcome timestamps; the backfill preview identifies changes to calendar-scoped walk counts/points.
+
+Run disposable PostgreSQL verification with `node scripts/verify-walk-migration.mjs`. It needs `@electric-sql/pglite` available outside the project; set `PGLITE_MODULE` to that package's absolute directory if it is not on Node's module path. It creates an in-memory database and never connects to Supabase. No dependency was added to the application.
 
 4. Run locally:
 

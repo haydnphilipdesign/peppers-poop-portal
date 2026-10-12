@@ -41,13 +41,15 @@ export function LastWalkCard({ walk, isLoading = false, error, isRefreshing = fa
     return (
         <Card aria-busy={isLoading || isRefreshing} className="min-h-40 border-amber-800/20 bg-gradient-to-br from-amber-50 to-rose-50 py-0 shadow-sm dark:border-amber-300/10 dark:from-amber-950/30 dark:to-rose-950/20">
             <CardContent className="space-y-1 p-3">
-                <div className="flex min-h-7 items-center justify-between gap-2">
+                <div className="flex flex-wrap min-h-7 items-center justify-between gap-2">
                     <h2 className="flex items-center gap-2 font-sans text-sm font-semibold text-amber-900 dark:text-amber-200">
                         <Clock aria-hidden="true" className="h-4 w-4" /> Latest Walk
                     </h2>
-                    <div className="flex gap-2 text-xl">
+                    <div className="flex flex-wrap items-center gap-2 text-xl">
                         {walk?.hasPoop ? <span role="img" aria-label="Poop">💩</span> : null}
                         {walk?.hasPee ? <span role="img" aria-label="Pee">💦</span> : null}
+                        {walk && !walk.hasPoop && !walk.hasPee ? <span className="text-sm">Neither</span> : null}
+                        {walk?.provenance === 'legacy_estimate' ? <span className="text-xs">Historical estimate</span> : null}
                     </div>
                 </div>
                 {isLoading ? (

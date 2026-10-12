@@ -17,11 +17,11 @@ import type { UserName } from '@/lib/database.types'
 import { format, subDays, setHours, setMinutes } from 'date-fns'
 import confetti from 'canvas-confetti'
 
-type WalkType = 'poop' | 'pee' | 'both' | null
+type WalkType = 'poop' | 'pee' | 'both' | 'neither' | null
 
 interface LogWalkButtonProps {
     userName: UserName
-    onLogWalk: (options: { poop: boolean; pee: boolean; userName: UserName; createdAt?: Date }) => Promise<void>
+    onLogWalk: (options: { draftId?: string; poop: boolean; pee: boolean; userName: UserName; createdAt?: Date }) => Promise<void>
     disabled?: boolean
     onRequireUnlock?: () => void
     hint?: string
@@ -37,10 +37,12 @@ export function LogWalkButton({ userName, onLogWalk, disabled = false, onRequire
     const [saveError, setSaveError] = useState<string | null>(null)
     const [success, setSuccess] = useState(false)
     const saving = useRef(false)
+    const draftId = useRef<string | undefined>(undefined)
 
     const handleOpenChange = (open: boolean) => {
         if (saving.current) return
         if (open) {
+            draftId.current = crypto.randomUUID()
             const now = new Date()
             setHour(now.getHours())
             setMinute(Math.floor(now.getMinutes() / 15) * 15)
@@ -87,7 +89,7 @@ export function LogWalkButton({ userName, onLogWalk, disabled = false, onRequire
             const poop = type === 'poop' || type === 'both'
             const pee = type === 'pee' || type === 'both'
 
-            await onLogWalk({ poop, pee, userName, createdAt })
+            await onLogWalk({ draftId: draftId.current, poop, pee, userName, createdAt })
 
             // Celebrate every walk! 🎉
             triggerConfetti()
@@ -149,18 +151,18 @@ export function LogWalkButton({ userName, onLogWalk, disabled = false, onRequire
                                     <label className="text-sm font-medium text-muted-foreground mb-2 block">
                                         Day
                                     </label>
-                                    <div className="grid grid-cols-2 gap-3">
+                                    <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,12ch),1fr))] gap-3">
                                         <Button disabled={isLogging} aria-pressed={selectedDay === 'today'}
                                             variant={selectedDay === 'today' ? 'default' : 'outline'}
                                             onClick={() => setSelectedDay('today')}
-                                            className="h-11"
+                                            className="min-h-11"
                                         >
                                             Today
                                         </Button>
                                         <Button disabled={isLogging} aria-pressed={selectedDay === 'yesterday'}
                                             variant={selectedDay === 'yesterday' ? 'default' : 'outline'}
                                             onClick={() => setSelectedDay('yesterday')}
-                                            className="h-11"
+                                            className="min-h-11"
                                         >
                                             Yesterday
                                         </Button>
@@ -172,13 +174,13 @@ export function LogWalkButton({ userName, onLogWalk, disabled = false, onRequire
                                     <label className="text-sm font-medium text-muted-foreground mb-2 block">
                                         Time
                                     </label>
-                                    <div className="grid grid-cols-2 gap-3">
+                                    <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,12ch),1fr))] gap-3">
                                         <select
                                             aria-label="Hour"
                                             disabled={isLogging}
                                             value={hour}
                                             onChange={(e) => setHour(parseInt(e.target.value))}
-                                            className="h-11 rounded-xl border border-input bg-background px-4 text-lg font-medium focus:outline-none focus:ring-2 focus:ring-ring"
+                                            className="min-h-11 min-w-0 w-full rounded-xl border border-input bg-background px-2 py-2 text-lg font-medium focus:outline-none focus:ring-2 focus:ring-ring"
                                         >
                                             {hours.map((h) => (
                                                 <option key={h} value={h}>
@@ -191,7 +193,7 @@ export function LogWalkButton({ userName, onLogWalk, disabled = false, onRequire
                                             disabled={isLogging}
                                             value={minute}
                                             onChange={(e) => setMinute(parseInt(e.target.value))}
-                                            className="h-11 rounded-xl border border-input bg-background px-4 text-lg font-medium focus:outline-none focus:ring-2 focus:ring-ring"
+                                            className="min-h-11 min-w-0 w-full rounded-xl border border-input bg-background px-2 py-2 text-lg font-medium focus:outline-none focus:ring-2 focus:ring-ring"
                                         >
                                             {minutes.map((m) => (
                                                 <option key={m} value={m}>
@@ -224,11 +226,11 @@ export function LogWalkButton({ userName, onLogWalk, disabled = false, onRequire
                         )}
 
                         {/* What did Pepper do? */}
-                        <div className="grid grid-cols-3 gap-3">
+                        <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,12ch),1fr))] gap-3">
                             <Button
                                 onClick={() => void handleLog('poop')}
                                 disabled={isLogging}
-                                className="h-24 flex-col gap-1 bg-gradient-to-br from-amber-700 to-orange-700 hover:from-amber-800 hover:to-orange-800 text-white rounded-2xl text-lg font-bold shadow-lg border border-amber-400/30"
+                                className="h-auto min-h-24 py-3 flex-col gap-1 bg-gradient-to-br from-amber-700 to-orange-700 hover:from-amber-800 hover:to-orange-800 text-white rounded-2xl text-lg font-bold shadow-lg border border-amber-400/30"
                             >
                                 <span aria-hidden="true" className="text-3xl">💩</span>
                                 <span>Poop</span>
@@ -236,7 +238,7 @@ export function LogWalkButton({ userName, onLogWalk, disabled = false, onRequire
                             <Button
                                 onClick={() => void handleLog('pee')}
                                 disabled={isLogging}
-                                className="h-24 flex-col gap-1 bg-gradient-to-br from-sky-700 to-cyan-700 hover:from-sky-800 hover:to-cyan-800 text-white rounded-2xl text-lg font-bold shadow-lg border border-sky-400/30"
+                                className="h-auto min-h-24 py-3 flex-col gap-1 bg-gradient-to-br from-sky-700 to-cyan-700 hover:from-sky-800 hover:to-cyan-800 text-white rounded-2xl text-lg font-bold shadow-lg border border-sky-400/30"
                             >
                                 <span aria-hidden="true" className="text-3xl">💦</span>
                                 <span>Pee</span>
@@ -245,13 +247,17 @@ export function LogWalkButton({ userName, onLogWalk, disabled = false, onRequire
                                 aria-label="Both poop and pee"
                                 onClick={() => void handleLog('both')}
                                 disabled={isLogging}
-                                className="h-24 flex-col gap-1 bg-gradient-to-br from-emerald-700 to-teal-800 hover:from-emerald-800 hover:to-teal-900 text-white rounded-2xl text-lg font-bold shadow-lg border border-emerald-400/30"
+                                className="h-auto min-h-24 py-3 flex-col gap-1 bg-gradient-to-br from-emerald-700 to-teal-800 hover:from-emerald-800 hover:to-teal-900 text-white rounded-2xl text-lg font-bold shadow-lg border border-emerald-400/30"
                             >
                                 <span aria-hidden="true" className="text-3xl">💩💦</span>
                                 <span>Both</span>
                             </Button>
                         </div>
 
+                        <Button variant="outline" disabled={isLogging} onClick={() => void handleLog('neither')} className="w-full min-h-12 text-base">
+                            Neither — no poop or pee
+                        </Button>
+                        <p className="text-center text-sm text-muted-foreground">Every walk counts toward the walk goal and earns 5 points. Neither adds no bathroom events.</p>
                         <SaveFeedback error={saveError} />
                         <p role="status" className="text-center text-sm text-muted-foreground">{isLogging ? 'Saving walk...' : ''}</p>
                         {/* Log for earlier toggle */}

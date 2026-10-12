@@ -1,8 +1,8 @@
 import { supabase } from '@/lib/supabase'
-import type { Activity, Log, Reminder } from '@/lib/database.types'
+import type { Activity, Log, Reminder, WalkRecord } from '@/lib/database.types'
 
-export type CareTable = 'logs' | 'activities' | 'reminders'
-export type CareRows = { logs: Log[]; activities: Activity[]; reminders: Reminder[] }
+export type CareTable = 'walks' | 'logs' | 'activities' | 'reminders'
+export type CareRows = { walks: WalkRecord[]; logs: Log[]; activities: Activity[]; reminders: Reminder[] }
 export interface CareQuery {
     table: CareTable
     start?: string
@@ -77,14 +77,14 @@ export class CareDataStore {
         this.publish(entry, { pending: true, afterSave: afterSave || entry.snapshot.afterSave })
         entry.promise = (async () => {
             try {
-                let request = supabase.from(query.table).select('*')
+                let request = query.table === 'walks' ? supabase.from('walks').select('*, logs(*)') : supabase.from(query.table).select('*')
                 if (query.start) request = request.gte('created_at', query.start)
                 if (query.end) request = request.lte('created_at', query.end)
                 const result = await request.order(query.table === 'reminders' ? 'due_date' : 'created_at', { ascending: false })
                 if (result.error) throw result.error
                 if (generation !== entry.generation) return
                 entry.stale = false
-                this.publish(entry, { data: result.data ?? [], error: null, afterSave: false, updatedAt: Date.now() })
+                this.publish(entry, { data: (result.data ?? []) as CareRows[CareTable], error: null, afterSave: false, updatedAt: Date.now() })
             } catch {
                 if (generation !== entry.generation) return
                 entry.stale = true

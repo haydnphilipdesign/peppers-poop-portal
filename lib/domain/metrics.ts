@@ -4,6 +4,7 @@ import type {
   Log,
   Reminder,
   UserName,
+  WalkRecord,
 } from "@/lib/database.types";
 
 export interface Walk {
@@ -14,6 +15,23 @@ export interface Walk {
   hasPoop: boolean;
   hasPee: boolean;
   logs: Log[];
+  revision: number;
+  provenance: WalkRecord["provenance"];
+}
+
+/** Runtime reads use explicit parent identity; time grouping is legacy-only. */
+export function recordsToWalks(records: WalkRecord[]): Walk[] {
+  return records.filter(record => !record.deleted_at).map(record => ({
+    id: record.id, time: new Date(record.created_at),
+    timeFormatted: format(new Date(record.created_at), "h:mm a"),
+    userName: record.user_name, revision: record.revision, provenance: record.provenance,
+    hasPoop: record.logs.some(log => log.type === "poop"),
+    hasPee: record.logs.some(log => log.type === "pee"), logs: record.logs,
+  })).sort((a,b) => a.time.getTime() - b.time.getTime() || a.id.localeCompare(b.id));
+}
+
+export function walkOutcomeLabel(walk: Walk): string {
+  return [walk.hasPoop && 'poop', walk.hasPee && 'pee'].filter(Boolean).join(' and ') || 'Neither';
 }
 
 export const POINTS = {
@@ -34,6 +52,7 @@ export function createWalkFromLogs(logs: Log[]): Walk {
 
   return {
     id: `walk-${latestLog.id}`,
+    revision: 1, provenance: sortedLogs.length > 1 ? 'legacy_estimate' : 'legacy_single',
     time: walkTime,
     timeFormatted: format(walkTime, "h:mm a"),
     userName: latestLog.user_name,
@@ -125,11 +144,12 @@ export function createEmptyUserStats<T>(factory: () => T): Record<UserName, T> {
 export function calculateMonthlyPoints(
   logs: Log[],
   activities: Activity[],
-  reminders: Reminder[]
+  reminders: Reminder[],
+  walks: Walk[] = groupLogsIntoWalks(logs)
 ): Record<UserName, number> {
   const points = createEmptyUserStats(() => 0);
 
-  groupLogsIntoWalks(logs).forEach((walk) => {
+  walks.forEach((walk) => {
     points[walk.userName] += POINTS.walkLog;
   });
 
@@ -194,12 +214,13 @@ export function filterRemindersForMonth(
 export function determineMonthlyChampion(
   logs: Log[],
   activities: Activity[],
-  reminders: Reminder[]
+  reminders: Reminder[],
+  walks: Walk[] = groupLogsIntoWalks(logs)
 ): MonthlyChampion | null {
-  const points = calculateMonthlyPoints(logs, activities, reminders);
+  const points = calculateMonthlyPoints(logs, activities, reminders, walks);
 
   const walkCounts = createEmptyUserStats(() => 0);
-  groupLogsIntoWalks(logs).forEach((walk) => {
+  walks.forEach((walk) => {
     walkCounts[walk.userName] += 1;
   });
 

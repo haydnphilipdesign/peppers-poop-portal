@@ -23,17 +23,17 @@ const REMINDER_CONFIG: Record<ReminderType, { icon: React.ReactNode; label: stri
     simparica: {
         icon: <Pill className="w-5 h-5" />,
         label: 'Simparica Trio',
-        color: 'text-rose-500 bg-rose-500/10 border-rose-500/30'
+        color: 'text-rose-700 dark:text-rose-300 bg-rose-500/10 border-rose-500/30'
     },
     grooming: {
         icon: <Scissors className="w-5 h-5" />,
         label: 'Grooming',
-        color: 'text-blue-500 bg-blue-500/10 border-blue-500/30'
+        color: 'text-blue-700 dark:text-blue-300 bg-blue-500/10 border-blue-500/30'
     },
     vet: {
         icon: <Stethoscope className="w-5 h-5" />,
         label: 'Vet Appointment',
-        color: 'text-purple-500 bg-purple-500/10 border-purple-500/30'
+        color: 'text-purple-700 dark:text-purple-300 bg-purple-500/10 border-purple-500/30'
     },
 }
 
@@ -67,6 +67,7 @@ export function RemindersBanner() {
         completeReminder,
         getLastCompletedDate,
         isLoading,
+        hasLoaded,
         error,
         refetch,
     } = useReminders()
@@ -221,14 +222,19 @@ export function RemindersBanner() {
         }
     })
 
+    // Only a successful, settled read can remove the empty section. The shared
+    // reminder snapshot continues supplying known alerts during refresh/failure.
+    if (hasLoaded && !isLoading && !error && alerts.length === 0 && !completing) {
+        return <SaveFeedback error={saveError} saved={saved} />
+    }
 
     return (
-        <section aria-label="Due care" aria-busy={isLoading} className="min-h-24 space-y-2">
+        <section aria-label="Due care" className="space-y-2">
             <h2 className="font-sans text-base font-semibold">Due care</h2>
-            {isLoading ? <p role="status" className="text-sm text-muted-foreground">Checking due care...</p> : !error && alerts.length === 0 ? <p className="text-sm text-muted-foreground">No care alerts to show. See Care Schedule for appointments.</p> : null}
-            {error ? <div role="alert" className="rounded-xl border border-destructive/30 bg-destructive/10 p-4 text-sm">
-                <p>{error}</p>
-                <Button variant="outline" className="mt-2" disabled={isLoading} onClick={() => void refetch()}>Retry care alerts</Button>
+            {isLoading || !hasLoaded && !error ? <p role="status" className="text-sm text-muted-foreground">{hasLoaded ? 'Refreshing care alerts...' : 'Checking due care...'}</p> : null}
+            {error ? <div className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm">
+                <p role="alert" className="min-w-0 flex-1 basis-48">{error}</p>
+                <Button variant="outline" disabled={isLoading} onClick={() => void refetch()}>Retry care alerts</Button>
             </div> : null}
             <SaveFeedback error={saveError} saved={saved} />
             {completing ? <p role="status" className="text-sm text-muted-foreground">Saving reminder...</p> : null}
@@ -241,14 +247,14 @@ export function RemindersBanner() {
                         className={`rounded-xl border p-4 ${config.color}`}
                     >
                         <div className="flex flex-wrap items-start justify-between gap-3">
-                            <div className="flex items-center gap-3">
-                                <div className="p-2 rounded-lg bg-background/50">
+                            <div className="flex min-w-0 flex-wrap items-center gap-3">
+                                <div aria-hidden="true" className="shrink-0 p-2 rounded-lg bg-background/50">
                                     {config.icon}
                                 </div>
-                                <div>
-                                    <div className="flex items-center gap-2">
-                                        <AlertTriangle className="w-4 h-4" />
-                                        <span className="font-medium text-sm">{alert.message}</span>
+                                <div className="min-w-0 flex-1 basis-32">
+                                    <div className="flex items-start gap-2">
+                                        <AlertTriangle aria-hidden="true" className="w-4 h-4 shrink-0" />
+                                        <span className="min-w-0 break-words font-medium text-sm">{alert.message}</span>
                                     </div>
                                 </div>
                             </div>
@@ -343,7 +349,7 @@ export function RemindersBanner() {
                                             size="sm"
                                             variant="ghost"
                                             aria-label="Dismiss reminder"
-                                            disabled={Boolean(completing)}
+                                            disabled={Boolean(completing) || isLoading || Boolean(error)}
                                             onClick={() => handleDismiss(alert.id)}
                                             className="p-2 min-h-11 min-w-11"
                                         >

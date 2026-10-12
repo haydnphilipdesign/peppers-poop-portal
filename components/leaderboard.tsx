@@ -80,7 +80,7 @@ export function Leaderboard({ monthlyPoints, champion, championMonth }: Leaderbo
                     )
                 })}
                 <p className="text-xs text-center text-muted-foreground pt-2">
-                    🦮 Walks +5 · 🧸 Activities +5 · 🗓️ Grooming +5 · ✅ Reminders +5
+                    🦮 Every walk, including Neither +5 · 🧸 Activities +5 · 🗓️ Grooming +5 · ✅ Reminders +5
                 </p>
             </CardContent>
         </Card>
