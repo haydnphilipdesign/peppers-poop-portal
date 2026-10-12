@@ -58,7 +58,9 @@ export function DailyRoutines() {
     const now = new Date()
     const currentHour = now.getHours()
     const currentMinute = now.getMinutes()
-    const isDinnerTime = currentHour > 17 || (currentHour === 17 && currentMinute >= 45)
+    // Initial markup must match across the server and the family's timezone.
+    // Care reads settle only on the client, where the local due time applies.
+    const isDinnerTime = hasLoaded && (currentHour > 17 || (currentHour === 17 && currentMinute >= 45))
 
     return (
         <section className="space-y-3">

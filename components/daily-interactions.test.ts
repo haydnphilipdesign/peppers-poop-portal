@@ -1,16 +1,17 @@
 // @vitest-environment jsdom
 import React, { act } from 'react'
 import { createRoot } from 'react-dom/client'
+import { renderToString } from 'react-dom/server'
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest'
 import { createWalkFromLogs } from '@/lib/domain/metrics'
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
-const { logActivity, mode } = vi.hoisted(() => ({ logActivity: vi.fn(), mode: { user: 'Chris', readOnly: false, blocked: false } }))
+const { logActivity, mode } = vi.hoisted(() => ({ logActivity: vi.fn(), mode: { user: 'Chris', readOnly: false, blocked: false, hasLoaded: true } }))
 vi.mock('@/lib/user-context', () => ({ useUser: () => ({ user: mode.user }) }))
 vi.mock('@/lib/read-only-context', () => ({ useReadOnly: () => mode.readOnly, useRequireUnlock: () => undefined }))
 vi.mock('@/hooks/use-activities', () => ({ useActivities: () => ({
     isToysFilled: false, isDinnerDone: false, toysFilledBy: null, dinnerDoneBy: null,
-    isLoading: mode.blocked, hasLoaded: true, error: null, logActivity, refetch: vi.fn(),
+    isLoading: mode.blocked, hasLoaded: mode.hasLoaded, error: null, logActivity, refetch: vi.fn(),
 }) }))
 import { DailyRoutines } from './daily-routines'
 import { WalkHistory } from './walk-history'
@@ -25,12 +26,27 @@ describe('Daily profile attribution and guarded deletion', () => {
         return match
     }
     beforeEach(() => {
-        mode.user = 'Chris'; mode.readOnly = false; mode.blocked = false
+        mode.user = 'Chris'; mode.readOnly = false; mode.blocked = false; mode.hasLoaded = true
         logActivity.mockReset()
         container = document.createElement('div'); document.body.appendChild(container)
         root = createRoot(container)
     })
     afterEach(async () => { await act(async () => root.unmount()); container.remove() })
+
+    it('keeps initial routine markup identical when server and browser hours straddle dinner time', () => {
+        mode.hasLoaded = false; mode.blocked = true; mode.readOnly = true
+        vi.useFakeTimers()
+        try {
+            vi.setSystemTime(new Date(2026, 9, 12, 18, 0))
+            const serverMarkup = renderToString(React.createElement(DailyRoutines))
+            vi.setSystemTime(new Date(2026, 9, 12, 16, 0))
+            expect(renderToString(React.createElement(DailyRoutines))).toBe(serverMarkup)
+            expect(serverMarkup).not.toContain('Due at 5:45 PM')
+            mode.hasLoaded = true; mode.blocked = false
+            vi.setSystemTime(new Date(2026, 9, 12, 18, 0))
+            expect(renderToString(React.createElement(DailyRoutines))).toContain('Due at 5:45 PM')
+        } finally { vi.useRealTimers() }
+    })
 
     it('uses the current profile in one tap, waits for acknowledgement, and guards synchronous double taps', async () => {
         let resolve!: () => void
