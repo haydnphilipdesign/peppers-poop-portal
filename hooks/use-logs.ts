@@ -4,7 +4,7 @@ import { useMemo } from 'react'
 import { dateRange, useCareCalendar, useCareResource } from '@/lib/care-data-context'
 import { careReadError } from '@/lib/care-data-store'
 import { useWalkMutation } from '@/hooks/use-walk-mutation'
-import type { WalkCreateDraft, WalkDeleteRequest, WalkUpdateRequest } from '@/lib/api-types'
+import type { SavedWalk, WalkCreateDraft, WalkDeleteRequest, WalkUpdateRequest } from '@/lib/api-types'
 import type { Log, LogType, UserName } from '@/lib/database.types'
 import {
     calculatePoopStreak,
@@ -25,8 +25,8 @@ interface UseLogsReturn {
     hasLoaded: boolean
     error: string | null
     addLog: (type: LogType, userName: UserName, createdAt?: Date) => Promise<void>
-    addWalk: (options: { draftId?: string; poop: boolean; pee: boolean; userName: UserName; createdAt?: Date }) => Promise<void>
-    deleteWalk: (walk: Walk) => Promise<void>
+    addWalk: (options: { draftId?: string; poop: boolean; pee: boolean; userName: UserName; createdAt?: Date }) => Promise<SavedWalk | null>
+    deleteWalk: (walk: SavedWalk) => Promise<void>
     updateWalk: (walk: Walk, updates: { poop: boolean; pee: boolean; userName: UserName; time: Date }) => Promise<void>
     refetch: () => Promise<void>
     todayPoopCount: number
@@ -68,7 +68,7 @@ export function useLogs(): UseLogsReturn {
     const refetchScoring = async () => { await Promise.all([month.refetch(), activities.refetch(), reminders.refetch()]) }
 
     const addWalk = async (options: { draftId?: string; poop: boolean; pee: boolean; userName: UserName; createdAt?: Date }) => {
-        await mutateWalk({
+        const saved = await mutateWalk({
             method: 'POST',
             body: JSON.stringify({
                 draftId: options.draftId,
@@ -82,6 +82,7 @@ export function useLogs(): UseLogsReturn {
         // The event refreshes this hook and other care sections once. Saving
         // succeeds when the write succeeds, independently of subsequent reads.
         window.dispatchEvent(new Event('ppp:data-changed'))
+        return saved?.walkId && saved.revision ? { id: saved.walkId, revision: saved.revision } : null
     }
 
     const addLog = async (type: LogType, userName: UserName, createdAt?: Date) => {
@@ -93,7 +94,7 @@ export function useLogs(): UseLogsReturn {
         })
     }
 
-    const deleteWalk = async (walk: Walk) => {
+    const deleteWalk = async (walk: SavedWalk) => {
         await mutateWalk({
             method: 'DELETE',
             body: JSON.stringify({

@@ -39,17 +39,17 @@ export function LastWalkCard({ walk, isLoading = false, error, isRefreshing = fa
     const isDue = walk && now.getTime() - walk.time.getTime() >= 5 * 60 * 60 * 1000
 
     return (
-        <Card aria-busy={isLoading || isRefreshing} className="min-h-40 border-amber-800/20 bg-gradient-to-br from-amber-50 to-rose-50 py-0 shadow-sm dark:border-amber-300/10 dark:from-amber-950/30 dark:to-rose-950/20">
+        <Card aria-busy={isLoading || isRefreshing} className="border-amber-800/20 bg-gradient-to-br from-amber-50 to-rose-50 py-0 shadow-sm dark:border-amber-300/10 dark:from-amber-950/30 dark:to-rose-950/20">
             <CardContent className="space-y-1 p-3">
                 <div className="flex flex-wrap min-h-7 items-center justify-between gap-2">
                     <h2 className="flex items-center gap-2 font-sans text-sm font-semibold text-amber-900 dark:text-amber-200">
                         <Clock aria-hidden="true" className="h-4 w-4" /> Latest Walk
                     </h2>
-                    <div className="flex flex-wrap items-center gap-2 text-xl">
-                        {walk?.hasPoop ? <span role="img" aria-label="Poop">💩</span> : null}
-                        {walk?.hasPee ? <span role="img" aria-label="Pee">💦</span> : null}
-                        {walk && !walk.hasPoop && !walk.hasPee ? <span className="text-sm">Neither</span> : null}
-                    </div>
+                    <p className="flex flex-wrap items-center gap-x-3 text-sm">
+                        {walk?.hasPoop ? <span><span aria-hidden="true">💩</span> Poop</span> : null}
+                        {walk?.hasPee ? <span><span aria-hidden="true">💦</span> Pee</span> : null}
+                        {walk && !walk.hasPoop && !walk.hasPee ? <span>Neither</span> : null}
+                    </p>
                 </div>
                 {isLoading ? (
                     <div role="status" className="space-y-2">
@@ -67,7 +67,8 @@ export function LastWalkCard({ walk, isLoading = false, error, isRefreshing = fa
                         </p>
                     </>
                 )}
-                <div className="flex min-h-11 items-center justify-between gap-2">
+                {/* One reserved line keeps the cards below still when a nudge appears. */}
+                <div className="flex min-h-5 items-center justify-between gap-2">
                     <p role={error ? 'alert' : 'status'} className="text-sm text-amber-900 dark:text-amber-200">
                         {error ? (error.startsWith('Change saved') ? error : walk ? 'Could not refresh. Showing previously loaded data.' : 'Could not load care data.') : isRefreshing ? 'Updating care data...' : isDue ? '🐾 Pepper may be due for a walk.' : ''}
                     </p>

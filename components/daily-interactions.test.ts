@@ -17,6 +17,7 @@ import { DailyRoutines } from './daily-routines'
 import { WalkHistory } from './walk-history'
 
 const walk = createWalkFromLogs([{ id: 'original', created_at: new Date(2026, 9, 12, 9).toISOString(), type: 'poop', user_name: 'Debbie', notes: null }])
+const edit = `Edit ${walk.timeFormatted} walk by Debbie`
 describe('Daily profile attribution and guarded deletion', () => {
     let root: ReturnType<typeof createRoot>
     let container: HTMLDivElement
@@ -87,7 +88,10 @@ describe('Daily profile attribution and guarded deletion', () => {
     it('shows named confirmation before deleting Today; cancellation never writes; failed confirmation stays retryable', async () => {
         const remove = vi.fn().mockRejectedValueOnce(new Error('Removal unavailable')).mockResolvedValueOnce(undefined)
         await act(async () => root.render(React.createElement(WalkHistory, { walks: [walk], onDeleteWalk: remove, onUpdateWalk: vi.fn() })))
-        const name = `Delete ${walk.timeFormatted} walk by Debbie`
+        // Delete is reached by opening the entry, never from the row itself.
+        const name = 'Delete walk'
+        expect(() => button(name)).toThrow()
+        await act(async () => button(edit).click())
         await act(async () => button(name).click())
         expect(remove).not.toHaveBeenCalled()
         expect(document.querySelector('[role="dialog"]')?.textContent).toContain(`at ${walk.timeFormatted} by Debbie (poop)`)
@@ -107,7 +111,8 @@ describe('Daily profile attribution and guarded deletion', () => {
         const remove = vi.fn()
         const render = () => root.render(React.createElement(WalkHistory, { walks: [walk], onDeleteWalk: remove, onUpdateWalk: vi.fn(), updatesBlocked: mode.blocked }))
         await act(async () => render())
-        await act(async () => button(`Delete ${walk.timeFormatted} walk by Debbie`).click())
+        await act(async () => button(edit).click())
+        await act(async () => button('Delete walk').click())
         mode.blocked = true
         await act(async () => render())
         await act(async () => button('Remove record').click())
@@ -124,7 +129,8 @@ describe('Daily profile attribution and guarded deletion', () => {
         const remove = vi.fn()
         const render = (walks: typeof walk[]) => root.render(React.createElement(WalkHistory, { walks, onDeleteWalk: remove, onUpdateWalk: vi.fn() }))
         await act(async () => render([walk]))
-        await act(async () => button(`Delete ${walk.timeFormatted} walk by Debbie`).click())
+        await act(async () => button(edit).click())
+        await act(async () => button('Delete walk').click())
         const changed = createWalkFromLogs([{ ...walk.logs[0], user_name: 'Chris' }])
         for (const walks of [[changed], [], [createWalkFromLogs([{ ...walk.logs[0], id: 'replacement' }])]]) {
             await act(async () => render(walks))

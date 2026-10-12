@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { SaveFeedback } from '@/components/save-feedback'
 import { Button } from '@/components/ui/button'
 import {
@@ -13,21 +13,33 @@ import {
     DrawerTitle,
     DrawerTrigger,
 } from '@/components/ui/drawer'
+import type { SavedWalk } from '@/lib/api-types'
 import type { UserName } from '@/lib/database.types'
 import { format, subDays, setHours, setMinutes } from 'date-fns'
 import confetti from 'canvas-confetti'
 
 type WalkType = 'poop' | 'pee' | 'both' | 'neither' | null
 
+const outcomeLabels: Record<Exclude<WalkType, null>, string> = {
+    poop: 'Poop',
+    pee: 'Pee',
+    both: 'Poop and pee',
+    neither: 'Neither',
+}
+
+// Long enough to notice a mis-tap, short enough that Undo never removes an old walk.
+const UNDO_WINDOW_MS = 60_000
+
 interface LogWalkButtonProps {
     userName: UserName
-    onLogWalk: (options: { draftId?: string; poop: boolean; pee: boolean; userName: UserName; createdAt?: Date }) => Promise<void>
+    onLogWalk: (options: { draftId?: string; poop: boolean; pee: boolean; userName: UserName; createdAt?: Date }) => Promise<SavedWalk | null | void>
+    onUndoWalk?: (walk: SavedWalk) => Promise<void>
     disabled?: boolean
     onRequireUnlock?: () => void
     hint?: string
 }
 
-export function LogWalkButton({ userName, onLogWalk, disabled = false, onRequireUnlock, hint }: LogWalkButtonProps) {
+export function LogWalkButton({ userName, onLogWalk, onUndoWalk, disabled = false, onRequireUnlock, hint }: LogWalkButtonProps) {
     const [drawerOpen, setDrawerOpen] = useState(false)
     const [isLogging, setIsLogging] = useState(false)
     const [showTimePicker, setShowTimePicker] = useState(false)
@@ -35,7 +47,10 @@ export function LogWalkButton({ userName, onLogWalk, disabled = false, onRequire
     const [hour, setHour] = useState(new Date().getHours())
     const [minute, setMinute] = useState(Math.floor(new Date().getMinutes() / 15) * 15)
     const [saveError, setSaveError] = useState<string | null>(null)
-    const [success, setSuccess] = useState(false)
+    const [savedSummary, setSavedSummary] = useState<string | null>(null)
+    const [undoTarget, setUndoTarget] = useState<SavedWalk | null>(null)
+    const [isUndoing, setIsUndoing] = useState(false)
+    const [undoMessage, setUndoMessage] = useState<{ text: string; failed: boolean } | null>(null)
     const saving = useRef(false)
     const draftId = useRef<string | undefined>(undefined)
 
@@ -49,9 +64,36 @@ export function LogWalkButton({ userName, onLogWalk, disabled = false, onRequire
             setSelectedDay('today')
             setShowTimePicker(false)
             setSaveError(null)
-            setSuccess(false)
+            setSavedSummary(null)
+            setUndoTarget(null)
+            setUndoMessage(null)
         }
         setDrawerOpen(open)
+    }
+
+    useEffect(() => {
+        if (!undoTarget) return
+        const timer = window.setTimeout(() => setUndoTarget(null), UNDO_WINDOW_MS)
+        return () => window.clearTimeout(timer)
+    }, [undoTarget])
+
+    const handleUndo = async () => {
+        if (!undoTarget || !onUndoWalk || saving.current) return
+        if (onRequireUnlock) { onRequireUnlock(); return }
+        saving.current = true
+        setIsUndoing(true)
+        try {
+            await onUndoWalk(undoTarget)
+            setUndoTarget(null)
+            setSavedSummary(null)
+            setUndoMessage({ text: 'Walk removed.', failed: false })
+        } catch (err) {
+            // Keep Undo available: the entry is still there and can be retried or edited below.
+            setUndoMessage({ text: `${err instanceof Error ? err.message : 'Unable to undo.'} You can also edit it in today’s walk log.`, failed: true })
+        } finally {
+            saving.current = false
+            setIsUndoing(false)
+        }
     }
 
     const triggerConfetti = () => {
@@ -89,13 +131,14 @@ export function LogWalkButton({ userName, onLogWalk, disabled = false, onRequire
             const poop = type === 'poop' || type === 'both'
             const pee = type === 'pee' || type === 'both'
 
-            await onLogWalk({ draftId: draftId.current, poop, pee, userName, createdAt })
+            const saved = await onLogWalk({ draftId: draftId.current, poop, pee, userName, createdAt })
 
             // Celebrate every walk! 🎉
             triggerConfetti()
 
             setDrawerOpen(false)
-            setSuccess(true)
+            setSavedSummary(`${format(createdAt ?? new Date(), 'h:mm a')} · ${outcomeLabels[type]}`)
+            setUndoTarget(saved ?? null)
         } catch (err) {
             setSaveError(err instanceof Error ? err.message : 'Unable to save the walk. Please try again.')
         } finally {
@@ -126,9 +169,19 @@ export function LogWalkButton({ userName, onLogWalk, disabled = false, onRequire
                     </div>
                 </Button>
             </DrawerTrigger>
-            <p role="status" className="min-h-6 pt-1 text-center text-sm text-muted-foreground">
-                {success && !onRequireUnlock ? 'Walk saved.' : hint}
-            </p>
+            {/* Fixed height: confirming or undoing a walk never moves the sections below. */}
+            <div className="mt-1 flex min-h-11 flex-wrap items-center justify-center gap-x-3 gap-y-1 text-sm">
+                {undoMessage?.failed ? <p role="alert" className="text-center">{undoMessage.text}</p> : (
+                    <p role="status" className={`text-center ${savedSummary && !onRequireUnlock ? 'font-medium text-emerald-700 dark:text-emerald-300' : 'text-muted-foreground'}`}>
+                        {savedSummary && !onRequireUnlock ? `✓ Walk saved · ${savedSummary}` : undoMessage?.text ?? hint}
+                    </p>
+                )}
+                {undoTarget && onUndoWalk && !onRequireUnlock ? (
+                    <Button variant="outline" disabled={isUndoing} onClick={() => void handleUndo()}>
+                        {isUndoing ? 'Undoing...' : 'Undo'}
+                    </Button>
+                ) : null}
+            </div>
 
             {/* Drawer */}
             <DrawerContent className="overflow-y-auto bg-background pb-[max(0.5rem,env(safe-area-inset-bottom))]">

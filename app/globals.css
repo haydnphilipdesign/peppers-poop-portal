@@ -111,12 +111,16 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-h1,
-h2,
-h3,
-h4 {
-  font-family: var(--font-heading), Georgia, serif;
-  letter-spacing: 0.01em;
+/* Headings default to the serif accent. Keeping the rule in the base layer lets
+   a functional heading opt back into the UI font with `font-sans`. */
+@layer base {
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: var(--font-heading), Georgia, serif;
+    letter-spacing: 0.01em;
+  }
 }
 
 button,

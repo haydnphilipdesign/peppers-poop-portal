@@ -10,6 +10,7 @@ Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
 const { addWalk, updateWalk, deleteWalk, logActivity, deleteActivity, mode } = vi.hoisted(() => ({ addWalk: vi.fn(), updateWalk: vi.fn(), deleteWalk: vi.fn(), logActivity: vi.fn(), deleteActivity: vi.fn(), mode: { assignee: 'Debbie' as 'Debbie' | 'Haydn', complete: false, readOnly: false, blocked: false } }))
 const date = new Date(2026, 9, 11, 9, 0)
 const walk = createWalkFromLogs([{ id: 'log-1', created_at: date.toISOString(), type: 'poop', user_name: 'Chris', notes: null }])
+const editWalk = `Edit ${walk.timeFormatted} walk by Chris`
 vi.mock('@/lib/user-context', () => ({ useUser: () => ({ user: 'Chris' }) }))
 vi.mock('@/lib/read-only-context', () => ({ useReadOnly: () => mode.readOnly, useRequireUnlock: () => undefined }))
 vi.mock('@/hooks/use-history', () => ({ useHistory: () => ({
@@ -75,7 +76,7 @@ describe('History failure recovery', () => {
     })
 
     it('can change a bathroom walk to Neither without disabling Save', async () => {
-        await act(async () => button('Edit walk').click())
+        await act(async () => button(editWalk).click())
         await act(async () => button('Neither').click())
         expect(button('Save Changes').disabled).toBe(false)
         updateWalk.mockResolvedValueOnce(undefined)
@@ -99,12 +100,15 @@ describe('History failure recovery', () => {
 
     it('retains the edit form and original record on failed edit and delete', async () => {
         updateWalk.mockRejectedValueOnce(new Error('Edit unavailable'))
-        await act(async () => button('Edit walk').click())
+        await act(async () => button(editWalk).click())
         const input = container.querySelector<HTMLInputElement>('input[type="time"]')!
         await act(async () => button('Save Changes').click())
         expect(container.querySelector('input[type="time"]')).toBe(input)
         expect(container.textContent).toContain('Edit unavailable')
         await act(async () => button('Cancel editing walk').click())
+        // Delete lives inside the opened entry, never beside Edit on the row.
+        expect(() => button('Delete walk')).toThrow()
+        await act(async () => button(editWalk).click())
         deleteWalk.mockRejectedValueOnce(new Error('Delete unavailable'))
         await act(async () => button('Delete walk').click())
         expect(deleteWalk).not.toHaveBeenCalled()

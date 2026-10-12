@@ -2,6 +2,7 @@
 
 import { useCallback, useRef } from 'react'
 import { apiFetch } from '@/lib/api-client'
+import type { WalkMutationResponse } from '@/lib/api-types'
 
 /** Retain a failed request's identity/time for an unchanged explicit retry. */
 export function useWalkMutation() {
@@ -18,7 +19,8 @@ export function useWalkMutation() {
             if (init.method === 'POST' && !draft.createdAt) request.body.createdAt = new Date().toISOString()
             pending.current.set(scope, request)
         }
-        await apiFetch('/api/walks', { ...init, body: JSON.stringify(request.body) })
+        const response = await apiFetch<WalkMutationResponse | null>('/api/walks', { ...init, body: JSON.stringify(request.body) })
         pending.current.delete(scope)
+        return response
     }, [])
 }

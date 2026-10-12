@@ -2,8 +2,9 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { format, isToday as isTodayDate, parseISO, setHours, setMinutes, startOfDay } from 'date-fns'
-import { CalendarDays, Check, Loader2, Pencil, Plus, Trash2 } from 'lucide-react'
+import { CalendarDays, Check, Loader2, Plus } from 'lucide-react'
 import { DeleteConfirmation, isUnchangedWalk } from './delete-confirmation'
+import { WalkRow } from './walk-row'
 import { walkOutcomeLabel } from '@/lib/domain/metrics'
 import { SaveFeedback } from '@/components/save-feedback'
 import { Button } from '@/components/ui/button'
@@ -21,12 +22,6 @@ const userEmojis: Record<UserName, string> = {
     Chris: '👨',
     Debbie: '👩',
     Haydn: '🧑',
-}
-
-const userColors: Record<UserName, string> = {
-    Chris: 'bg-blue-500/10 border-blue-500/20',
-    Debbie: 'bg-pink-500/10 border-pink-500/20',
-    Haydn: 'bg-emerald-500/10 border-emerald-500/20',
 }
 
 function getDefaultWalkTimeValue() {
@@ -607,58 +602,32 @@ export function HistoryView() {
                                                         Save Changes
                                                     </Button>
                                                 </div>
+                                                <div className="border-t border-border/60 pt-3">
+                                                    <Button
+                                                        variant="destructive"
+                                                        disabled={careBusy}
+                                                        onClick={() => { setSaveError(null); setDeleteTarget({ walk }) }}
+                                                    >
+                                                        {deletingWalkId === walk.id ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                                                        Delete walk
+                                                    </Button>
+                                                </div>
                                             </div>
                                         ) : (
-                                            <div
-                                                className={`group flex flex-wrap gap-2 items-center justify-between rounded-xl border p-3 transition-all ${userColors[walk.userName]}`}
-                                            >
-                                                <div className="flex items-center gap-3">
-                                                    <span className="min-w-[70px] text-sm font-mono font-medium text-foreground">
-                                                        {walk.timeFormatted}
-                                                    </span>
-                                                    <div className="flex items-center gap-1.5">
-                                                        <span className="text-xl">{userEmojis[walk.userName]}</span>
-                                                        <span className="text-sm font-medium text-foreground">
-                                                            {walk.userName}
-                                                        </span>
-                                                    </div>
-                                                </div>
-
-                                                <div className="flex items-center gap-2">
-                                                    <div className="flex flex-wrap items-center gap-1 text-2xl">
-                                                        {walk.hasPoop && <span title="Poop">💩</span>}
-                                                        {walk.hasPee && <span title="Pee">💦</span>}
-                                                        {!walk.hasPoop && !walk.hasPee && <span className="text-sm">Neither</span>}
-                                                    </div>
-
-                                                    {!isReadOnly && (
-                                                        <div className="ml-2 flex items-center gap-1 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100">
-                                                            <button
-                                                                disabled={careBusy}
-                                                                onClick={() => handleStartEdit(walk)}
-                                                                className="min-h-11 min-w-11 rounded-lg bg-muted/80 p-2 text-muted-foreground transition-colors hover:bg-primary/20 hover:text-foreground"
-                                                                aria-label="Edit walk"
-                                                                title="Edit walk"
-                                                            >
-                                                                <Pencil className="h-4 w-4" />
-                                                            </button>
-                                                            <button
-                                                                onClick={() => { setSaveError(null); setDeleteTarget({ walk }) }}
-                                                                disabled={careBusy}
-                                                                className="min-h-11 min-w-11 rounded-lg bg-muted/80 p-2 text-muted-foreground transition-colors hover:bg-destructive/20 hover:text-destructive disabled:opacity-50"
-                                                                aria-label="Delete walk"
-                                                                title="Delete walk"
-                                                            >
-                                                                {deletingWalkId === walk.id ? (
-                                                                    <Loader2 className="h-4 w-4 animate-spin" />
-                                                                ) : (
-                                                                    <Trash2 className="h-4 w-4" />
-                                                                )}
-                                                            </button>
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            </div>
+                                            <WalkRow
+                                                walk={walk}
+                                                action={isReadOnly ? null : (
+                                                    <Button
+                                                        variant="outline"
+                                                        aria-label={`Edit ${walk.timeFormatted} walk by ${walk.userName}`}
+                                                        disabled={careBusy}
+                                                        onClick={() => handleStartEdit(walk)}
+                                                        className="shrink-0"
+                                                    >
+                                                        Edit
+                                                    </Button>
+                                                )}
+                                            />
                                         )}
                                         <SaveFeedback error={saveTarget === walk.id ? saveError : null} />
                                     </div>

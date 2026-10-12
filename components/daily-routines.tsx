@@ -64,8 +64,8 @@ export function DailyRoutines() {
 
     return (
         <section className="space-y-3">
-            <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-                🏠 Daily Routines
+            <h2 className="font-sans text-base font-semibold">
+                <span aria-hidden="true">🏠</span> Daily Routines
             </h2>
 
             {error ? (

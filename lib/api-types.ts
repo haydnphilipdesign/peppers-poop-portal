@@ -29,6 +29,18 @@ export interface WalkUpdateRequest {
   pee: boolean;
 }
 
+export interface WalkMutationResponse {
+  success: true;
+  walkId?: string;
+  revision?: number;
+}
+
+/** Enough of a saved walk to remove it again without waiting for a re-read. */
+export interface SavedWalk {
+  id: string;
+  revision: number;
+}
+
 export interface WalkDeleteRequest {
   requestId: string;
   walkId: string;

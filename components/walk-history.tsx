@@ -1,7 +1,8 @@
 'use client'
 
 import { useRef, useState } from 'react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardHeader } from '@/components/ui/card'
+import { WalkRow } from './walk-row'
 import { DeleteConfirmation, isUnchangedWalk } from './delete-confirmation'
 import { walkOutcomeLabel } from '@/lib/domain/metrics'
 import { SaveFeedback } from '@/components/save-feedback'
@@ -23,12 +24,6 @@ const userEmojis: Record<UserName, string> = {
     Chris: '👨',
     Debbie: '👩',
     Haydn: '🧑',
-}
-
-const userColors: Record<UserName, string> = {
-    Chris: 'bg-blue-500/10 border-blue-500/20',
-    Debbie: 'bg-pink-500/10 border-pink-500/20',
-    Haydn: 'bg-emerald-500/10 border-emerald-500/20',
 }
 
 const users: UserName[] = ['Chris', 'Debbie', 'Haydn']
@@ -100,6 +95,7 @@ export function WalkHistory({
         try {
             await onDeleteWalk(walk)
             setDeleteTarget(null)
+            setEditingWalk(current => current?.id === walk.id ? null : current)
             setSaved(true)
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Unable to delete the walk. Please try again.')
@@ -126,9 +122,7 @@ export function WalkHistory({
         return (
             <Card className="min-h-44" aria-busy={isLoading}>
                 <CardHeader className="pb-2">
-                    <CardTitle className="text-lg font-semibold flex items-center gap-2">
-                        🦮 Today&apos;s Walk Log
-                    </CardTitle>
+                    <h2 className="font-sans text-base font-semibold"><span aria-hidden="true">🦮</span> Today&apos;s Walk Log</h2>
                 </CardHeader>
                 <CardContent>
                     {deleteConfirmation}
@@ -151,9 +145,7 @@ export function WalkHistory({
     return (
         <Card className="min-h-44">
             <CardHeader className="pb-2">
-                <CardTitle className="text-lg font-semibold flex items-center gap-2">
-                    🦮 Today&apos;s Walk Log
-                </CardTitle>
+                <h2 className="font-sans text-base font-semibold"><span aria-hidden="true">🦮</span> Today&apos;s Walk Log</h2>
             </CardHeader>
             <CardContent className="space-y-2">
                 {deleteConfirmation}
@@ -161,7 +153,6 @@ export function WalkHistory({
                 {walks.map((walk) => (
                     <div key={walk.id}>
                         {editingWalk?.id === walk.id ? (
-                            // Edit mode
                             <div className="p-3 rounded-xl border border-primary/30 bg-primary/5 space-y-3">
                                 <div className="flex items-center justify-between">
                                     <span className="text-sm font-medium">Edit Walk</span>
@@ -250,60 +241,31 @@ export function WalkHistory({
                                         {isSaving ? 'Saving...' : 'Save Changes'}
                                     </Button>
                                 </div>
+                                <div className="border-t border-border/60 pt-3">
+                                    <Button
+                                        variant="destructive"
+                                        disabled={updatesBlocked || isReadOnly || isSaving || Boolean(deletingWalkId)}
+                                        onClick={() => { setError(null); setDeleteTarget(walk) }}
+                                    >
+                                        Delete walk
+                                    </Button>
+                                </div>
                             </div>
                         ) : (
-                            // View mode
-                            <div
-                                className={`flex flex-wrap items-center justify-between gap-2 p-3 rounded-xl border ${userColors[walk.userName]}`}
-                            >
-                                <div className="flex items-center gap-3">
-                                    {/* Time */}
-                                    <span className="text-sm font-mono font-medium text-foreground min-w-[70px]">
-                                        {walk.timeFormatted}
-                                    </span>
-
-                                    {/* User */}
-                                    <div className="flex items-center gap-1.5">
-                                        <span className="text-xl">{userEmojis[walk.userName]}</span>
-                                        <span className="text-sm font-medium text-foreground">
-                                            {walk.userName}
-                                        </span>
-                                    </div>
-                                </div>
-
-                                <div className="flex items-center gap-2">
-                                    {/* What Pepper did */}
-                                    <div className="flex flex-wrap items-center gap-1 text-2xl">
-                                        {walk.hasPoop && <span title="Poop">💩</span>}
-                                        {walk.hasPee && <span title="Pee">💦</span>}
-                                        {!walk.hasPoop && !walk.hasPee && <span className="text-sm">Neither</span>}
-                                    </div>
-
-                                    {/* Keep editing controls visible for touch and keyboard users. */}
-                                    {!isReadOnly && (
-                                        <div className="flex items-center gap-2">
-                                            <button
-                                                aria-label={`Edit ${walk.timeFormatted} walk by ${walk.userName}`}
-                                                disabled={updatesBlocked || isReadOnly || isSaving || Boolean(deletingWalkId)}
-                                                onClick={() => handleStartEdit(walk)}
-                                                className="min-h-11 min-w-11 p-2 rounded-lg bg-muted/80 hover:bg-primary/20 text-muted-foreground hover:text-foreground transition-colors"
-                                                title="Edit walk"
-                                            >
-                                                ✏️
-                                            </button>
-                                            <button
-                                                aria-label={`Delete ${walk.timeFormatted} walk by ${walk.userName}`}
-                                                onClick={() => { setError(null); setDeleteTarget(walk) }}
-                                                disabled={updatesBlocked || isReadOnly || isSaving || Boolean(deletingWalkId)}
-                                                className="min-h-11 min-w-11 p-2 rounded-lg bg-muted/80 hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-colors disabled:opacity-50"
-                                                title="Delete walk"
-                                            >
-                                                {deletingWalkId === walk.id ? '⏳' : '🗑️'}
-                                            </button>
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
+                            <WalkRow
+                                walk={walk}
+                                action={isReadOnly ? null : (
+                                    <Button
+                                        variant="outline"
+                                        aria-label={`Edit ${walk.timeFormatted} walk by ${walk.userName}`}
+                                        disabled={updatesBlocked || isSaving || Boolean(deletingWalkId)}
+                                        onClick={() => handleStartEdit(walk)}
+                                        className="shrink-0"
+                                    >
+                                        Edit
+                                    </Button>
+                                )}
+                            />
                         )}
                     </div>
                 ))}

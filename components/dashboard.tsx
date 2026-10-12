@@ -105,6 +105,7 @@ export function Dashboard() {
                         <LogWalkButton
                             userName={user}
                             onLogWalk={addWalk}
+                            onUndoWalk={deleteWalk}
                             disabled={!hasResolvedStatus}
                             onRequireUnlock={canEdit ? undefined : () => setUnlockOpen(true)}
                             hint={!hasResolvedStatus ? 'Checking editing access...' : accessError ? 'Editing access needs attention. Please try again.' : canEdit ? `Logging as ${user}` : 'Enter the family PIN to log a walk.'}
