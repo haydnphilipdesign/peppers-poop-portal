@@ -38,6 +38,8 @@ Then follow [the Phase 4 migration procedure](docs/phase4-walk-design.md) to app
 
 Neither earns five walk points and counts toward the walk goal, with no bathroom events. Existing ambiguous groups are labeled Historical estimate. Bathroom goals/streaks continue using original outcome timestamps; the backfill preview identifies changes to calendar-scoped walk counts/points.
 
+Production's migration and coordinated Phase 4/5 release completed October 12, 2026. See the [improvement plan](docs/dashboard-improvement-plan.md) for live backup/restore, concurrency, permission and browser evidence, plus outstanding Galaxy S24+ checks. At the end of a release compatibility window, revoke service-role execution of the three legacy walk writers as described in the migration procedure. Close/reopen installed home-screen apps and reload old tabs after cutover.
+
 Run disposable PostgreSQL verification with `node scripts/verify-walk-migration.mjs`. It needs `@electric-sql/pglite` available outside the project; set `PGLITE_MODULE` to that package's absolute directory if it is not on Node's module path. It creates an in-memory database and never connects to Supabase. No dependency was added to the application.
 
 4. Run locally:
