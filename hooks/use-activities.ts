@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
 import { apiFetch } from '@/lib/api-client'
 import type { ActivityCreateRequest, ApiSuccessResponse } from '@/lib/api-types'
@@ -10,6 +10,7 @@ import { startOfDay, endOfDay } from 'date-fns'
 interface UseActivitiesReturn {
     todayActivities: Activity[]
     isLoading: boolean
+    hasLoaded: boolean
     error: string | null
     isToysFilled: boolean
     isDinnerDone: boolean
@@ -24,7 +25,10 @@ export function useActivities(): UseActivitiesReturn {
     const [isLoading, setIsLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
 
-    const fetchActivities = useCallback(async () => {
+    const requestId = useRef(0)
+    const [hasLoaded, setHasLoaded] = useState(false)
+    const fetchActivities = useCallback(async (afterSave = false) => {
+        const id = ++requestId.current
         try {
             setIsLoading(true)
             const now = new Date()
@@ -40,60 +44,42 @@ export function useActivities(): UseActivitiesReturn {
 
             if (fetchError) throw fetchError
 
+            if (id !== requestId.current) return
+            setHasLoaded(true)
             setTodayActivities(data || [])
             setError(null)
-        } catch (err) {
-            setError(err instanceof Error ? err.message : 'Failed to fetch activities')
+        } catch {
+            if (id === requestId.current) setError(afterSave
+                ? 'Change saved, but routines could not refresh. Refresh routines; do not save again.'
+                : 'Routines could not be checked. Displayed routines may be out of date. Please refresh.')
         } finally {
-            setIsLoading(false)
+            if (id === requestId.current) setIsLoading(false)
         }
     }, [])
 
     useEffect(() => {
-        fetchActivities()
+        void fetchActivities()
+        const handler = () => { void fetchActivities(true) }
+        window.addEventListener('ppp:data-changed', handler)
+        return () => {
+            window.removeEventListener('ppp:data-changed', handler)
+            requestId.current += 1
+        }
     }, [fetchActivities])
 
     const logActivity = async (type: ActivityType, loggedBy: UserName, assignedTo: UserName, createdAt?: Date) => {
         const timestamp = createdAt ?? new Date()
-        const todayStart = startOfDay(new Date())
-        const todayEnd = endOfDay(new Date())
-        const belongsToToday = timestamp >= todayStart && timestamp <= todayEnd
+        await apiFetch<ApiSuccessResponse>('/api/activities', {
+            method: 'POST',
+            body: JSON.stringify({
+                createdAt: timestamp.toISOString(),
+                type,
+                loggedBy,
+                assignedTo,
+            } satisfies ActivityCreateRequest),
+        })
 
-        // Optimistic update
-        const optimisticActivity: Activity = {
-            id: `temp-${Date.now()}`,
-            created_at: timestamp.toISOString(),
-            type,
-            logged_by: loggedBy,
-            assigned_to: assignedTo,
-        }
-
-        if (belongsToToday) {
-            setTodayActivities(prev => [optimisticActivity, ...prev])
-        }
-
-        try {
-            await apiFetch<ApiSuccessResponse>('/api/activities', {
-                method: 'POST',
-                body: JSON.stringify({
-                    createdAt: timestamp.toISOString(),
-                    type,
-                    loggedBy,
-                    assignedTo,
-                } satisfies ActivityCreateRequest),
-            })
-
-            // Refetch to get real data
-            await fetchActivities()
-            window.dispatchEvent(new Event('ppp:data-changed'))
-        } catch (err) {
-            // Rollback
-            if (belongsToToday) {
-                setTodayActivities(prev => prev.filter(a => a.id !== optimisticActivity.id))
-            }
-            const errorMessage = err instanceof Error ? err.message : 'Failed to log activity'
-            setError(errorMessage)
-        }
+        window.dispatchEvent(new Event('ppp:data-changed'))
     }
 
     // Computed values
@@ -109,6 +95,7 @@ export function useActivities(): UseActivitiesReturn {
     return {
         todayActivities,
         isLoading,
+        hasLoaded,
         error,
         isToysFilled,
         isDinnerDone,

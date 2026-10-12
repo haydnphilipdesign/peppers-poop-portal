@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
 import { apiFetch } from '@/lib/api-client'
 import type {
@@ -54,6 +54,7 @@ interface UseHistoryReturn {
     toysStatus: RoutineStatus
     dinnerStatus: RoutineStatus
     isLoading: boolean
+    isRefreshing: boolean
     error: string | null
     goToPreviousDay: () => void
     goToNextDay: () => void
@@ -97,7 +98,12 @@ export function useHistory(): UseHistoryReturn {
     const [isLoading, setIsLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
 
-    const fetchDayData = useCallback(async (date: Date) => {
+    const requestId = useRef(0)
+    const [dataDate, setDataDate] = useState<string | null>(null)
+    const dateKey = format(selectedDate, 'yyyy-MM-dd')
+
+    const fetchDayData = useCallback(async (date: Date, afterSave = false) => {
+        const id = ++requestId.current
         try {
             setIsLoading(true)
             setError(null)
@@ -123,22 +129,29 @@ export function useHistory(): UseHistoryReturn {
             if (logsResult.error) throw logsResult.error
             if (activitiesResult.error) throw activitiesResult.error
 
+            if (id !== requestId.current) return
+            setDataDate(format(date, 'yyyy-MM-dd'))
             setLogs(logsResult.data || [])
             setActivities(activitiesResult.data || [])
-        } catch (err) {
-            setError(err instanceof Error ? err.message : 'Failed to fetch logs')
+        } catch {
+            if (id === requestId.current) {
+                setError(afterSave
+                    ? 'Change saved, but history could not refresh. Refresh history; do not save again.'
+                    : 'History could not be checked. Displayed records may be out of date. Please refresh history.')
+            }
         } finally {
-            setIsLoading(false)
+            if (id === requestId.current) setIsLoading(false)
         }
     }, [])
 
     useEffect(() => {
         void fetchDayData(selectedDate)
+        return () => { requestId.current += 1 }
     }, [selectedDate, fetchDayData])
 
     useEffect(() => {
         const handler = () => {
-            void fetchDayData(selectedDate)
+            void fetchDayData(selectedDate, true)
         }
 
         window.addEventListener('ppp:data-changed', handler)
@@ -148,6 +161,7 @@ export function useHistory(): UseHistoryReturn {
     }, [fetchDayData, selectedDate])
 
     const dayStats = useMemo((): DayStats | null => {
+        if (dataDate !== dateKey) return null
         const walks = groupLogsIntoWalks(logs)
         return {
             date: selectedDate,
@@ -157,7 +171,7 @@ export function useHistory(): UseHistoryReturn {
             walksCount: walks.length,
             walks,
         }
-    }, [logs, selectedDate])
+    }, [logs, selectedDate, dataDate, dateKey])
 
     const isToday = useMemo(() => {
         const today = new Date()
@@ -187,65 +201,47 @@ export function useHistory(): UseHistoryReturn {
     }, [fetchDayData, selectedDate])
 
     const addWalk = useCallback(async (options: { poop: boolean; pee: boolean; userName: UserName; createdAt: Date }) => {
-        try {
-            await apiFetch<ApiSuccessResponse>('/api/walks', {
-                method: 'POST',
-                body: JSON.stringify({
-                    poop: options.poop,
-                    pee: options.pee,
-                    userName: options.userName,
-                    createdAt: options.createdAt.toISOString(),
-                } satisfies WalkCreateRequest),
-            })
+        await apiFetch<ApiSuccessResponse>('/api/walks', {
+            method: 'POST',
+            body: JSON.stringify({
+                poop: options.poop,
+                pee: options.pee,
+                userName: options.userName,
+                createdAt: options.createdAt.toISOString(),
+            } satisfies WalkCreateRequest),
+        })
 
-            await fetchDayData(selectedDate)
-            window.dispatchEvent(new Event('ppp:data-changed'))
-            setError(null)
-        } catch (err) {
-            setError(err instanceof Error ? err.message : 'Failed to add walk')
-        }
-    }, [fetchDayData, selectedDate])
+        window.dispatchEvent(new Event('ppp:data-changed'))
+    }, [])
 
     const updateWalk = useCallback(async (
         walk: Walk,
         updates: { poop: boolean; pee: boolean; userName: UserName; time: Date }
     ) => {
-        try {
-            await apiFetch<ApiSuccessResponse>('/api/walks', {
-                method: 'PATCH',
-                body: JSON.stringify({
-                    logIds: walk.logs.map(log => log.id),
-                    poop: updates.poop,
-                    pee: updates.pee,
-                    userName: updates.userName,
-                    createdAt: updates.time.toISOString(),
-                } satisfies WalkUpdateRequest),
-            })
+        await apiFetch<ApiSuccessResponse>('/api/walks', {
+            method: 'PATCH',
+            body: JSON.stringify({
+                logIds: walk.logs.map(log => log.id),
+                poop: updates.poop,
+                pee: updates.pee,
+                userName: updates.userName,
+                createdAt: updates.time.toISOString(),
+            } satisfies WalkUpdateRequest),
+        })
 
-            await fetchDayData(selectedDate)
-            window.dispatchEvent(new Event('ppp:data-changed'))
-            setError(null)
-        } catch (err) {
-            setError(err instanceof Error ? err.message : 'Failed to update walk')
-        }
-    }, [fetchDayData, selectedDate])
+        window.dispatchEvent(new Event('ppp:data-changed'))
+    }, [])
 
     const deleteWalk = useCallback(async (walk: Walk) => {
-        try {
-            await apiFetch<ApiSuccessResponse>('/api/walks', {
-                method: 'DELETE',
-                body: JSON.stringify({
-                    logIds: walk.logs.map(log => log.id),
-                } satisfies WalkDeleteRequest),
-            })
+        await apiFetch<ApiSuccessResponse>('/api/walks', {
+            method: 'DELETE',
+            body: JSON.stringify({
+                logIds: walk.logs.map(log => log.id),
+            } satisfies WalkDeleteRequest),
+        })
 
-            await fetchDayData(selectedDate)
-            window.dispatchEvent(new Event('ppp:data-changed'))
-            setError(null)
-        } catch (err) {
-            setError(err instanceof Error ? err.message : 'Failed to delete walk')
-        }
-    }, [fetchDayData, selectedDate])
+        window.dispatchEvent(new Event('ppp:data-changed'))
+    }, [])
 
     const logActivity = useCallback(async (
         type: RoutineStatus['type'],
@@ -253,24 +249,18 @@ export function useHistory(): UseHistoryReturn {
         assignedTo: UserName,
         createdAt: Date
     ) => {
-        try {
-            await apiFetch<ApiSuccessResponse>('/api/activities', {
-                method: 'POST',
-                body: JSON.stringify({
-                    type,
-                    loggedBy,
-                    assignedTo,
-                    createdAt: createdAt.toISOString(),
-                } satisfies ActivityCreateRequest),
-            })
+        await apiFetch<ApiSuccessResponse>('/api/activities', {
+            method: 'POST',
+            body: JSON.stringify({
+                type,
+                loggedBy,
+                assignedTo,
+                createdAt: createdAt.toISOString(),
+            } satisfies ActivityCreateRequest),
+        })
 
-            await fetchDayData(selectedDate)
-            window.dispatchEvent(new Event('ppp:data-changed'))
-            setError(null)
-        } catch (err) {
-            setError(err instanceof Error ? err.message : 'Failed to log activity')
-        }
-    }, [fetchDayData, selectedDate])
+        window.dispatchEvent(new Event('ppp:data-changed'))
+    }, [])
 
     const updateActivity = useCallback(async (
         id: string,
@@ -278,53 +268,42 @@ export function useHistory(): UseHistoryReturn {
         assignedTo: UserName,
         createdAt: Date
     ) => {
-        try {
-            await apiFetch<ApiSuccessResponse>('/api/activities', {
-                method: 'PATCH',
-                body: JSON.stringify({
-                    id,
-                    loggedBy,
-                    assignedTo,
-                    createdAt: createdAt.toISOString(),
-                } satisfies ActivityUpdateRequest),
-            })
+        await apiFetch<ApiSuccessResponse>('/api/activities', {
+            method: 'PATCH',
+            body: JSON.stringify({
+                id,
+                loggedBy,
+                assignedTo,
+                createdAt: createdAt.toISOString(),
+            } satisfies ActivityUpdateRequest),
+        })
 
-            await fetchDayData(selectedDate)
-            window.dispatchEvent(new Event('ppp:data-changed'))
-            setError(null)
-        } catch (err) {
-            setError(err instanceof Error ? err.message : 'Failed to update activity')
-        }
-    }, [fetchDayData, selectedDate])
+        window.dispatchEvent(new Event('ppp:data-changed'))
+    }, [])
 
     const deleteActivity = useCallback(async (id: string) => {
-        try {
-            await apiFetch<ApiSuccessResponse>('/api/activities', {
-                method: 'DELETE',
-                body: JSON.stringify({
-                    id,
-                } satisfies ActivityDeleteRequest),
-            })
+        await apiFetch<ApiSuccessResponse>('/api/activities', {
+            method: 'DELETE',
+            body: JSON.stringify({
+                id,
+            } satisfies ActivityDeleteRequest),
+        })
 
-            await fetchDayData(selectedDate)
-            window.dispatchEvent(new Event('ppp:data-changed'))
-            setError(null)
-        } catch (err) {
-            setError(err instanceof Error ? err.message : 'Failed to delete activity')
-        }
-    }, [fetchDayData, selectedDate])
+        window.dispatchEvent(new Event('ppp:data-changed'))
+    }, [])
 
-    const toysStatus = useMemo(() => getRoutineStatus(activities, 'toys', selectedDate), [activities, selectedDate])
-    const dinnerStatus = useMemo(() => getRoutineStatus(activities, 'dinner', selectedDate), [activities, selectedDate])
+    const toysStatus = useMemo(() => getRoutineStatus(dataDate === dateKey ? activities : [], 'toys', selectedDate), [activities, selectedDate, dataDate, dateKey])
+    const dinnerStatus = useMemo(() => getRoutineStatus(dataDate === dateKey ? activities : [], 'dinner', selectedDate), [activities, selectedDate, dataDate, dateKey])
 
     return {
         selectedDate,
         setSelectedDate,
         dayStats,
-        dayActivities: activities,
+        dayActivities: dataDate === dateKey ? activities : [],
         toysStatus,
         dinnerStatus,
-        isLoading,
+        isLoading: isLoading && dataDate !== dateKey,
+        isRefreshing: isLoading && dataDate === dateKey,
         error,
         goToPreviousDay,
         goToNextDay,
@@ -344,7 +323,9 @@ export function useAnalytics(): UseAnalyticsReturn {
     const [isLoading, setIsLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
 
-    const fetchAnalytics = useCallback(async () => {
+    const requestId = useRef(0)
+    const fetchAnalytics = useCallback(async (afterSave = false) => {
+        const id = ++requestId.current
         try {
             setIsLoading(true)
             setError(null)
@@ -395,6 +376,7 @@ export function useAnalytics(): UseAnalyticsReturn {
             const averagePoopsPerDay =
                 dailyStats.reduce((sum, day) => sum + day.poopCount, 0) / totalDays
 
+            if (id !== requestId.current) return
             setAnalytics({
                 last7Days: dailyStats.slice(-7),
                 last30Days: dailyStats,
@@ -404,10 +386,10 @@ export function useAnalytics(): UseAnalyticsReturn {
                 averagePoopsPerDay,
                 timeOfDayDistribution: calculateTimeOfDayDistribution(logs),
             })
-        } catch (err) {
-            setError(err instanceof Error ? err.message : 'Failed to fetch analytics')
+        } catch {
+            if (id === requestId.current) setError(afterSave ? 'Change saved, but analytics could not refresh. Please refresh analytics.' : 'Analytics could not be checked. Please refresh analytics.')
         } finally {
-            setIsLoading(false)
+            if (id === requestId.current) setIsLoading(false)
         }
     }, [])
 
@@ -417,12 +399,13 @@ export function useAnalytics(): UseAnalyticsReturn {
 
     useEffect(() => {
         const handler = () => {
-            void fetchAnalytics()
+            void fetchAnalytics(true)
         }
 
         window.addEventListener('ppp:data-changed', handler)
         return () => {
             window.removeEventListener('ppp:data-changed', handler)
+            requestId.current += 1
         }
     }, [fetchAnalytics])
 

@@ -1,8 +1,9 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { format, isToday as isTodayDate, parseISO, setHours, setMinutes, startOfDay } from 'date-fns'
 import { CalendarDays, Check, Loader2, Pencil, Plus, Trash2 } from 'lucide-react'
+import { SaveFeedback } from '@/components/save-feedback'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { useHistory } from '@/hooks/use-history'
@@ -47,6 +48,8 @@ export function HistoryView() {
         toysStatus,
         dinnerStatus,
         isLoading,
+        isRefreshing,
+        refetch,
         error,
         goToPreviousDay,
         goToNextDay,
@@ -59,6 +62,10 @@ export function HistoryView() {
         deleteActivity,
     } = useHistory()
 
+    const saving = useRef(false)
+    const [saveTarget, setSaveTarget] = useState<string | null>(null)
+    const [saveError, setSaveError] = useState<string | null>(null)
+    const [saved, setSaved] = useState(false)
     const [showAddWalk, setShowAddWalk] = useState(false)
     const [addWalker, setAddWalker] = useState<UserName>(user ?? 'Chris')
     const [addTime, setAddTime] = useState(getDefaultWalkTimeValue)
@@ -78,11 +85,17 @@ export function HistoryView() {
     const [savingRoutine, setSavingRoutine] = useState<ActivityType | null>(null)
     const [deletingRoutine, setDeletingRoutine] = useState<ActivityType | null>(null)
 
+    const mutationPending = Boolean(isAddingWalk || savingWalkId || deletingWalkId || savingRoutine || deletingRoutine)
+    const careBusy = isReadOnly || isRefreshing || Boolean(error) || mutationPending
+
     const routineStatuses = useMemo(() => [toysStatus, dinnerStatus], [toysStatus, dinnerStatus])
     const selectedDateInput = format(selectedDate, 'yyyy-MM-dd')
     const fullDateLabel = format(selectedDate, 'EEEE, MMMM d, yyyy')
 
     useEffect(() => {
+        setSaveError(null)
+        setSaveTarget(null)
+        setSaved(false)
         setShowAddWalk(false)
         setAddWalker(user ?? 'Chris')
         setAddTime(getDefaultWalkTimeValue())
@@ -106,8 +119,12 @@ export function HistoryView() {
     }
 
     const handleAddWalk = async () => {
-        if (!user || (!addPoop && !addPee)) return
+        if (!user || isReadOnly || isRefreshing || Boolean(error) || saving.current || !addTime || (!addPoop && !addPee)) return
 
+        saving.current = true
+        setSaveTarget('add-walk')
+        setSaveError(null)
+        setSaved(false)
         setIsAddingWalk(true)
         try {
             await addWalk({
@@ -122,14 +139,22 @@ export function HistoryView() {
             setAddPoop(false)
             setAddPee(false)
             setAddWalker(user)
+            setSaved(true)
+        } catch (err) {
+            setSaveError(err instanceof Error ? err.message : 'Unable to save. Please try again. Your input has been kept.')
         } finally {
+            saving.current = false
             setIsAddingWalk(false)
         }
     }
 
     const handleSaveWalk = async () => {
-        if (!editingWalk || (!editPoop && !editPee)) return
+        if (!editingWalk || isReadOnly || isRefreshing || Boolean(error) || saving.current || !editTime || (!editPoop && !editPee)) return
 
+        saving.current = true
+        setSaveTarget(editingWalk.id)
+        setSaveError(null)
+        setSaved(false)
         setSavingWalkId(editingWalk.id)
         try {
             await updateWalk(editingWalk, {
@@ -139,26 +164,43 @@ export function HistoryView() {
                 time: combineDateAndTime(selectedDate, editTime),
             })
             setEditingWalk(null)
+            setSaved(true)
+        } catch (err) {
+            setSaveError(err instanceof Error ? err.message : 'Unable to save. Please try again. Your input has been kept.')
         } finally {
+            saving.current = false
             setSavingWalkId(null)
         }
     }
 
     const handleDeleteWalk = async (walk: Walk) => {
+        if (isReadOnly || isRefreshing || Boolean(error) || saving.current) return
+        saving.current = true
+        setSaveTarget(walk.id)
+        setSaveError(null)
+        setSaved(false)
         setDeletingWalkId(walk.id)
         try {
             await deleteWalk(walk)
             if (editingWalk?.id === walk.id) {
                 setEditingWalk(null)
             }
+            setSaved(true)
+        } catch (err) {
+            setSaveError(err instanceof Error ? err.message : 'Unable to save. Please try again. Your input has been kept.')
         } finally {
+            saving.current = false
             setDeletingWalkId(null)
         }
     }
 
     const handleRoutineSave = async (status: RoutineStatus, assignedTo: UserName) => {
-        if (!user) return
+        if (!user || isReadOnly || isRefreshing || Boolean(error) || saving.current) return
 
+        saving.current = true
+        setSaveTarget(status.type)
+        setSaveError(null)
+        setSaved(false)
         setSavingRoutine(status.type)
         try {
             if (status.activity) {
@@ -178,21 +220,33 @@ export function HistoryView() {
             }
 
             setEditingRoutine(null)
+            setSaved(true)
+        } catch (err) {
+            setSaveError(err instanceof Error ? err.message : 'Unable to save. Please try again. Your input has been kept.')
         } finally {
+            saving.current = false
             setSavingRoutine(null)
         }
     }
 
     const handleRoutineDelete = async (status: RoutineStatus) => {
-        if (!status.activity) return
+        if (!status.activity || isReadOnly || isRefreshing || Boolean(error) || saving.current) return
 
+        saving.current = true
+        setSaveTarget(status.type)
+        setSaveError(null)
+        setSaved(false)
         setDeletingRoutine(status.type)
         try {
             await deleteActivity(status.activity.id)
             if (editingRoutine === status.type) {
                 setEditingRoutine(null)
             }
+            setSaved(true)
+        } catch (err) {
+            setSaveError(err instanceof Error ? err.message : 'Unable to save. Please try again. Your input has been kept.')
         } finally {
+            saving.current = false
             setDeletingRoutine(null)
         }
     }
@@ -205,8 +259,9 @@ export function HistoryView() {
                         <Button
                             variant="outline"
                             size="sm"
+                            disabled={mutationPending}
                             onClick={goToPreviousDay}
-                            className="px-3"
+                            className="min-h-11 px-3"
                         >
                             ← Prev
                         </Button>
@@ -224,8 +279,8 @@ export function HistoryView() {
                             variant="outline"
                             size="sm"
                             onClick={goToNextDay}
-                            disabled={isToday}
-                            className="px-3"
+                            disabled={isToday || mutationPending}
+                            className="min-h-11 px-3"
                         >
                             Next →
                         </Button>
@@ -237,6 +292,8 @@ export function HistoryView() {
                             Jump to a date
                         </label>
                         <input
+                            aria-label="History date"
+                            disabled={mutationPending}
                             type="date"
                             value={selectedDateInput}
                             max={format(new Date(), 'yyyy-MM-dd')}
@@ -248,11 +305,14 @@ export function HistoryView() {
             </Card>
 
             {error && (
-                <div className="rounded-xl border border-destructive/20 bg-destructive/10 p-4 text-sm text-destructive">
-                    ⚠️ {error}
+                <div role="alert" className="rounded-xl border border-destructive/20 bg-destructive/10 p-4 text-sm text-destructive">
+                    <p>{error}</p>
+                    <Button variant="outline" className="mt-2 min-h-11" disabled={isLoading || isRefreshing} onClick={() => void refetch()}>Refresh history</Button>
                 </div>
             )}
 
+            <SaveFeedback error={null} saved={saved} />
+            {isRefreshing ? <p role="status" className="text-sm text-muted-foreground">Refreshing history...</p> : null}
             {isLoading && (
                 <div className="py-8 text-center">
                     <div className="mb-2 text-4xl animate-spin">🐕</div>
@@ -336,6 +396,7 @@ export function HistoryView() {
                                     <Button
                                         size="sm"
                                         variant={showAddWalk ? 'outline' : 'secondary'}
+                                        disabled={careBusy}
                                         onClick={() => setShowAddWalk((open) => !open)}
                                     >
                                         <Plus className="mr-1 h-4 w-4" />
@@ -347,7 +408,7 @@ export function HistoryView() {
                         <CardContent className="space-y-3">
                             {!isReadOnly && showAddWalk && (
                                 <div className="space-y-3 rounded-xl border border-primary/25 bg-primary/5 p-4">
-                                    <div className="flex items-center justify-between">
+                                    <div className="flex flex-wrap items-center justify-between gap-2">
                                         <p className="font-medium text-foreground">Add walk for {isTodayDate(selectedDate) ? 'today' : format(selectedDate, 'MMM d')}</p>
                                         <span className="text-xs text-muted-foreground">Choose time and what Pepper did</span>
                                     </div>
@@ -356,6 +417,8 @@ export function HistoryView() {
                                         <div className="flex items-center gap-2">
                                             <label className="text-sm text-muted-foreground">Time:</label>
                                             <input
+                                                aria-label="Walk time"
+                                                disabled={careBusy}
                                                 type="time"
                                                 value={addTime}
                                                 onChange={(event) => setAddTime(event.target.value)}
@@ -366,9 +429,11 @@ export function HistoryView() {
                                         <div className="flex flex-wrap gap-1">
                                             {USERS.map((walkUser) => (
                                                 <button
+                                                    disabled={careBusy}
                                                     key={walkUser}
+                                                    aria-pressed={addWalker === walkUser}
                                                     onClick={() => setAddWalker(walkUser)}
-                                                    className={`rounded-md px-2 py-1 text-sm transition-all ${addWalker === walkUser
+                                                    className={`min-h-11 min-w-11 rounded-md px-3 py-2 text-sm transition-all ${addWalker === walkUser
                                                         ? 'bg-primary text-primary-foreground'
                                                         : 'bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground'
                                                         }`}
@@ -379,11 +444,13 @@ export function HistoryView() {
                                         </div>
                                     </div>
 
-                                    <div className="flex items-center gap-3">
+                                    <div className="flex flex-wrap items-center gap-3">
                                         <span className="text-sm text-muted-foreground">What she did:</span>
                                         <button
+                                            disabled={careBusy}
+                                            aria-label="Poop" aria-pressed={addPoop}
                                             onClick={() => setAddPoop((value) => !value)}
-                                            className={`rounded-lg px-3 py-1.5 text-lg transition-all ${addPoop
+                                            className={`min-h-11 min-w-11 rounded-lg px-3 py-2 text-lg transition-all ${addPoop
                                                 ? 'bg-amber-500/30 ring-2 ring-amber-500/50'
                                                 : 'bg-muted opacity-60 hover:opacity-80'
                                                 }`}
@@ -391,8 +458,10 @@ export function HistoryView() {
                                             💩
                                         </button>
                                         <button
+                                            disabled={careBusy}
+                                            aria-label="Pee" aria-pressed={addPee}
                                             onClick={() => setAddPee((value) => !value)}
-                                            className={`rounded-lg px-3 py-1.5 text-lg transition-all ${addPee
+                                            className={`min-h-11 min-w-11 rounded-lg px-3 py-2 text-lg transition-all ${addPee
                                                 ? 'bg-blue-500/30 ring-2 ring-blue-500/50'
                                                 : 'bg-muted opacity-60 hover:opacity-80'
                                                 }`}
@@ -403,8 +472,8 @@ export function HistoryView() {
 
                                     <Button
                                         onClick={() => void handleAddWalk()}
-                                        disabled={isAddingWalk || (!addPoop && !addPee)}
-                                        className="w-full sm:w-auto"
+                                        disabled={careBusy || !addTime || (!addPoop && !addPee)}
+                                        className="min-h-11 w-full sm:w-auto"
                                     >
                                         {isAddingWalk ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                                         Save Walk
@@ -412,6 +481,7 @@ export function HistoryView() {
                                 </div>
                             )}
 
+                            <SaveFeedback error={saveTarget === 'add-walk' ? saveError : null} />
                             {dayStats.walks.length === 0 ? (
                                 <p className="py-4 text-center text-muted-foreground">
                                     No walks recorded for this day yet.
@@ -424,16 +494,20 @@ export function HistoryView() {
                                                 <div className="flex items-center justify-between">
                                                     <span className="text-sm font-medium">Edit Walk</span>
                                                     <button
+                                                        disabled={mutationPending}
+                                                        aria-label="Cancel editing walk"
                                                         onClick={() => setEditingWalk(null)}
-                                                        className="text-muted-foreground transition-colors hover:text-foreground"
+                                                        className="min-h-11 min-w-11 text-muted-foreground transition-colors hover:text-foreground"
                                                     >
                                                         ✕
                                                     </button>
                                                 </div>
 
-                                                <div className="flex items-center gap-2">
+                                                <div className="flex flex-wrap items-center gap-2">
                                                     <label className="text-sm text-muted-foreground">Time:</label>
                                                     <input
+                                                        aria-label="Walk time"
+                                                        disabled={careBusy}
                                                         type="time"
                                                         value={editTime}
                                                         onChange={(event) => setEditTime(event.target.value)}
@@ -441,14 +515,16 @@ export function HistoryView() {
                                                     />
                                                 </div>
 
-                                                <div className="flex items-center gap-2">
+                                                <div className="flex flex-wrap items-center gap-2">
                                                     <label className="text-sm text-muted-foreground">Walker:</label>
                                                     <div className="flex flex-wrap gap-1">
                                                         {USERS.map((walkUser) => (
                                                             <button
+                                                                disabled={careBusy}
                                                                 key={walkUser}
+                                                                aria-pressed={editUser === walkUser}
                                                                 onClick={() => setEditUser(walkUser)}
-                                                                className={`rounded-md px-2 py-1 text-sm transition-all ${editUser === walkUser
+                                                                className={`min-h-11 min-w-11 rounded-md px-3 py-2 text-sm transition-all ${editUser === walkUser
                                                                     ? 'bg-primary text-primary-foreground'
                                                                     : 'bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground'
                                                                     }`}
@@ -459,11 +535,13 @@ export function HistoryView() {
                                                     </div>
                                                 </div>
 
-                                                <div className="flex items-center gap-3">
+                                                <div className="flex flex-wrap items-center gap-3">
                                                     <label className="text-sm text-muted-foreground">What she did:</label>
                                                     <button
+                                                        disabled={careBusy}
+                                                        aria-label="Poop" aria-pressed={editPoop}
                                                         onClick={() => setEditPoop((value) => !value)}
-                                                        className={`rounded-lg px-3 py-1.5 text-lg transition-all ${editPoop
+                                                        className={`min-h-11 min-w-11 rounded-lg px-3 py-2 text-lg transition-all ${editPoop
                                                             ? 'bg-amber-500/30 ring-2 ring-amber-500/50'
                                                             : 'bg-muted opacity-60 hover:opacity-80'
                                                             }`}
@@ -471,8 +549,10 @@ export function HistoryView() {
                                                         💩
                                                     </button>
                                                     <button
+                                                        disabled={careBusy}
+                                                        aria-label="Pee" aria-pressed={editPee}
                                                         onClick={() => setEditPee((value) => !value)}
-                                                        className={`rounded-lg px-3 py-1.5 text-lg transition-all ${editPee
+                                                        className={`min-h-11 min-w-11 rounded-lg px-3 py-2 text-lg transition-all ${editPee
                                                             ? 'bg-blue-500/30 ring-2 ring-blue-500/50'
                                                             : 'bg-muted opacity-60 hover:opacity-80'
                                                             }`}
@@ -484,7 +564,7 @@ export function HistoryView() {
                                                 <div className="flex gap-2 pt-1">
                                                     <Button
                                                         onClick={() => void handleSaveWalk()}
-                                                        disabled={savingWalkId === walk.id || (!editPoop && !editPee)}
+                                                        disabled={careBusy || !editTime || (!editPoop && !editPee)}
                                                         className="flex-1"
                                                         size="sm"
                                                     >
@@ -518,16 +598,19 @@ export function HistoryView() {
                                                     {!isReadOnly && (
                                                         <div className="ml-2 flex items-center gap-1 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100">
                                                             <button
+                                                                disabled={careBusy}
                                                                 onClick={() => handleStartEdit(walk)}
-                                                                className="rounded-lg bg-muted/80 p-1.5 text-muted-foreground transition-colors hover:bg-primary/20 hover:text-foreground"
+                                                                className="min-h-11 min-w-11 rounded-lg bg-muted/80 p-2 text-muted-foreground transition-colors hover:bg-primary/20 hover:text-foreground"
+                                                                aria-label="Edit walk"
                                                                 title="Edit walk"
                                                             >
                                                                 <Pencil className="h-4 w-4" />
                                                             </button>
                                                             <button
                                                                 onClick={() => void handleDeleteWalk(walk)}
-                                                                disabled={deletingWalkId === walk.id}
-                                                                className="rounded-lg bg-muted/80 p-1.5 text-muted-foreground transition-colors hover:bg-destructive/20 hover:text-destructive disabled:opacity-50"
+                                                                disabled={careBusy}
+                                                                className="min-h-11 min-w-11 rounded-lg bg-muted/80 p-2 text-muted-foreground transition-colors hover:bg-destructive/20 hover:text-destructive disabled:opacity-50"
+                                                                aria-label="Delete walk"
                                                                 title="Delete walk"
                                                             >
                                                                 {deletingWalkId === walk.id ? (
@@ -541,6 +624,7 @@ export function HistoryView() {
                                                 </div>
                                             </div>
                                         )}
+                                        <SaveFeedback error={saveTarget === walk.id ? saveError : null} />
                                     </div>
                                 ))
                             )}
@@ -562,7 +646,7 @@ export function HistoryView() {
                                         : 'border-border bg-card'
                                         }`}
                                 >
-                                    <div className="flex items-start justify-between gap-3">
+                                    <div className="flex flex-wrap items-start justify-between gap-3">
                                         <div className="flex items-center gap-3">
                                             <span className="text-2xl">{status.icon}</span>
                                             <div>
@@ -585,14 +669,14 @@ export function HistoryView() {
                                                 {status.isComplete ? 'Done' : 'Missing'}
                                             </span>
                                         ) : editingRoutine === status.type ? (
-                                            <div className="flex flex-wrap justify-end gap-1">
+                                            <div className="flex flex-wrap justify-end gap-2">
                                                 {USERS.map((routineUser) => (
                                                     <Button
                                                         key={routineUser}
                                                         size="sm"
                                                         variant="outline"
                                                         onClick={() => void handleRoutineSave(status, routineUser)}
-                                                        disabled={savingRoutine === status.type}
+                                                        disabled={careBusy}
                                                         className="bg-background text-xs"
                                                     >
                                                         {savingRoutine === status.type ? (
@@ -605,6 +689,7 @@ export function HistoryView() {
                                                 <Button
                                                     size="sm"
                                                     variant="ghost"
+                                                    disabled={mutationPending}
                                                     onClick={() => setEditingRoutine(null)}
                                                 >
                                                     Cancel
@@ -615,6 +700,7 @@ export function HistoryView() {
                                                 <Button
                                                     size="sm"
                                                     variant={status.isComplete ? 'outline' : 'secondary'}
+                                                    disabled={careBusy}
                                                     onClick={() => setEditingRoutine(status.type)}
                                                 >
                                                     {status.isComplete ? 'Change' : 'Log'}
@@ -624,7 +710,7 @@ export function HistoryView() {
                                                         size="sm"
                                                         variant="ghost"
                                                         onClick={() => void handleRoutineDelete(status)}
-                                                        disabled={deletingRoutine === status.type}
+                                                        disabled={careBusy}
                                                     >
                                                         {deletingRoutine === status.type ? (
                                                             <Loader2 className="h-4 w-4 animate-spin" />
@@ -636,6 +722,7 @@ export function HistoryView() {
                                             </div>
                                         )}
                                     </div>
+                                    <SaveFeedback error={saveTarget === status.type ? saveError : null} />
                                 </div>
                             ))}
                         </CardContent>

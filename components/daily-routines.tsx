@@ -1,10 +1,11 @@
 'use client'
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useUser } from '@/lib/user-context'
 import { useReadOnly } from '@/lib/read-only-context'
 import { useActivities } from '@/hooks/use-activities'
 import type { ActivityType, UserName } from '@/lib/database.types'
+import { SaveFeedback } from '@/components/save-feedback'
 import { Button } from '@/components/ui/button'
 import { Check, Loader2 } from 'lucide-react'
 
@@ -20,24 +21,36 @@ export function DailyRoutines() {
         dinnerDoneBy,
         logActivity,
         isLoading,
+        hasLoaded,
         error,
         refetch,
     } = useActivities()
 
+    const saving = useRef(false)
+    const [saveError, setSaveError] = useState<string | null>(null)
+    const [saved, setSaved] = useState(false)
     const [showToysAssignee, setShowToysAssignee] = useState(false)
     const [showDinnerAssignee, setShowDinnerAssignee] = useState(false)
     const [loggingType, setLoggingType] = useState<ActivityType | null>(null)
 
     const handleLog = async (type: ActivityType, assignedTo: UserName) => {
-        if (!user) return
+        if (!user || isReadOnly || isLoading || Boolean(error) || saving.current) return
 
+        saving.current = true
+        setSaveError(null)
+        setSaved(false)
         setLoggingType(type)
         try {
             await logActivity(type, user, assignedTo)
-        } finally {
-            setLoggingType(null)
+
             setShowToysAssignee(false)
             setShowDinnerAssignee(false)
+            setSaved(true)
+        } catch (err) {
+            setSaveError(err instanceof Error ? err.message : 'Unable to save. Please try again. Your input has been kept.')
+        } finally {
+            saving.current = false
+            setLoggingType(null)
         }
     }
 
@@ -54,10 +67,13 @@ export function DailyRoutines() {
 
             {error ? (
                 <div role="alert" className="rounded-xl border border-destructive/30 bg-destructive/10 p-4 text-sm">
-                    <p>Routines could not be checked or saved. Please try again.</p>
+                    <p>{error}</p>
                     <Button variant="outline" className="mt-2" disabled={isLoading} onClick={() => void refetch()}>Retry routines</Button>
                 </div>
-            ) : (
+            ) : null}
+            <SaveFeedback error={saveError} saved={saved} />
+            {loggingType ? <p role="status" className="text-sm text-muted-foreground">Saving routine...</p> : isLoading && hasLoaded ? <p role="status" className="text-sm text-muted-foreground">Refreshing routines...</p> : null}
+            {(hasLoaded || !error) && (
                 <div className="space-y-2">
                     {/* Toys */}
                     <div className="rounded-xl border border-border bg-card p-4">
@@ -70,7 +86,7 @@ export function DailyRoutines() {
                                 </div>
                             </div>
 
-                            {isLoading ? (
+                            {isLoading && !hasLoaded ? (
                                 <span className="text-sm text-muted-foreground">Checking...</span>
                             ) : isToysFilled ? (
                                 <div className="flex items-center gap-2 text-green-500">
@@ -84,10 +100,11 @@ export function DailyRoutines() {
                                     {USERS.map(u => (
                                         <Button
                                             key={u}
+                                            aria-label={u}
                                             size="sm"
                                             variant="outline"
                                             onClick={() => handleLog('toys', u)}
-                                            disabled={loggingType === 'toys'}
+                                            disabled={Boolean(loggingType) || isLoading || Boolean(error)}
                                             className="min-h-11 min-w-11 px-3 text-sm"
                                         >
                                             {loggingType === 'toys' ? (
@@ -103,7 +120,7 @@ export function DailyRoutines() {
                                     size="sm"
                                     variant="secondary"
                                     onClick={() => setShowToysAssignee(true)}
-                                    disabled={isLoading}
+                                    disabled={isLoading || Boolean(error)}
                                 >
                                     Log
                                 </Button>
@@ -131,7 +148,7 @@ export function DailyRoutines() {
                                 </div>
                             </div>
 
-                            {isLoading ? (
+                            {isLoading && !hasLoaded ? (
                                 <span className="text-sm text-muted-foreground">Checking...</span>
                             ) : isDinnerDone ? (
                                 <div className="flex items-center gap-2 text-green-500">
@@ -145,10 +162,11 @@ export function DailyRoutines() {
                                     {USERS.map(u => (
                                         <Button
                                             key={u}
+                                            aria-label={u}
                                             size="sm"
                                             variant="outline"
                                             onClick={() => handleLog('dinner', u)}
-                                            disabled={loggingType === 'dinner'}
+                                            disabled={Boolean(loggingType) || isLoading || Boolean(error)}
                                             className="min-h-11 min-w-11 px-3 text-sm"
                                         >
                                             {loggingType === 'dinner' ? (
@@ -164,7 +182,7 @@ export function DailyRoutines() {
                                     size="sm"
                                     variant="secondary"
                                     onClick={() => setShowDinnerAssignee(true)}
-                                    disabled={isLoading}
+                                    disabled={isLoading || Boolean(error)}
                                 >
                                     Log
                                 </Button>

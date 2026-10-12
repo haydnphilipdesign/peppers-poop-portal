@@ -1,10 +1,11 @@
 'use client'
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useUser } from '@/lib/user-context'
 import { useReadOnly } from '@/lib/read-only-context'
 import { useReminders } from '@/hooks/use-reminders'
 import type { ReminderType, UserName } from '@/lib/database.types'
+import { SaveFeedback } from '@/components/save-feedback'
 import { Button } from '@/components/ui/button'
 import { AlertTriangle, Calendar, Check, Loader2, X, Pill, Scissors, Stethoscope } from 'lucide-react'
 import { addDays, format, isToday, isTomorrow, parse, parseISO } from 'date-fns'
@@ -71,33 +72,52 @@ export function RemindersBanner() {
     } = useReminders()
 
     const [activeAction, setActiveAction] = useState<string | null>(null)
+    const saving = useRef(false)
+    const [saveError, setSaveError] = useState<string | null>(null)
+    const [saved, setSaved] = useState(false)
     const [completing, setCompleting] = useState<string | null>(null)
     const [dismissed, setDismissed] = useState<Set<string>>(new Set())
     const [appointmentInput, setAppointmentInput] = useState<string>(createDefaultAppointmentInput)
 
     const handleCompleteSimparica = async (completedBy: UserName) => {
-        if (!user) return
+        if (!user || isReadOnly || saving.current || isLoading || error) return
 
+        saving.current = true
+        setSaveError(null)
+        setSaved(false)
         setCompleting('simparica')
         try {
             const today = new Date()
             await addReminder('simparica', today, undefined, completedBy)
-        } finally {
-            setCompleting(null)
+
             setActiveAction(null)
+            setSaved(true)
+        } catch (err) {
+            setSaveError(err instanceof Error ? err.message : 'Unable to save. Please try again. Your input has been kept.')
+        } finally {
+            saving.current = false
+            setCompleting(null)
         }
     }
 
     const handleScheduleGrooming = async (scheduledBy: UserName, appointmentAt: Date) => {
-        if (!user) return
+        if (!user || isReadOnly || saving.current || isLoading || error) return
 
+        saving.current = true
+        setSaveError(null)
+        setSaved(false)
         setCompleting('grooming')
         try {
             await scheduleReminder('grooming', appointmentAt, scheduledBy)
-        } finally {
-            setCompleting(null)
+
             setActiveAction(null)
             setAppointmentInput(createDefaultAppointmentInput())
+            setSaved(true)
+        } catch (err) {
+            setSaveError(err instanceof Error ? err.message : 'Unable to save. Please try again. Your input has been kept.')
+        } finally {
+            saving.current = false
+            setCompleting(null)
         }
     }
 
@@ -151,12 +171,21 @@ export function RemindersBanner() {
             message,
             actionLabel: 'Complete',
             onComplete: async (completedBy) => {
+                if (isReadOnly || saving.current || isLoading || error) return
+                saving.current = true
+                setSaveError(null)
+                setSaved(false)
                 setCompleting(groomingAppointmentReminder.id)
                 try {
                     await completeReminder(groomingAppointmentReminder.id, completedBy)
-                } finally {
-                    setCompleting(null)
+
                     setActiveAction(null)
+                    setSaved(true)
+                } catch (err) {
+                    setSaveError(err instanceof Error ? err.message : 'Unable to save. Please try again. Your input has been kept.')
+                } finally {
+                    saving.current = false
+                    setCompleting(null)
                 }
             },
         })
@@ -171,30 +200,37 @@ export function RemindersBanner() {
                 kind: 'complete',
                 message: `${REMINDER_CONFIG[reminder.type].label} was due on ${format(parseISO(reminder.due_date), 'MMM d')}`,
                 onComplete: async (completedBy) => {
+                    if (isReadOnly || saving.current || isLoading || error) return
+                    saving.current = true
+                    setSaveError(null)
+                    setSaved(false)
                     setCompleting(reminder.id)
                     try {
                         await completeReminder(reminder.id, completedBy)
-                    } finally {
-                        setCompleting(null)
+
                         setActiveAction(null)
+                        setSaved(true)
+                    } catch (err) {
+                        setSaveError(err instanceof Error ? err.message : 'Unable to save. Please try again. Your input has been kept.')
+                    } finally {
+                        saving.current = false
+                        setCompleting(null)
                     }
                 },
             })
         }
     })
 
-    if (error) {
-        return (
-            <div role="alert" className="rounded-xl border border-destructive/30 bg-destructive/10 p-4 text-sm">
-                <p>Care alerts could not be checked or saved. Please try again.</p>
-                <Button variant="outline" className="mt-2" disabled={isLoading} onClick={() => void refetch()}>Retry care alerts</Button>
-            </div>
-        )
-    }
-    if (isLoading || alerts.length === 0) return null
+    if (!error && !saveError && !saved && alerts.length === 0) return null
 
     return (
         <div className="space-y-2">
+            {error ? <div role="alert" className="rounded-xl border border-destructive/30 bg-destructive/10 p-4 text-sm">
+                <p>{error}</p>
+                <Button variant="outline" className="mt-2" disabled={isLoading} onClick={() => void refetch()}>Retry care alerts</Button>
+            </div> : null}
+            <SaveFeedback error={saveError} saved={saved} />
+            {completing ? <p role="status" className="text-sm text-muted-foreground">Saving reminder...</p> : null}
             {alerts.map(alert => {
                 const config = REMINDER_CONFIG[alert.type]
 
@@ -203,7 +239,7 @@ export function RemindersBanner() {
                         key={alert.id}
                         className={`rounded-xl border p-4 ${config.color}`}
                     >
-                        <div className="flex items-start justify-between gap-3">
+                        <div className="flex flex-wrap items-start justify-between gap-3">
                             <div className="flex items-center gap-3">
                                 <div className="p-2 rounded-lg bg-background/50">
                                     {config.icon}
@@ -216,30 +252,33 @@ export function RemindersBanner() {
                                 </div>
                             </div>
 
-                            <div className="flex items-center gap-1">
+                            <div className="flex flex-wrap items-center gap-2">
                                 {isReadOnly ? (
                                     <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                                         Read only
                                     </span>
                                 ) : activeAction === alert.id ? (
-                                    <div className="flex gap-1">
+                                    <div className="flex flex-wrap gap-2">
                                         {alert.kind === 'schedule' ? (
                                             <div className="flex flex-col items-end gap-2">
                                                 <input
+                                                    aria-label="Grooming appointment date and time"
+                                                    disabled={Boolean(completing) || isLoading || Boolean(error)}
                                                     type="datetime-local"
                                                     value={appointmentInput}
                                                     onChange={(e) => setAppointmentInput(e.target.value)}
-                                                    className="h-7 px-2 text-xs border rounded bg-background"
+                                                    className="h-11 max-w-full px-2 text-base border rounded bg-background"
                                                 />
-                                                <div className="flex gap-1">
+                                                <div className="flex flex-wrap gap-2">
                                                     {USERS.map(u => (
                                                         <Button
                                                             key={u}
+                                                            aria-label={u}
                                                             size="sm"
                                                             variant="outline"
                                                             onClick={() => alert.onSchedule(u, parse(appointmentInput, "yyyy-MM-dd'T'HH:mm", new Date()))}
-                                                            disabled={completing === 'grooming'}
-                                                            className="text-xs px-2 py-1 h-7 bg-background"
+                                                            disabled={Boolean(completing) || isLoading || Boolean(error)}
+                                                            className="text-sm px-3 min-h-11 min-w-11 bg-background"
                                                         >
                                                             {completing === 'grooming' ? (
                                                                 <Loader2 className="w-3 h-3 animate-spin" />
@@ -254,11 +293,12 @@ export function RemindersBanner() {
                                             USERS.map(u => (
                                                 <Button
                                                     key={u}
+                                                    aria-label={u}
                                                     size="sm"
                                                     variant="outline"
                                                     onClick={() => alert.onComplete(u)}
-                                                    disabled={completing === alert.id}
-                                                    className="text-xs px-2 py-1 h-7 bg-background"
+                                                    disabled={Boolean(completing) || isLoading || Boolean(error)}
+                                                    className="text-sm px-3 min-h-11 min-w-11 bg-background"
                                                 >
                                                     {completing === alert.id ? (
                                                         <Loader2 className="w-3 h-3 animate-spin" />
@@ -280,7 +320,7 @@ export function RemindersBanner() {
                                                 }
                                                 setActiveAction(alert.id)
                                             }}
-                                            disabled={isLoading}
+                                            disabled={isLoading || Boolean(error)}
                                             className="bg-background"
                                         >
                                             {alert.kind === 'schedule' ? (
@@ -298,8 +338,10 @@ export function RemindersBanner() {
                                         <Button
                                             size="sm"
                                             variant="ghost"
+                                            aria-label="Dismiss reminder"
+                                            disabled={Boolean(completing)}
                                             onClick={() => handleDismiss(alert.id)}
-                                            className="p-1 h-7 w-7"
+                                            className="p-2 min-h-11 min-w-11"
                                         >
                                             <X className="w-4 h-4" />
                                         </Button>

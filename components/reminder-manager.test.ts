@@ -16,6 +16,7 @@ vi.mock('@/lib/user-context', () => ({
 
 vi.mock('@/lib/read-only-context', () => ({
     useReadOnly: () => false,
+    useRequireUnlock: () => undefined,
 }))
 
 vi.mock('@/hooks/use-reminders', () => ({
@@ -106,5 +107,41 @@ describe('ReminderManager vet appointments', () => {
             'Haydn'
         )
         expect(scheduleReminder.mock.calls[0][1]).toEqual(new Date(2026, 6, 10, 10, 0))
+    })
+
+    it('keeps the appointment draft on rejection and allows a deliberate retry', async () => {
+        scheduleReminder.mockRejectedValueOnce(new Error('Save unavailable. Please try again.'))
+        await act(async () => root.render(React.createElement(ReminderManager)))
+        await act(async () => container.querySelector<HTMLButtonElement>('section > button')?.click())
+        const vetCard = findCard(container, 'Vet Visit')
+        await act(async () => findButton(vetCard, 'Schedule').click())
+        const input = vetCard.querySelector<HTMLInputElement>('input')!
+        const value = input.value
+        await act(async () => findButton(vetCard, 'Debbie').click())
+        expect(container.querySelector('[role="alert"]')?.textContent).toContain('Save unavailable')
+        expect(vetCard.querySelector('input')?.value).toBe(value)
+        expect(findButton(vetCard, 'Debbie').disabled).toBe(false)
+        expect(container.textContent).not.toContain('Change saved.')
+        await act(async () => findButton(vetCard, 'Debbie').click())
+        expect(scheduleReminder).toHaveBeenCalledTimes(2)
+        expect(vetCard.querySelector('input')).toBeNull()
+        expect(container.textContent).toContain('Change saved.')
+    })
+
+    it('blocks rapid repeated taps and keeps the pending form until acknowledgement', async () => {
+        let resolve!: () => void
+        scheduleReminder.mockReturnValueOnce(new Promise<void>(done => { resolve = done }))
+        await act(async () => root.render(React.createElement(ReminderManager)))
+        await act(async () => container.querySelector<HTMLButtonElement>('section > button')?.click())
+        const vetCard = findCard(container, 'Vet Visit')
+        await act(async () => findButton(vetCard, 'Schedule').click())
+        const button = findButton(vetCard, 'Chris')
+        await act(async () => { button.click(); button.click() })
+        expect(scheduleReminder).toHaveBeenCalledTimes(1)
+        expect(vetCard.querySelector('input')?.disabled).toBe(true)
+        expect(container.textContent).not.toContain('Change saved.')
+        await act(async () => resolve())
+        expect(vetCard.querySelector('input')).toBeNull()
+        expect(container.textContent).toContain('Change saved.')
     })
 })

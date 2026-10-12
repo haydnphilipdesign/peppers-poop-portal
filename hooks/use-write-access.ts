@@ -44,6 +44,12 @@ export function useWriteAccess(): UseWriteAccessReturn {
 
   useEffect(() => {
     void refresh();
+    const expired = () => {
+      setIsUnlocked(false);
+      setError('Editing has locked. Enter the family PIN to continue.');
+    };
+    window.addEventListener('ppp:write-access-expired', expired);
+    return () => window.removeEventListener('ppp:write-access-expired', expired);
   }, [refresh]);
 
   const unlock = useCallback(async (pin: string) => {

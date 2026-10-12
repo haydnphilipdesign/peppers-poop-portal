@@ -1,6 +1,7 @@
 'use client'
 
 import { useRef, useState } from 'react'
+import { SaveFeedback } from '@/components/save-feedback'
 import { Button } from '@/components/ui/button'
 import {
     Drawer,
@@ -68,6 +69,7 @@ export function LogWalkButton({ userName, onLogWalk, disabled = false, onRequire
 
     const handleLog = async (type: WalkType) => {
         if (!type || saving.current) return
+        if (onRequireUnlock) { onRequireUnlock(); return }
         let createdAt: Date | undefined
         if (showTimePicker) {
             createdAt = selectedDay === 'today' ? new Date() : subDays(new Date(), 1)
@@ -250,9 +252,8 @@ export function LogWalkButton({ userName, onLogWalk, disabled = false, onRequire
                             </Button>
                         </div>
 
-                        <p role={saveError ? 'alert' : 'status'} className="text-center text-sm text-destructive">
-                            {saveError ?? (isLogging ? 'Saving walk...' : '')}
-                        </p>
+                        <SaveFeedback error={saveError} />
+                        <p role="status" className="text-center text-sm text-muted-foreground">{isLogging ? 'Saving walk...' : ''}</p>
                         {/* Log for earlier toggle */}
                         {!showTimePicker && (
                             <div className="text-center pt-2">

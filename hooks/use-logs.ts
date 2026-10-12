@@ -49,7 +49,7 @@ export function useLogs(): UseLogsReturn {
     const requestId = useRef(0)
     const [error, setError] = useState<string | null>(null)
 
-    const fetchLogs = useCallback(async () => {
+    const fetchLogs = useCallback(async (afterSave = false) => {
         const id = ++requestId.current
         try {
             setIsLoading(!loaded.current)
@@ -110,7 +110,7 @@ export function useLogs(): UseLogsReturn {
                 // PostgREST errors are plain objects rather than Error instances.
                 const message = err && typeof err === 'object' && 'message' in err
                     ? String(err.message) : 'Unable to load care data.'
-                setError(message)
+                setError(afterSave ? 'Change saved, but care data could not refresh. Retry loading; do not save again.' : message)
             }
         } finally {
             if (id === requestId.current) {
@@ -123,7 +123,7 @@ export function useLogs(): UseLogsReturn {
     useEffect(() => {
         void fetchLogs()
         const handler = () => {
-            void fetchLogs()
+            void fetchLogs(true)
         }
 
         window.addEventListener('ppp:data-changed', handler)

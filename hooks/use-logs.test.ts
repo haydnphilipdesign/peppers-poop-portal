@@ -82,7 +82,7 @@ describe('dashboard data lifecycle', () => {
         expect(current!.isRefreshing).toBe(true)
         expect(current!.todayWalksCount).toBe(1)
         await act(async () => pending.resolve({ data: [], error: { message: 'Offline' } }))
-        expect(current!.error).toBe('Offline')
+        expect(current!.error).toContain('Change saved, but care data could not refresh')
         expect(current!.todayWalksCount).toBe(1)
         expect(current!.isRefreshing).toBe(false)
         serve([])

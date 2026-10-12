@@ -68,7 +68,7 @@ export function Dashboard() {
     if (!user) return null
 
     return (
-        <ReadOnlyProvider isReadOnly={!canEdit}>
+        <ReadOnlyProvider isReadOnly={!canEdit} onRequireUnlock={() => setUnlockOpen(true)}>
             <div className="min-h-screen bg-[radial-gradient(circle_at_top_right,hsl(32_100%_95%),hsl(var(--background))_36%),radial-gradient(circle_at_20%_120%,hsl(18_85%_94%),transparent_42%)] text-foreground dark:bg-[radial-gradient(circle_at_top_right,hsl(28_45%_13%),hsl(var(--background))_40%),radial-gradient(circle_at_20%_120%,hsl(14_45%_12%),transparent_44%)]">
                 <header className="sticky top-0 z-40 border-b border-border/70 bg-background/90 backdrop-blur">
                     <div className="mx-auto flex w-full max-w-2xl flex-col items-start justify-between gap-2 px-4 py-3 sm:flex-row sm:items-center">
@@ -162,6 +162,7 @@ export function Dashboard() {
                                 />
                                 <WalkHistory
                                     walks={todayWalks}
+                                    updatesBlocked={isRefreshing || Boolean(error)}
                                     onDeleteWalk={deleteWalk}
                                     onUpdateWalk={updateWalk}
                                     isLoading={isLoading}

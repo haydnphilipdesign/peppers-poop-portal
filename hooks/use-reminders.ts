@@ -19,6 +19,7 @@ interface UseRemindersReturn {
     overdueReminders: Reminder[]
     upcomingReminders: Reminder[]
     isLoading: boolean
+    hasLoaded: boolean
     error: string | null
     isSimparicaDue: boolean
     isGroomingDue: boolean
@@ -35,11 +36,12 @@ interface UseRemindersReturn {
 export function useReminders(): UseRemindersReturn {
     const [reminders, setReminders] = useState<Reminder[]>([])
     const [isLoading, setIsLoading] = useState(true)
-    const [hasFetchedOnce, setHasFetchedOnce] = useState(false)
+    const [hasLoaded, setHasLoaded] = useState(false)
     const [error, setError] = useState<string | null>(null)
-    const instanceIdRef = useRef(`use-reminders-${Date.now()}-${Math.random()}`)
+    const requestId = useRef(0)
 
-    const fetchReminders = useCallback(async () => {
+    const fetchReminders = useCallback(async (afterSave = false) => {
+        const id = ++requestId.current
         try {
             setIsLoading(true)
 
@@ -50,49 +52,35 @@ export function useReminders(): UseRemindersReturn {
 
             if (fetchError) throw fetchError
 
+            if (id !== requestId.current) return
+            setHasLoaded(true)
             setReminders(data || [])
             setError(null)
-        } catch (err) {
-            setError(err instanceof Error ? err.message : 'Failed to fetch reminders')
+        } catch {
+            if (id === requestId.current) setError(afterSave
+                ? 'Change saved, but reminders could not refresh. Refresh reminders; do not save again.'
+                : 'Care reminders could not be checked. Displayed reminders may be out of date. Please refresh.')
         } finally {
-            setHasFetchedOnce(true)
-            setIsLoading(false)
+            if (id === requestId.current) {
+                setIsLoading(false)
+            }
         }
     }, [])
 
     useEffect(() => {
         void fetchReminders()
-    }, [fetchReminders])
-
-    useEffect(() => {
-        const handler = (event: Event) => {
-            const customEvent = event as CustomEvent<{
-                instanceId?: string
-            }>
-
-            if (customEvent.detail?.instanceId === instanceIdRef.current) {
-                return
-            }
-
-            void fetchReminders()
-        }
-
+        const handler = () => { void fetchReminders(true) }
         window.addEventListener(REMINDERS_CHANGED_EVENT, handler)
         return () => {
             window.removeEventListener(REMINDERS_CHANGED_EVENT, handler)
+            requestId.current += 1
         }
     }, [fetchReminders])
 
-    const dispatchReminderChanged = useCallback(() => {
+    const dispatchReminderChanged = () => {
         window.dispatchEvent(new Event('ppp:data-changed'))
-        window.dispatchEvent(
-            new CustomEvent(REMINDERS_CHANGED_EVENT, {
-                detail: {
-                    instanceId: instanceIdRef.current,
-                },
-            })
-        )
-    }, [])
+        window.dispatchEvent(new Event(REMINDERS_CHANGED_EVENT))
+    }
 
     const getActiveScheduledReminder = useCallback((type: ReminderType) => {
         const scheduled = reminders
@@ -128,44 +116,19 @@ export function useReminders(): UseRemindersReturn {
             return
         }
 
-        const timestamp = new Date()
         const completedTimestamp = completedBy ? (completedAt || new Date()) : null
+        await apiFetch<ApiSuccessResponse>('/api/reminders/log', {
+            method: 'POST',
+            body: JSON.stringify({
+                type,
+                dueDate: formattedDueDate,
+                completedBy,
+                completedAt: completedTimestamp ? completedTimestamp.toISOString() : undefined,
+                notes: notes || undefined,
+            } satisfies ReminderLogRequest),
+        })
 
-        // Optimistic update
-        const optimisticReminder: Reminder = {
-            id: `temp-${Date.now()}`,
-            created_at: timestamp.toISOString(),
-            type,
-            due_date: formattedDueDate,
-            appointment_at: null,
-            scheduled_at: null,
-            scheduled_by: null,
-            completed_at: completedTimestamp ? completedTimestamp.toISOString() : null,
-            completed_by: completedBy || null,
-            notes: notes || null,
-        }
-
-        setReminders(prev => [optimisticReminder, ...prev])
-
-        try {
-            await apiFetch<ApiSuccessResponse>('/api/reminders/log', {
-                method: 'POST',
-                body: JSON.stringify({
-                    type,
-                    dueDate: formattedDueDate,
-                    completedBy,
-                    completedAt: completedTimestamp ? completedTimestamp.toISOString() : undefined,
-                    notes: notes || undefined,
-                } satisfies ReminderLogRequest),
-            })
-
-            await fetchReminders()
-            dispatchReminderChanged()
-        } catch (err) {
-            setReminders(prev => prev.filter(r => r.id !== optimisticReminder.id))
-            const errorMessage = err instanceof Error ? err.message : 'Failed to add reminder'
-            setError(errorMessage)
-        }
+        dispatchReminderChanged()
     }
 
     const scheduleReminder = async (type: ReminderType, appointmentAt: Date, scheduledBy: UserName, notes?: string) => {
@@ -173,77 +136,35 @@ export function useReminders(): UseRemindersReturn {
         const formattedDueDate = format(appointmentAt, 'yyyy-MM-dd')
         const scheduledAt = new Date()
 
-        const optimisticReminder: Reminder = {
-            id: existingReminder?.id ?? `temp-${Date.now()}`,
-            created_at: existingReminder?.created_at ?? scheduledAt.toISOString(),
-            type,
-            due_date: formattedDueDate,
-            appointment_at: appointmentAt.toISOString(),
-            scheduled_at: scheduledAt.toISOString(),
-            scheduled_by: scheduledBy,
-            completed_at: existingReminder?.completed_at ?? null,
-            completed_by: existingReminder?.completed_by ?? null,
-            notes: notes ?? existingReminder?.notes ?? null,
-        }
-
-        setReminders(prev => {
-            if (existingReminder) {
-                return prev.map(reminder => reminder.id === existingReminder.id ? optimisticReminder : reminder)
-            }
-
-            return [optimisticReminder, ...prev]
+        await apiFetch<ApiSuccessResponse>('/api/reminders/schedule', {
+            method: 'POST',
+            body: JSON.stringify({
+                id: existingReminder?.id,
+                type,
+                dueDate: formattedDueDate,
+                appointmentAt: appointmentAt.toISOString(),
+                scheduledBy,
+                scheduledAt: scheduledAt.toISOString(),
+                notes: notes ?? undefined,
+            } satisfies ReminderScheduleRequest),
         })
 
-        try {
-            await apiFetch<ApiSuccessResponse>('/api/reminders/schedule', {
-                method: 'POST',
-                body: JSON.stringify({
-                    id: existingReminder?.id,
-                    type,
-                    dueDate: formattedDueDate,
-                    appointmentAt: appointmentAt.toISOString(),
-                    scheduledBy,
-                    scheduledAt: scheduledAt.toISOString(),
-                    notes: notes ?? undefined,
-                } satisfies ReminderScheduleRequest),
-            })
-
-            await fetchReminders()
-            dispatchReminderChanged()
-        } catch (err) {
-            await fetchReminders()
-            const errorMessage = err instanceof Error ? err.message : 'Failed to schedule reminder'
-            setError(errorMessage)
-        }
+        dispatchReminderChanged()
     }
 
     const completeReminder = async (id: string, completedBy: UserName, completedAt?: Date) => {
         const timestamp = completedAt || new Date()
 
-        // Optimistic update
-        setReminders(prev => prev.map(r =>
-            r.id === id
-                ? { ...r, completed_at: timestamp.toISOString(), completed_by: completedBy }
-                : r
-        ))
+        await apiFetch<ApiSuccessResponse>('/api/reminders/complete', {
+            method: 'POST',
+            body: JSON.stringify({
+                id,
+                completedBy,
+                completedAt: timestamp.toISOString(),
+            } satisfies ReminderCompleteRequest),
+        })
 
-        try {
-            await apiFetch<ApiSuccessResponse>('/api/reminders/complete', {
-                method: 'POST',
-                body: JSON.stringify({
-                    id,
-                    completedBy,
-                    completedAt: timestamp.toISOString(),
-                } satisfies ReminderCompleteRequest),
-            })
-
-            await fetchReminders()
-            dispatchReminderChanged()
-        } catch (err) {
-            await fetchReminders() // Rollback by refetching
-            const errorMessage = err instanceof Error ? err.message : 'Failed to complete reminder'
-            setError(errorMessage)
-        }
+        dispatchReminderChanged()
     }
 
     const getLastCompletedDate = useCallback((type: ReminderType): Date | null => {
@@ -299,7 +220,7 @@ export function useReminders(): UseRemindersReturn {
     // Simparica is due on the 20th of each month
     const isSimparicaDue = (() => {
         // Avoid flash on first render before reminders are loaded.
-        if (!hasFetchedOnce) return false
+        if (!hasLoaded) return false
 
         const currentDay = now.getDate()
         const currentMonth = now.getMonth()
@@ -335,6 +256,7 @@ export function useReminders(): UseRemindersReturn {
         overdueReminders,
         upcomingReminders,
         isLoading,
+        hasLoaded,
         error,
         isSimparicaDue,
         isGroomingDue,

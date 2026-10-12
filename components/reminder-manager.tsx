@@ -1,10 +1,11 @@
 'use client'
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useUser } from '@/lib/user-context'
 import { useReadOnly } from '@/lib/read-only-context'
 import { useReminders } from '@/hooks/use-reminders'
 import type { ReminderType, UserName } from '@/lib/database.types'
+import { SaveFeedback } from '@/components/save-feedback'
 import { Button } from '@/components/ui/button'
 import { Calendar, Scissors, Stethoscope, Plus, Loader2, Check } from 'lucide-react'
 import { format, addDays, addWeeks, isBefore, parse } from 'date-fns'
@@ -29,10 +30,14 @@ export function ReminderManager() {
         activeGroomingReminder,
         activeVetReminder,
         isLoading,
+        hasLoaded,
         error,
         refetch,
     } = useReminders()
 
+    const saving = useRef(false)
+    const [saveError, setSaveError] = useState<string | null>(null)
+    const [saved, setSaved] = useState(false)
     const [expanded, setExpanded] = useState(false)
     const [logging, setLogging] = useState<ReminderType | null>(null)
     const [showAssignee, setShowAssignee] = useState<string | null>(null)
@@ -49,8 +54,11 @@ export function ReminderManager() {
         : null
 
     const handleLogReminder = async (type: ReminderType, assignedTo: UserName) => {
-        if (!user) return
+        if (!user || isReadOnly || isLoading || Boolean(error) || saving.current) return
 
+        saving.current = true
+        setSaveError(null)
+        setSaved(false)
         setLogging(type)
         try {
             const dateToLog = parse(selectedDate, 'yyyy-MM-dd', new Date())
@@ -58,62 +66,99 @@ export function ReminderManager() {
             completedAt.setHours(12, 0, 0, 0)
 
             await addReminder(type, dateToLog, undefined, assignedTo, completedAt)
-        } finally {
-            setLogging(null)
+
             setShowAssignee(null)
             setSelectedDate(format(new Date(), 'yyyy-MM-dd'))
+            setSaved(true)
+        } catch (err) {
+            setSaveError(err instanceof Error ? err.message : 'Unable to save. Please try again. Your input has been kept.')
+        } finally {
+            saving.current = false
+            setLogging(null)
         }
     }
 
     const handleScheduleGrooming = async (scheduledBy: UserName) => {
-        if (!user) return
+        if (!user || isReadOnly || isLoading || Boolean(error) || saving.current) return
 
+        saving.current = true
+        setSaveError(null)
+        setSaved(false)
         setLogging('grooming')
         try {
             const appointmentAt = parse(appointmentInput, "yyyy-MM-dd'T'HH:mm", new Date())
             await scheduleReminder('grooming', appointmentAt, scheduledBy)
-        } finally {
-            setLogging(null)
+
             setShowAssignee(null)
             setAppointmentInput(createDefaultAppointmentInput())
+            setSaved(true)
+        } catch (err) {
+            setSaveError(err instanceof Error ? err.message : 'Unable to save. Please try again. Your input has been kept.')
+        } finally {
+            saving.current = false
+            setLogging(null)
         }
     }
 
     const handleCompleteScheduledGrooming = async (completedBy: UserName) => {
-        if (!user || !activeGroomingReminder) return
+        if (!user || isReadOnly || isLoading || Boolean(error) || saving.current || !activeGroomingReminder) return
 
+        saving.current = true
+        setSaveError(null)
+        setSaved(false)
         setLogging('grooming')
         try {
             await completeReminder(activeGroomingReminder.id, completedBy)
-        } finally {
-            setLogging(null)
+
             setShowAssignee(null)
+            setSaved(true)
+        } catch (err) {
+            setSaveError(err instanceof Error ? err.message : 'Unable to save. Please try again. Your input has been kept.')
+        } finally {
+            saving.current = false
+            setLogging(null)
         }
     }
 
     const handleScheduleVet = async (scheduledBy: UserName) => {
-        if (!user) return
+        if (!user || isReadOnly || isLoading || Boolean(error) || saving.current) return
 
+        saving.current = true
+        setSaveError(null)
+        setSaved(false)
         setLogging('vet')
         try {
             const appointmentAt = parse(appointmentInput, "yyyy-MM-dd'T'HH:mm", new Date())
             await scheduleReminder('vet', appointmentAt, scheduledBy)
-        } finally {
-            setLogging(null)
+
             setShowAssignee(null)
             setAppointmentInput(createDefaultAppointmentInput())
+            setSaved(true)
+        } catch (err) {
+            setSaveError(err instanceof Error ? err.message : 'Unable to save. Please try again. Your input has been kept.')
+        } finally {
+            saving.current = false
+            setLogging(null)
         }
     }
 
     const handleCompleteScheduledVet = async (completedBy: UserName) => {
-        if (!user || !activeVetReminder) return
+        if (!user || isReadOnly || isLoading || Boolean(error) || saving.current || !activeVetReminder) return
 
+        saving.current = true
+        setSaveError(null)
+        setSaved(false)
         setLogging('vet')
         try {
             await completeReminder(activeVetReminder.id, completedBy)
-        } finally {
-            setLogging(null)
+
             setShowAssignee(null)
+            setSaved(true)
+        } catch (err) {
+            setSaveError(err instanceof Error ? err.message : 'Unable to save. Please try again. Your input has been kept.')
+        } finally {
+            saving.current = false
+            setLogging(null)
         }
     }
 
@@ -136,7 +181,7 @@ export function ReminderManager() {
     }
 
     const groomingStatusCopy = (() => {
-        if (isLoading) return 'Loading...'
+        if (isLoading && !hasLoaded) return 'Loading...'
         if (groomingAppointment) {
             const appointmentLabel = format(groomingAppointment, "MMM d, yyyy 'at' h:mm a")
             const isPastAppointment = isBefore(groomingAppointment, new Date())
@@ -151,7 +196,7 @@ export function ReminderManager() {
     })()
 
     const vetStatusCopy = (() => {
-        if (isLoading) return 'Loading...'
+        if (isLoading && !hasLoaded) return 'Loading...'
         if (vetAppointment) {
             const appointmentLabel = format(vetAppointment, "MMM d, yyyy 'at' h:mm a")
             const isPastAppointment = isBefore(vetAppointment, new Date())
@@ -170,7 +215,7 @@ export function ReminderManager() {
             <button
                 aria-expanded={expanded}
                 onClick={() => setExpanded(!expanded)}
-                className="w-full flex items-center justify-between text-sm font-semibold text-muted-foreground uppercase tracking-wide hover:text-foreground transition-colors"
+                className="min-h-11 w-full flex flex-wrap items-center justify-between gap-3 text-sm font-semibold text-muted-foreground uppercase tracking-wide hover:text-foreground transition-colors"
             >
                 <span>📅 Care Schedule</span>
                 <span className="text-xs lowercase font-normal">
@@ -180,14 +225,17 @@ export function ReminderManager() {
 
             {error ? (
                 <div role="alert" className="rounded-xl border border-destructive/30 bg-destructive/10 p-4 text-sm">
-                    <p>Care reminders could not be checked or saved. Please try again.</p>
+                    <p>{error}</p>
                     <Button variant="outline" className="mt-2" disabled={isLoading} onClick={() => void refetch()}>Retry reminders</Button>
                 </div>
-            ) : expanded && (
+            ) : null}
+            <SaveFeedback error={saveError} saved={saved} />
+            {logging ? <p role="status" className="text-sm text-muted-foreground">Saving reminder...</p> : isLoading && hasLoaded ? <p role="status" className="text-sm text-muted-foreground">Refreshing reminders...</p> : null}
+            {expanded && (hasLoaded || !error) && (
                 <div className="space-y-2">
                     {/* Grooming */}
                     <div className="rounded-xl border border-border bg-card p-4">
-                        <div className="flex items-center justify-between">
+                        <div className="flex flex-wrap items-center justify-between gap-3">
                             <div className="flex items-center gap-3">
                                 <div className="p-2 rounded-lg bg-blue-500/10 text-blue-500">
                                     <Scissors className="w-5 h-5" />
@@ -211,20 +259,23 @@ export function ReminderManager() {
                             {isReadOnly ? null : showAssignee === 'grooming-schedule' ? (
                                 <div className="flex flex-col gap-2 items-end">
                                     <input
+                                        aria-label="Appointment date and time"
+                                        disabled={Boolean(logging) || isLoading || Boolean(error)}
                                         type="datetime-local"
                                         value={appointmentInput}
                                         onChange={(e) => setAppointmentInput(e.target.value)}
-                                        className="h-7 px-2 text-xs border rounded bg-background"
+                                        className="h-11 max-w-full px-2 text-base border rounded bg-background"
                                     />
-                                    <div className="flex gap-1">
+                                    <div className="flex flex-wrap gap-2">
                                         {USERS.map(u => (
                                             <Button
                                                 key={u}
+                                                aria-label={u}
                                                 size="sm"
                                                 variant="outline"
                                                 onClick={() => handleScheduleGrooming(u)}
-                                                disabled={logging === 'grooming'}
-                                                className="text-xs px-2 py-1 h-7"
+                                                disabled={Boolean(logging) || isLoading || Boolean(error)}
+                                                className="text-sm px-3 min-h-11 min-w-11"
                                             >
                                                 {logging === 'grooming' ? (
                                                     <Loader2 className="w-3 h-3 animate-spin" />
@@ -236,15 +287,16 @@ export function ReminderManager() {
                                     </div>
                                 </div>
                             ) : showAssignee === 'grooming-complete' ? (
-                                <div className="flex gap-1">
+                                <div className="flex flex-wrap gap-2">
                                     {USERS.map(u => (
                                         <Button
                                             key={u}
+                                            aria-label={u}
                                             size="sm"
                                             variant="outline"
                                             onClick={() => handleCompleteScheduledGrooming(u)}
-                                            disabled={logging === 'grooming'}
-                                            className="text-xs px-2 py-1 h-7"
+                                            disabled={Boolean(logging) || isLoading || Boolean(error)}
+                                            className="text-sm px-3 min-h-11 min-w-11"
                                         >
                                             {logging === 'grooming' ? (
                                                 <Loader2 className="w-3 h-3 animate-spin" />
@@ -257,21 +309,24 @@ export function ReminderManager() {
                             ) : showAssignee === 'grooming-log' ? (
                                 <div className="flex flex-col gap-2 items-end">
                                     <input
+                                        aria-label="Completed date"
+                                        disabled={Boolean(logging) || isLoading || Boolean(error)}
                                         type="date"
                                         value={selectedDate}
                                         onChange={(e) => setSelectedDate(e.target.value)}
-                                        className="h-7 px-2 text-xs border rounded bg-background"
+                                        className="h-11 max-w-full px-2 text-base border rounded bg-background"
                                         max={format(new Date(), 'yyyy-MM-dd')}
                                     />
-                                    <div className="flex gap-1">
+                                    <div className="flex flex-wrap gap-2">
                                         {USERS.map(u => (
                                             <Button
                                                 key={u}
+                                                aria-label={u}
                                                 size="sm"
                                                 variant="outline"
                                                 onClick={() => handleLogReminder('grooming', u)}
-                                                disabled={logging === 'grooming'}
-                                                className="text-xs px-2 py-1 h-7"
+                                                disabled={Boolean(logging) || isLoading || Boolean(error)}
+                                                className="text-sm px-3 min-h-11 min-w-11"
                                             >
                                                 {logging === 'grooming' ? (
                                                     <Loader2 className="w-3 h-3 animate-spin" />
@@ -288,7 +343,7 @@ export function ReminderManager() {
                                         size="sm"
                                         variant="secondary"
                                         onClick={openGroomingSchedule}
-                                        disabled={isLoading}
+                                        disabled={Boolean(logging) || isLoading || Boolean(error)}
                                     >
                                         <Calendar className="w-4 h-4 mr-1" />
                                         {groomingAppointment ? 'Reschedule' : 'Schedule'}
@@ -297,7 +352,7 @@ export function ReminderManager() {
                                         size="sm"
                                         variant="ghost"
                                         onClick={() => setShowAssignee(groomingAppointment ? 'grooming-complete' : 'grooming-log')}
-                                        disabled={isLoading}
+                                        disabled={Boolean(logging) || isLoading || Boolean(error)}
                                     >
                                         {groomingAppointment ? (
                                             <>
@@ -318,7 +373,7 @@ export function ReminderManager() {
 
                     {/* Vet */}
                     <div className="rounded-xl border border-border bg-card p-4">
-                        <div className="flex items-center justify-between">
+                        <div className="flex flex-wrap items-center justify-between gap-3">
                             <div className="flex items-center gap-3">
                                 <div className="p-2 rounded-lg bg-purple-500/10 text-purple-500">
                                     <Stethoscope className="w-5 h-5" />
@@ -337,20 +392,23 @@ export function ReminderManager() {
                             {isReadOnly ? null : showAssignee === 'vet-schedule' ? (
                                 <div className="flex flex-col gap-2 items-end">
                                     <input
+                                        aria-label="Appointment date and time"
+                                        disabled={Boolean(logging) || isLoading || Boolean(error)}
                                         type="datetime-local"
                                         value={appointmentInput}
                                         onChange={(e) => setAppointmentInput(e.target.value)}
-                                        className="h-7 px-2 text-xs border rounded bg-background"
+                                        className="h-11 max-w-full px-2 text-base border rounded bg-background"
                                     />
-                                    <div className="flex gap-1">
+                                    <div className="flex flex-wrap gap-2">
                                         {USERS.map(u => (
                                             <Button
                                                 key={u}
+                                                aria-label={u}
                                                 size="sm"
                                                 variant="outline"
                                                 onClick={() => handleScheduleVet(u)}
-                                                disabled={logging === 'vet'}
-                                                className="text-xs px-2 py-1 h-7"
+                                                disabled={Boolean(logging) || isLoading || Boolean(error)}
+                                                className="text-sm px-3 min-h-11 min-w-11"
                                             >
                                                 {logging === 'vet' ? (
                                                     <Loader2 className="w-3 h-3 animate-spin" />
@@ -362,15 +420,16 @@ export function ReminderManager() {
                                     </div>
                                 </div>
                             ) : showAssignee === 'vet-complete' ? (
-                                <div className="flex gap-1">
+                                <div className="flex flex-wrap gap-2">
                                     {USERS.map(u => (
                                         <Button
                                             key={u}
+                                            aria-label={u}
                                             size="sm"
                                             variant="outline"
                                             onClick={() => handleCompleteScheduledVet(u)}
-                                            disabled={logging === 'vet'}
-                                            className="text-xs px-2 py-1 h-7"
+                                            disabled={Boolean(logging) || isLoading || Boolean(error)}
+                                            className="text-sm px-3 min-h-11 min-w-11"
                                         >
                                             {logging === 'vet' ? (
                                                 <Loader2 className="w-3 h-3 animate-spin" />
@@ -383,21 +442,24 @@ export function ReminderManager() {
                             ) : showAssignee === 'vet-log' ? (
                                 <div className="flex flex-col gap-2 items-end">
                                     <input
+                                        aria-label="Completed date"
+                                        disabled={Boolean(logging) || isLoading || Boolean(error)}
                                         type="date"
                                         value={selectedDate}
                                         onChange={(e) => setSelectedDate(e.target.value)}
-                                        className="h-7 px-2 text-xs border rounded bg-background"
+                                        className="h-11 max-w-full px-2 text-base border rounded bg-background"
                                         max={format(new Date(), 'yyyy-MM-dd')}
                                     />
-                                    <div className="flex gap-1">
+                                    <div className="flex flex-wrap gap-2">
                                         {USERS.map(u => (
                                             <Button
                                                 key={u}
+                                                aria-label={u}
                                                 size="sm"
                                                 variant="outline"
                                                 onClick={() => handleLogReminder('vet', u)}
-                                                disabled={logging === 'vet'}
-                                                className="text-xs px-2 py-1 h-7"
+                                                disabled={Boolean(logging) || isLoading || Boolean(error)}
+                                                className="text-sm px-3 min-h-11 min-w-11"
                                             >
                                                 {logging === 'vet' ? (
                                                     <Loader2 className="w-3 h-3 animate-spin" />
@@ -414,7 +476,7 @@ export function ReminderManager() {
                                         size="sm"
                                         variant="secondary"
                                         onClick={openVetSchedule}
-                                        disabled={isLoading}
+                                        disabled={Boolean(logging) || isLoading || Boolean(error)}
                                     >
                                         <Calendar className="w-4 h-4 mr-1" />
                                         {vetAppointment ? 'Reschedule' : 'Schedule'}
@@ -423,7 +485,7 @@ export function ReminderManager() {
                                         size="sm"
                                         variant="ghost"
                                         onClick={() => setShowAssignee(vetAppointment ? 'vet-complete' : 'vet-log')}
-                                        disabled={isLoading}
+                                        disabled={Boolean(logging) || isLoading || Boolean(error)}
                                     >
                                         {vetAppointment ? (
                                             <>

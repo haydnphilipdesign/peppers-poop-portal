@@ -66,7 +66,7 @@ export function LastWalkCard({ walk, isLoading = false, error, isRefreshing = fa
                 )}
                 <div className="flex min-h-11 items-center justify-between gap-2">
                     <p role={error ? 'alert' : 'status'} className="text-sm text-amber-900 dark:text-amber-200">
-                        {error ? (walk ? 'Could not refresh. Showing saved data.' : 'Could not load care data.') : isRefreshing ? 'Updating care data...' : isDue ? '🐾 Pepper may be due for a walk.' : ''}
+                        {error ? (error.startsWith('Change saved') ? error : walk ? 'Could not refresh. Showing previously loaded data.' : 'Could not load care data.') : isRefreshing ? 'Updating care data...' : isDue ? '🐾 Pepper may be due for a walk.' : ''}
                     </p>
                     {error && onRetry ? <Button variant="outline" onClick={onRetry} disabled={isLoading || isRefreshing}>Retry</Button> : null}
                 </div>

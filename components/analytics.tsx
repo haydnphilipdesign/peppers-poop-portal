@@ -1,6 +1,7 @@
 'use client'
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
 import { useAnalytics } from '@/hooks/use-history'
 import type { UserName } from '@/lib/database.types'
 
@@ -17,7 +18,7 @@ const userColors: Record<UserName, string> = {
 }
 
 export function Analytics() {
-    const { analytics, isLoading, error } = useAnalytics()
+    const { analytics, isLoading, error, refetch } = useAnalytics()
 
     if (isLoading) {
         return (
@@ -30,8 +31,9 @@ export function Analytics() {
 
     if (error) {
         return (
-            <div className="p-4 rounded-xl bg-destructive/10 text-destructive text-sm border border-destructive/20">
-                ⚠️ {error}
+            <div role="alert" className="p-4 rounded-xl bg-destructive/10 text-destructive text-sm border border-destructive/20">
+                <p>{error}</p>
+                <Button variant="outline" className="mt-2 min-h-11" onClick={() => void refetch()}>Refresh analytics</Button>
             </div>
         )
     }

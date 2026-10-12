@@ -36,6 +36,11 @@ export async function apiFetch<TResponse>(
         ? (payload as { error: string }).error
         : "Request failed";
 
+    const isWrite = init?.method && !['GET', 'HEAD'].includes(init.method.toUpperCase());
+    if (response.status === 401 && isWrite && String(input).startsWith('/api/') && !String(input).startsWith('/api/auth/')) {
+      if (typeof window !== 'undefined') window.dispatchEvent(new Event('ppp:write-access-expired'));
+      throw new ApiError('Editing has locked. Unlock editing, then try your entry again. Your input has been kept.', 401);
+    }
     throw new ApiError(message, response.status);
   }
 
