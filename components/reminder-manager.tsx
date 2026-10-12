@@ -211,20 +211,18 @@ export function ReminderManager() {
     })()
 
     return (
-        <section className="space-y-3">
+        <section className="rounded-xl border border-border/70 bg-card">
             <button
                 aria-expanded={expanded}
                 onClick={() => setExpanded(!expanded)}
-                className="min-h-11 w-full flex flex-wrap items-center justify-between gap-3 text-sm font-semibold text-muted-foreground uppercase tracking-wide hover:text-foreground transition-colors"
+                className="min-h-11 w-full px-4 py-3 text-left font-medium"
             >
-                <span>📅 Care Schedule</span>
-                <span className="text-sm lowercase font-normal">
-                    {expanded ? 'collapse' : 'expand'}
-                </span>
+                <span aria-hidden="true">{expanded ? '▼' : '▶'} </span>
+                <span>Care Schedule</span>
             </button>
 
             {error ? (
-                <div role="alert" className="rounded-xl border border-destructive/30 bg-destructive/10 p-4 text-sm">
+                <div role="alert" className="mx-3 mb-3 rounded-xl border border-destructive/30 bg-destructive/10 p-4 text-sm">
                     <p>{error}</p>
                     <Button variant="outline" className="mt-2" disabled={isLoading} onClick={() => void refetch()}>Retry reminders</Button>
                 </div>
@@ -232,7 +230,7 @@ export function ReminderManager() {
             <SaveFeedback error={saveError} saved={saved} />
             {logging ? <p role="status" className="text-sm text-muted-foreground">Saving reminder...</p> : isLoading && hasLoaded ? <p role="status" className="text-sm text-muted-foreground">Refreshing reminders...</p> : null}
             {expanded && (hasLoaded || !error) && (
-                <div className="space-y-2">
+                <div className="space-y-2 px-3 pb-3">
                     {/* Grooming */}
                     <div className="rounded-xl border border-border bg-card p-4">
                         <div className="flex flex-wrap items-center justify-between gap-3">

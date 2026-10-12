@@ -49,7 +49,6 @@ export function LastWalkCard({ walk, isLoading = false, error, isRefreshing = fa
                         {walk?.hasPoop ? <span role="img" aria-label="Poop">💩</span> : null}
                         {walk?.hasPee ? <span role="img" aria-label="Pee">💦</span> : null}
                         {walk && !walk.hasPoop && !walk.hasPee ? <span className="text-sm">Neither</span> : null}
-                        {walk?.provenance === 'legacy_estimate' ? <span className="text-xs">Historical estimate</span> : null}
                     </div>
                 </div>
                 {isLoading ? (

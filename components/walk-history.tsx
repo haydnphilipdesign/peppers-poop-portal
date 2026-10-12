@@ -277,7 +277,6 @@ export function WalkHistory({
                                         {walk.hasPoop && <span title="Poop">💩</span>}
                                         {walk.hasPee && <span title="Pee">💦</span>}
                                         {!walk.hasPoop && !walk.hasPee && <span className="text-sm">Neither</span>}
-                                        {walk.provenance === 'legacy_estimate' && <span className="text-xs text-muted-foreground">Historical estimate</span>}
                                     </div>
 
                                     {/* Keep editing controls visible for touch and keyboard users. */}
