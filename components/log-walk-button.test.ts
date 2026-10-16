@@ -23,7 +23,7 @@ describe('Log Walk confirmation and Undo', () => {
         React.createElement(LogWalkButton, { userName: 'Debbie', onLogWalk: vi.fn().mockResolvedValue(saved), hint: 'Logging as Debbie', ...props })
     ))
     const log = async (outcome: string) => {
-        await act(async () => button('🦮Log Walk').click())
+        await act(async () => button('Log Walk').click())
         await act(async () => button(outcome).click())
     }
     beforeEach(() => {
@@ -83,7 +83,7 @@ describe('Log Walk confirmation and Undo', () => {
         await render({ onUndoWalk: vi.fn() })
         await log('💩Poop')
         expect(button('Undo')).toBeDefined()
-        await act(async () => button('🦮Log Walk').click())
+        await act(async () => button('Log Walk').click())
         expect(() => button('Undo')).toThrow()
         expect(container.textContent).toContain('Logging as Debbie')
     })

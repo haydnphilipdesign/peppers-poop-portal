@@ -1,6 +1,7 @@
 'use client'
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { PepperFace } from '@/components/pepper-face'
 import { Button } from '@/components/ui/button'
 import { useAnalytics } from '@/hooks/use-history'
 import type { UserName } from '@/lib/database.types'
@@ -63,7 +64,7 @@ export function Analytics() {
                 </Card>
                 <Card className="bg-gradient-to-br from-green-500/10 to-emerald-500/10 border-green-500/20">
                     <CardContent className="p-4 text-center">
-                        <div className="text-3xl mb-1">🦮</div>
+                        <PepperFace size={36} className="mx-auto mb-1 block" />
                         <div className="text-2xl font-bold text-green-600 dark:text-green-400">{analytics.averageWalksPerDay.toFixed(1)}</div>
                         <div className="text-xs text-muted-foreground">Avg Walks/Day</div>
                     </CardContent>
@@ -151,7 +152,7 @@ export function Analytics() {
                                             <span className="font-medium">{name}</span>
                                         </div>
                                         <div className="flex items-center gap-3 text-sm text-muted-foreground">
-                                            <span>🦮 {stats.walks}</span>
+                                            <span><PepperFace size={18} /> {stats.walks}</span>
                                             <span>💩 {stats.poops}</span>
                                             <span>💦 {stats.pees}</span>
                                         </div>

@@ -1,6 +1,7 @@
 'use client'
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { PepperFace } from '@/components/pepper-face'
 import type { UserName } from '@/lib/database.types'
 import type { MonthlyChampion } from '@/lib/domain/metrics'
 import { format } from 'date-fns'
@@ -80,7 +81,7 @@ export function Leaderboard({ monthlyPoints, champion, championMonth }: Leaderbo
                     )
                 })}
                 <p className="text-xs text-center text-muted-foreground pt-2">
-                    🦮 Every walk, including Neither +5 · 🧸 Activities +5 · 🗓️ Grooming +5 · ✅ Reminders +5
+                    <PepperFace size={16} /> Every walk, including Neither +5 · 🧸 Activities +5 · 🗓️ Grooming +5 · ✅ Reminders +5
                 </p>
             </CardContent>
         </Card>

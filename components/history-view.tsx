@@ -8,6 +8,7 @@ import { WalkRow } from './walk-row'
 import { walkOutcomeLabel } from '@/lib/domain/metrics'
 import { SaveFeedback } from '@/components/save-feedback'
 import { Button } from '@/components/ui/button'
+import { PepperFace } from '@/components/pepper-face'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { useHistory } from '@/hooks/use-history'
 import { useReadOnly } from '@/lib/read-only-context'
@@ -343,7 +344,7 @@ export function HistoryView() {
             {isRefreshing ? <p role="status" className="text-sm text-muted-foreground">Refreshing history...</p> : null}
             {isLoading && (
                 <div className="py-8 text-center">
-                    <div className="mb-2 text-4xl animate-spin">🐕</div>
+                    <PepperFace size={44} className="mx-auto mb-2 block motion-safe:animate-spin" />
                     <p className="text-muted-foreground">Loading day history...</p>
                 </div>
             )}
@@ -365,7 +366,7 @@ export function HistoryView() {
                         <CardContent className="space-y-4">
                             <div className="flex flex-wrap items-center gap-3 text-sm">
                                 <div className="flex items-center gap-1.5 rounded-lg bg-green-500/10 px-3 py-2 text-green-600 dark:text-green-400">
-                                    <span>🦮</span>
+                                    <PepperFace size={20} />
                                     <span className="font-semibold">{dayStats.walksCount}</span>
                                     <span className="text-foreground">walks</span>
                                 </div>
@@ -387,7 +388,8 @@ export function HistoryView() {
                         <CardHeader className="pb-2">
                             <div className="flex items-center justify-between gap-3">
                                 <CardTitle className="text-lg font-semibold flex items-center gap-2">
-                                    🦮 Walks
+                                    <PepperFace size={24} />
+                                    Walks
                                 </CardTitle>
                                 {!isReadOnly && (
                                     <Button

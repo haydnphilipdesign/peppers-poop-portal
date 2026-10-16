@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { PepperFace } from '@/components/pepper-face'
 import { SaveFeedback } from '@/components/save-feedback'
 import { Button } from '@/components/ui/button'
 import {
@@ -164,7 +165,7 @@ export function LogWalkButton({ userName, onLogWalk, onUndoWalk, disabled = fals
                     className="w-full h-auto min-h-24 px-4 py-4 text-2xl font-bold bg-gradient-to-br from-amber-700 to-orange-700 hover:from-amber-600 hover:to-orange-600 text-amber-50 shadow-lg transition-colors rounded-2xl border border-amber-300/30"
                 >
                     <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1">
-                        <span aria-hidden="true" className="text-4xl">🦮</span>
+                        <PepperFace size={48} className="drop-shadow" />
                         <span className="drop-shadow">Log Walk</span>
                     </div>
                 </Button>
@@ -187,8 +188,9 @@ export function LogWalkButton({ userName, onLogWalk, onUndoWalk, disabled = fals
             <DrawerContent className="overflow-y-auto bg-background pb-[max(0.5rem,env(safe-area-inset-bottom))]">
                 <div className="mx-auto w-full max-w-sm">
                     <DrawerHeader>
-                        <DrawerTitle className="text-2xl text-center">
-                            🦮 Log Walk
+                        <DrawerTitle className="flex items-center justify-center gap-2 text-2xl">
+                            <PepperFace size={32} />
+                            Log Walk
                         </DrawerTitle>
                         <DrawerDescription className="text-center">
                             {showTimePicker ? 'Select time, then what Pepper did' : 'What did Pepper do on this walk?'}

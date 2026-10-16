@@ -1,5 +1,7 @@
 'use client'
 
+import { PepperFace } from '@/components/pepper-face'
+
 interface DailyScoreboardProps {
     poopCount: number
     peeCount: number
@@ -13,7 +15,7 @@ interface DailyScoreboardProps {
 export function DailyScoreboard({ poopCount, peeCount, walksCount, poopGoal = 3, walksGoal = 5, isLoading = false, unavailable = false }: DailyScoreboardProps) {
     const hasCounts = !isLoading && !unavailable
     const totals = [
-        { icon: '🦮', label: 'Walks', value: walksCount, goal: walksGoal },
+        { icon: <PepperFace size={18} />, label: 'Walks', value: walksCount, goal: walksGoal },
         { icon: '💩', label: 'Poops', value: poopCount, goal: poopGoal },
         { icon: '💦', label: 'Pees', value: peeCount },
     ]

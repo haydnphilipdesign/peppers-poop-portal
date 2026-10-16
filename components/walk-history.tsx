@@ -2,6 +2,7 @@
 
 import { useRef, useState } from 'react'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
+import { PepperFace } from '@/components/pepper-face'
 import { WalkRow } from './walk-row'
 import { DeleteConfirmation, isUnchangedWalk } from './delete-confirmation'
 import { walkOutcomeLabel } from '@/lib/domain/metrics'
@@ -122,7 +123,7 @@ export function WalkHistory({
         return (
             <Card className="min-h-44" aria-busy={isLoading}>
                 <CardHeader className="pb-2">
-                    <h2 className="font-sans text-base font-semibold"><span aria-hidden="true">🦮</span> Today&apos;s Walk Log</h2>
+                    <h2 className="font-sans text-base font-semibold"><PepperFace size={20} /> Today&apos;s Walk Log</h2>
                 </CardHeader>
                 <CardContent>
                     {deleteConfirmation}
@@ -145,7 +146,7 @@ export function WalkHistory({
     return (
         <Card className="min-h-44">
             <CardHeader className="pb-2">
-                <h2 className="font-sans text-base font-semibold"><span aria-hidden="true">🦮</span> Today&apos;s Walk Log</h2>
+                <h2 className="font-sans text-base font-semibold"><PepperFace size={20} /> Today&apos;s Walk Log</h2>
             </CardHeader>
             <CardContent className="space-y-2">
                 {deleteConfirmation}
